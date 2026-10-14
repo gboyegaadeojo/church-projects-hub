@@ -1,75 +1,396 @@
 @import "tailwindcss";
 
 /*
-  Design tokens — starting values from docs/REQUIREMENTS.md section 9.
-  Stage 1 (design foundation) completes these: full colour roles, elevation, focus rings, motion.
-  Components use these tokens only; no hardcoded values.
+  Design tokens — docs/REQUIREMENTS.md sections 9, 10, 12 and 13.
+  Components use these tokens only; no hardcoded colours, sizes or durations.
+
+  Layers:
+  1. Palette blocks (light / dark) hold the raw colour, shadow and overlay values per theme.
+     They match on any element with data-theme, so a subtree can render in the other theme
+     (used by /dev/components to show both themes side by side).
+  2. `@theme inline` maps them to Tailwind utilities (bg-card, text-ink-2, border-line …).
+     `inline` makes utilities reference the palette variables directly, so nested themes work.
+  3. Non-colour tokens (type, spacing, radii, motion, focus, touch) live in `@theme` and :root.
+
+  The theme itself is set on <html data-theme="light|dark"> by the inline script in index.html
+  before first paint (no flash). src/theme/theme.ts owns the user's Light / Dark / System choice.
+
+  Every text/background pair is checked for contrast by src/theme/contrast.test.ts.
 */
+
+/* ---------- Palette: light ---------- */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Surfaces (section 9 roles) */
+  --surface-primary: #ffffff;
+  --surface-secondary: #f4f4f6;
+  --surface-elevated: #ffffff;
+  /* Usage: light grey page with white cards */
+  --surface-page: var(--surface-secondary);
+  --surface-card: var(--surface-primary);
+  --surface-hover: #ebebef;
+  --surface-pressed: #e1e1e7;
+  --surface-disabled: #ececf0;
+
+  /* Text */
+  --ink-primary: #1c1c1e;
+  --ink-secondary: #55555f;
+  --ink-disabled: #66666f;
+  --ink-on-accent: #ffffff;
+  --ink-on-danger: #ffffff;
+
+  /* Borders: decorative and component boundaries (≥ 3:1) */
+  --line: #e3e3e8;
+  --line-strong: #85858f;
+
+  /* Project accent (default; a project overrides --accent on its container) */
+  --accent: #2563eb;
+  --accent-hover: #1d4fd8;
+  --accent-pressed: #1a43b8;
+  --accent-soft: #e8efff;
+  --accent-ink: #1d4fd8;
+
+  /* Error / destructive */
+  --danger: #c62828;
+  --danger-hover: #ab1f1f;
+  --danger-pressed: #921a1a;
+  --danger-soft: #fdecec;
+  --danger-ink: #b42318;
+  --danger-line: #f3a6a0;
+
+  /* Success */
+  --success-soft: #e7f6ec;
+  --success-ink: #157a3c;
+  --success-line: #9bd3ae;
+
+  /* Warning */
+  --warning-soft: #fff4e0;
+  --warning-ink: #9a4a00;
+  --warning-line: #f5c27a;
+
+  /* Info */
+  --info-soft: var(--accent-soft);
+  --info-ink: var(--accent-ink);
+  --info-line: #a9c1fb;
+
+  /* Task status (section 9): overdue = red, due soon = amber, done = green */
+  --overdue-soft: var(--danger-soft);
+  --overdue-ink: var(--danger-ink);
+  --overdue-line: var(--danger-line);
+  --due-soon-soft: var(--warning-soft);
+  --due-soon-ink: var(--warning-ink);
+  --due-soon-line: var(--warning-line);
+  --done-soft: var(--success-soft);
+  --done-ink: var(--success-ink);
+  --done-line: var(--success-line);
+
+  /* Focus, overlay, elevation, skeleton */
+  --focus-ring: #2563eb;
+  --overlay: rgb(17 17 22 / 0.45);
+  --shadow-1: 0 1px 2px rgb(16 16 20 / 0.06), 0 1px 3px rgb(16 16 20 / 0.08);
+  --shadow-2: 0 4px 12px rgb(16 16 20 / 0.1), 0 1px 3px rgb(16 16 20 / 0.06);
+  --shadow-3: 0 16px 40px rgb(16 16 20 / 0.18), 0 2px 6px rgb(16 16 20 / 0.08);
+  --skeleton: #e6e6eb;
+  --skeleton-shine: rgb(255 255 255 / 0.6);
+}
+
+/* ---------- Palette: dark (designed separately, not an inversion) ---------- */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-primary: #111113;
+  --surface-secondary: #1b1b1e;
+  --surface-elevated: #26262a;
+  /* Usage: near-black page; cards and panels step up in lightness instead of relying on shadow */
+  --surface-page: var(--surface-primary);
+  --surface-card: var(--surface-secondary);
+  --surface-hover: #2c2c31;
+  --surface-pressed: #34343a;
+  --surface-disabled: #232327;
+
+  --ink-primary: #f2f2f5;
+  --ink-secondary: #a8a8b3;
+  --ink-disabled: #8c8c96;
+  --ink-on-accent: #0b1530;
+  --ink-on-danger: #ffffff;
+
+  --line: #2e2e34;
+  --line-strong: #7a7a85;
+
+  /* Accent lightened and softened for dark surfaces */
+  --accent: #6b9bff;
+  --accent-hover: #85adff;
+  --accent-pressed: #5b8af0;
+  --accent-soft: #18233d;
+  --accent-ink: #8fb4ff;
+
+  --danger: #c9372c;
+  --danger-hover: #b32e24;
+  --danger-pressed: #9c271f;
+  --danger-soft: #3a1715;
+  --danger-ink: #ff8a80;
+  --danger-line: #7a2e28;
+
+  --success-soft: #10291a;
+  --success-ink: #5fd68a;
+  --success-line: #2f6b45;
+
+  --warning-soft: #33240b;
+  --warning-ink: #ffb547;
+  --warning-line: #7a5418;
+
+  --info-soft: var(--accent-soft);
+  --info-ink: var(--accent-ink);
+  --info-line: #34508f;
+
+  --overdue-soft: var(--danger-soft);
+  --overdue-ink: var(--danger-ink);
+  --overdue-line: var(--danger-line);
+  --due-soon-soft: var(--warning-soft);
+  --due-soon-ink: var(--warning-ink);
+  --due-soon-line: var(--warning-line);
+  --done-soft: var(--success-soft);
+  --done-ink: var(--success-ink);
+  --done-line: var(--success-line);
+
+  --focus-ring: #8fb4ff;
+  --overlay: rgb(0 0 0 / 0.6);
+  /* Shadows read poorly on dark; pair a deep shadow with a faint top edge */
+  --shadow-1: 0 0 0 1px rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-2: 0 0 0 1px rgb(255 255 255 / 0.06), 0 6px 16px rgb(0 0 0 / 0.5);
+  --shadow-3: 0 0 0 1px rgb(255 255 255 / 0.08), 0 20px 48px rgb(0 0 0 / 0.6);
+  --skeleton: #26262a;
+  --skeleton-shine: rgb(255 255 255 / 0.06);
+}
+
+/* ---------- Tailwind mapping (colours, shadows) ---------- */
+@theme inline {
+  /* Drop Tailwind's default palette so only these tokens exist as colour utilities */
+  --color-*: initial;
+  --color-page: var(--surface-page);
+  --color-card: var(--surface-card);
+  --color-elevated: var(--surface-elevated);
+  --color-hover: var(--surface-hover);
+  --color-pressed: var(--surface-pressed);
+  --color-disabled: var(--surface-disabled);
+
+  --color-ink: var(--ink-primary);
+  --color-ink-2: var(--ink-secondary);
+  --color-ink-disabled: var(--ink-disabled);
+  --color-on-accent: var(--ink-on-accent);
+  --color-on-danger: var(--ink-on-danger);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-pressed: var(--accent-pressed);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-danger-pressed: var(--danger-pressed);
+  --color-danger-soft: var(--danger-soft);
+  --color-danger-ink: var(--danger-ink);
+  --color-danger-line: var(--danger-line);
+
+  --color-success-soft: var(--success-soft);
+  --color-success-ink: var(--success-ink);
+  --color-success-line: var(--success-line);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-ink: var(--warning-ink);
+  --color-warning-line: var(--warning-line);
+  --color-info-soft: var(--info-soft);
+  --color-info-ink: var(--info-ink);
+  --color-info-line: var(--info-line);
+
+  --color-overdue-soft: var(--overdue-soft);
+  --color-overdue-ink: var(--overdue-ink);
+  --color-overdue-line: var(--overdue-line);
+  --color-due-soon-soft: var(--due-soon-soft);
+  --color-due-soon-ink: var(--due-soon-ink);
+  --color-due-soon-line: var(--due-soon-line);
+  --color-done-soft: var(--done-soft);
+  --color-done-ink: var(--done-ink);
+  --color-done-line: var(--done-line);
+
+  --color-focus: var(--focus-ring);
+  --color-overlay: var(--overlay);
+  --color-skeleton: var(--skeleton);
+  --color-skeleton-shine: var(--skeleton-shine);
+
+  /* Elevation: raised (cards), floating (menus, popovers, toasts), modal (dialogs, sheets) */
+  --shadow-raised: var(--shadow-1);
+  --shadow-floating: var(--shadow-2);
+  --shadow-modal: var(--shadow-3);
+}
+
+/* ---------- Typography, spacing, radii, motion ---------- */
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
 
   --text-large-title: 34px;
+  --text-large-title--line-height: 1.2;
+  --text-large-title--font-weight: 600;
   --text-title: 22px;
+  --text-title--line-height: 1.3;
+  --text-title--font-weight: 600;
   --text-body: 17px;
+  --text-body--line-height: 1.5;
+  --text-body--font-weight: 400;
   --text-secondary: 15px;
+  --text-secondary--line-height: 1.45;
+  --text-secondary--font-weight: 400;
   --text-caption: 13px;
+  --text-caption--line-height: 1.4;
+  --text-caption--font-weight: 400;
   --text-label: 12px;
+  --text-label--line-height: 1.35;
+  --text-label--font-weight: 500;
+
+  /* Base unit 4 px: p-1 = 4, p-2 = 8, p-3 = 12, p-4 = 16, p-5 = 20, p-6 = 24, p-8 = 32, p-10 = 40, p-12 = 48 */
+  --spacing: 4px;
+  --spacing-component: 16px;
+  --spacing-group: 24px;
+  /* Minimum touch target (section 12) and icon size (section 9) */
+  --spacing-touch: 44px;
+  --spacing-icon: 20px;
+  --spacing-icon-sm: 16px;
 
   --radius-card: 12px;
   --radius-control: 10px;
   --radius-sheet: 20px;
   --radius-chip: 6px;
 
-  --color-surface: var(--surface-primary);
-  --color-surface-2: var(--surface-secondary);
-  --color-ink: var(--text-primary);
-  --color-ink-2: var(--text-secondary);
-  --color-line: var(--border);
-  --color-accent: var(--accent);
-}
+  /* Easing: gentle ease-out and a soft spring; no linear or ease-in for visible transitions */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
 
-:root {
-  --surface-primary: #ffffff;
-  --surface-secondary: #f4f4f6;
-  --text-primary: #1c1c1e;
-  --text-secondary: #5c5c66;
-  --border: #e3e3e8;
-  --accent: #2f6fed;
-}
+  --animate-fade-in: fade-in var(--duration-menu) var(--ease-out);
+  --animate-fade-out: fade-out var(--duration-menu) var(--ease-out);
+  --animate-pop-in: pop-in var(--duration-menu) var(--ease-spring);
+  --animate-pop-out: pop-out var(--duration-micro) var(--ease-out);
+  --animate-sheet-in-bottom: sheet-in-bottom var(--duration-sheet) var(--ease-out);
+  --animate-sheet-out-bottom: sheet-out-bottom var(--duration-sheet) var(--ease-out);
+  --animate-sheet-in-right: sheet-in-right var(--duration-sheet) var(--ease-out);
+  --animate-sheet-out-right: sheet-out-right var(--duration-sheet) var(--ease-out);
+  --animate-toast-in: toast-in var(--duration-menu) var(--ease-spring);
+  --animate-toast-out: fade-out var(--duration-micro) var(--ease-out);
+  --animate-shimmer: shimmer var(--duration-shimmer) var(--ease-out) infinite;
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --surface-primary: #121214;
-    --surface-secondary: #1c1c1f;
-    --text-primary: #f2f2f5;
-    --text-secondary: #a6a6b0;
-    --border: #2c2c31;
-    --accent: #6b9bff;
+  @keyframes fade-in {
+    from { opacity: 0; }
+  }
+  @keyframes fade-out {
+    to { opacity: 0; }
+  }
+  @keyframes pop-in {
+    from { opacity: 0; transform: scale(0.96); }
+  }
+  @keyframes pop-out {
+    to { opacity: 0; transform: scale(0.96); }
+  }
+  @keyframes sheet-in-bottom {
+    from { transform: translateY(100%); }
+  }
+  @keyframes sheet-out-bottom {
+    to { transform: translateY(100%); }
+  }
+  @keyframes sheet-in-right {
+    from { transform: translateX(100%); }
+  }
+  @keyframes sheet-out-right {
+    to { transform: translateX(100%); }
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(16px); }
+  }
+  @keyframes shimmer {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(100%); }
   }
 }
 
-:root[data-theme="dark"] {
-  --surface-primary: #121214;
-  --surface-secondary: #1c1c1f;
-  --text-primary: #f2f2f5;
-  --text-secondary: #a6a6b0;
-  --border: #2c2c31;
-  --accent: #6b9bff;
+:root {
+  /* Motion durations (section 9) */
+  --duration-micro: 140ms; /* button, checkbox: 100–160 ms */
+  --duration-menu: 220ms; /* menus, tabs, filter chips: 180–260 ms */
+  --duration-sheet: 300ms; /* sheets, drawers, task panels: 240–360 ms */
+  --duration-celebrate: 600ms; /* celebration: 400–800 ms */
+  --duration-shimmer: 1600ms;
+  --scale-pressed: 0.98; /* pressed feedback on buttons */
+
+  /* Focus ring (section 15): 2 px ring, 2 px offset, both themes */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
 }
 
-html,
-body {
-  background: var(--surface-secondary);
-  color: var(--text-primary);
-  font-family: var(--font-sans);
-  font-size: var(--text-body);
-}
-
+/* Reduced motion (section 10): transitions become instant; state changes still show */
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-micro: 0ms;
+    --duration-menu: 0ms;
+    --duration-sheet: 0ms;
+    --duration-celebrate: 0ms;
+  }
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+  Interaction-state variants. They match the real state and a data-preview attribute,
+  so /dev/components can show hover, pressed and focus states statically.
+*/
+@custom-variant state-hover {
+  @media (hover: hover) {
+    &:hover:not(:disabled, [aria-disabled="true"]) {
+      @slot;
+    }
+  }
+  &[data-preview="hover"] {
+    @slot;
+  }
+}
+@custom-variant state-pressed {
+  &:active:not(:disabled, [aria-disabled="true"]) {
+    @slot;
+  }
+  &[data-preview="pressed"] {
+    @slot;
+  }
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--surface-page);
+    color: var(--ink-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+  }
+
+  /* One focus style everywhere (section 13, 15) */
+  :focus-visible,
+  [data-preview="focus"] {
+    outline: var(--focus-ring-width) solid var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  /* Applied for one frame while the theme changes so nothing animates between themes */
+  .theme-switching,
+  .theme-switching *,
+  .theme-switching *::before,
+  .theme-switching *::after {
+    transition: none !important;
   }
 }
