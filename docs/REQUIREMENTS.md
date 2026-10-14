@@ -536,7 +536,7 @@ Use tabular numerals for dates, counts, and metric comparisons.
 | --- | --- |
 | Cards | 12 px |
 | Buttons and inputs | 10 px |
-| Sheets and drawers | 20 px (top only) |
+| Sheets and drawers | 20 px: top corners only on bottom sheets (mobile); the two inner (left) corners only on right-hand side sheets, square against the screen edge |
 | Badges and chips | 6 px |
 
 **Motion durations**
@@ -762,7 +762,7 @@ Every destructive action opens a confirmation dialog before anything changes. Th
 
 - **Covered actions:** delete task, comment, attachment, subtask, label, component, milestone or saved filter; remove a project member or lower their role; archive a project; deny an access request; cancel an invite; suspend a user; revoke a session; approve a data deletion request; confirm a retention purge.
 - **Dialog content:** a title naming the action and item ("Delete MEDIA-42?"), one sentence on the consequence ("This removes the task and its comments for everyone."), a Cancel button with initial focus, and a destructive button labelled with the verb ("Delete task"), never "OK" or "Yes".
-- **High-impact actions** (archive project, suspend user, approve data deletion, retention purge) also require typing the project key or the user's email before the destructive button enables.
+- **High-impact actions** (archive project, suspend user, approve data deletion, retention purge) also require typing the project key or the user's email before the destructive button enables. Matching ignores letter case and leading or trailing spaces.
 - Escape and clicking outside cancel. Keyboard and screen-reader accessible per section 13.
 - After confirming: a toast confirms the result ("Task deleted."); the action is written to the audit log.
 
@@ -846,8 +846,9 @@ Concise, human, respectful, action-oriented. Church context may inform warmth; t
 | What's New empty | "Nothing new yet. Check back after the next update." |
 | Error boundary | "Something went wrong loading this section. Try refreshing the page." |
 | Delete confirmation (example) | Title "Delete MEDIA-42?" · body "This removes the task and its comments for everyone." · buttons "Cancel" / "Delete task" |
-| High-impact confirmation | "Type MEDIA to confirm." |
+| High-impact confirmation | "Type MEDIA to confirm." (matching ignores letter case and leading or trailing spaces) |
 | After a destructive action | "Task deleted." / "Member removed." / "Project archived." |
+| Confirmed action failed | "That didn't go through. Check your connection and try again." |
 | Sign-in account hint | "Use the same Google account each time." |
 | Data safety notice | "Don't include children's details or confidential pastoral information." |
 

@@ -54,6 +54,8 @@ Requirements: sections 2, 7, 11.6, 11.7, 11.15, 18; AUTH-1 to AUTH-10, PROJ-1, P
 
 Before starting: create the Google OAuth client (consent screen External) and put the values in `.dev.vars` (copy from `.dev.vars.example`). Add `http://localhost:5173/api/auth/callback` as an authorized redirect URI.
 
+Carried over from Stage 1: move the theme preference (Light, Dark, System) to the user's profile. Store it on the `users` row and apply it after sign-in. Keep the browser setting (`localStorage` key `cph-theme`, applied by the inline script in `index.html` before first paint) as the fallback for signed-out pages and the first paint. See `src/theme/theme.ts`.
+
 > Read CLAUDE.md and docs/REQUIREMENTS.md sections 2, 6, 7, 11.6, 11.7, 11.15 and 18. Build:
 > 1. Drizzle schema and first migration for users, sessions, projects, project_members, access_requests, invites, workflow_states and audit_log (section 6).
 > 2. Google sign-in with PKCE and state, ID token verification, server-side sessions in HttpOnly cookies, CSRF protection on writes, revocation checked on every request, last_seen_at throttled to 15 minutes.
