@@ -6,6 +6,8 @@ import { AppProviders } from "./components/ui/AppProviders";
 import "./index.css";
 import { HomePage } from "./pages/HomePage";
 import { PrivacyPage } from "./pages/PrivacyPage";
+import { RequestAccessPage } from "./pages/RequestAccessPage";
+import { WorkPage } from "./pages/WorkPage";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +22,8 @@ createRoot(document.getElementById("root")!).render(
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/request-access" element={<RequestAccessPage />} />
+            <Route path="/work" element={<WorkPage />} />
             {DevComponentsPage && (
               <Route
                 path="/dev/components"

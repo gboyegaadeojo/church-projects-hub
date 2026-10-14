@@ -37,8 +37,15 @@
   // worker/jobs/dispatch.ts decides what runs on each tick.
   "triggers": { "crons": ["*/5 * * * *"] },
 
+  // Sign-in rate limit (RATE-1, NFR-4): 30 attempts per minute per IP (church Wi-Fi shares one IP),
+  // using the Workers rate-limiting binding so allowed attempts cost no D1 writes. namespace_id is any
+  // account-unique number; keep it distinct from the checklist app's limiters.
+  "ratelimits": [
+    { "name": "SIGNIN_RATE_LIMITER", "namespace_id": "2101", "simple": { "limit": 30, "period": 60 } }
+  ],
+
   "vars": {
-    "APP_BASE_URL": "http://localhost:5173",
+    "APP_BASE_URL": "http://localhost:5174",
     "EMAIL_FROM": "media@ifcwpg.com"
   }
 }

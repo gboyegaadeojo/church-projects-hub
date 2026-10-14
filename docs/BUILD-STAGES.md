@@ -24,7 +24,7 @@ Do once on your computer:
 1. Install Node 24 LTS (includes npm 11). npm 10 hits a known install bug with these packages, so check with `npm -v`.
 2. Open the folder in VS Code, then in the terminal: `git init`, `git add .`, `git commit -m "Stage 0: starter"`.
 3. Create a private GitHub repo (e.g. `church-projects-hub`), then `git remote add origin <url>` and `git push -u origin main`.
-4. `npm install`, then `npm test` (6 tests should pass) and `npm run dev` — open http://localhost:5173 and http://localhost:5173/api/health.
+4. `npm install`, then `npm test` (6 tests should pass) and `npm run dev` — open http://localhost:5174 and http://localhost:5174/api/health.
 5. Connect Cloudflare: `npx wrangler login` (use the church's Cloudflare account), then `npx wrangler d1 create church-projects-hub` and paste the `database_id` it prints into `wrangler.jsonc`. Run `npm run cf-typegen`.
 6. `npx wrangler r2 bucket create church-projects-hub-files`. Cloudflare may ask you to enable R2 and add a payment method, even though usage stays in the free tier.
 
@@ -52,7 +52,7 @@ Done when: /dev/components shows every component and state in both themes, the t
 
 Requirements: sections 2, 7, 11.6, 11.7, 11.15, 18; AUTH-1 to AUTH-10, PROJ-1, PROJ-6, PROJ-7, RATE-1, RATE-2, NFR-1, NFR-2, NFR-4, NFR-23.
 
-Before starting: create the Google OAuth client (consent screen External) and put the values in `.dev.vars` (copy from `.dev.vars.example`). Add `http://localhost:5173/api/auth/callback` as an authorized redirect URI.
+Before starting: create the Google OAuth client (consent screen External) and put the values in `.dev.vars` (copy from `.dev.vars.example`). Add `http://localhost:5174/api/auth/callback` as an authorized redirect URI.
 
 Carried over from Stage 1: move the theme preference (Light, Dark, System) to the user's profile. Store it on the `users` row and apply it after sign-in. Keep the browser setting (`localStorage` key `cph-theme`, applied by the inline script in `index.html` before first paint) as the fallback for signed-out pages and the first paint. See `src/theme/theme.ts`.
 
@@ -67,6 +67,8 @@ Carried over from Stage 1: move the theme preference (Light, Dark, System) to th
 > 8. README section and script for the first App Admin (section 18).
 > 9. GitHub Actions: deploy.yml (on push to main, after CI: apply D1 migrations to production, then deploy; blocked Saturday 6 pm to Sunday 2 pm Winnipeg) and backup.yml (nightly 3 am Winnipeg: wrangler d1 export to R2, keep 30 days). Both use the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID GitHub secrets.
 > Split into pull requests: (a) schema + sign-in + sessions, (b) permissions + pending/approval + invites, (c) shell + pages + project creation, (d) deploy and backup workflows. Plan first.
+
+Stage 2d check: once deployed, confirm the Workers rate-limiting binding (`SIGNIN_RATE_LIMITER` in `wrangler.jsonc`, RATE-1) works on the free plan, e.g. 31 quick POSTs to `/api/auth/start` from one IP should return a 429. If the free plan doesn't offer it, fall back to a small D1 counter keyed by IP hash and minute (NFR-4).
 
 After this stage: set the production secrets (`npx wrangler secret put …`), add the custom domain (hub.ifcwpg.com), publish the Google consent screen, and run the first-admin script for gboyega@ and kome@.
 

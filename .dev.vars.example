@@ -2,7 +2,9 @@
 # Production values are set with: npx wrangler secret put <NAME>
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URI=http://localhost:5173/api/auth/callback
+# The dev server is pinned to port 5174; register this exact URI on the Google OAuth client.
+GOOGLE_REDIRECT_URI=http://localhost:5174/api/auth/callback
+# Random 256-bit value: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 SESSION_SECRET=
 BREVO_API_KEY=
 CF_ACCOUNT_ID=
