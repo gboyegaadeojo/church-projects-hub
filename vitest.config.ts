@@ -1,6 +1,9 @@
-import { cloudflareTest } from "@cloudflare/vitest-plugin";
+import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+
+// The real migrations, applied to the test D1 by test/setup.ts.
+const migrations = await readD1Migrations("./migrations");
 
 // Tests are named after requirement IDs (docs/REQUIREMENTS.md section 17).
 // - worker: API and data tests in the real Workers runtime (Miniflare) with local D1 and R2.
@@ -13,11 +16,22 @@ export default defineConfig({
         plugins: [
           cloudflareTest({
             wrangler: { configPath: "./wrangler.jsonc" },
+            miniflare: {
+              // Test-only values so the suite runs the same in CI (no .dev.vars there). Not real secrets.
+              bindings: {
+                TEST_MIGRATIONS: migrations,
+                GOOGLE_CLIENT_ID: "test-client-id.apps.googleusercontent.com",
+                GOOGLE_CLIENT_SECRET: "test-client-secret",
+                GOOGLE_REDIRECT_URI: "https://hub.test/api/auth/callback",
+                SESSION_SECRET: "test-session-secret-not-for-production-use-0000",
+              },
+            },
           }),
         ],
         test: {
           name: "worker",
           include: ["test/**/*.test.ts"],
+          setupFiles: ["./test/setup.ts"],
         },
       },
       {

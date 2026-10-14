@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 // End-to-end and accessibility tests in a real browser (docs/REQUIREMENTS.md section 17).
 // Runs against its own dev server on port 5179 (the only place /dev/components exists), so it never
-// picks up another app already running on the usual 5173.
+// picks up another app already running on the usual 5174.
 const PORT = 5179;
 export default defineConfig({
   testDir: "./e2e",

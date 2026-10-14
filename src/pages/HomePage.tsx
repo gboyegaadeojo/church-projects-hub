@@ -1,7 +1,52 @@
-import { Link } from "react-router";
+import { useState } from "react";
+import { Link, Navigate, useSearchParams } from "react-router";
+import { AUTH_COPY, AUTH_ERRORS, type SignInOutcome } from "../../shared/auth";
+import { Button } from "../components/ui/Button";
+import { homeFor, useSession } from "../lib/session";
 
-// Public home page (AUTH-10, section 11.15). Sign-in is wired up in Stage 2.
+// Public home page (AUTH-10, section 11.15). Signed-in users are sent straight on.
+
+function outcomeMessage(outcome: SignInOutcome | "ended" | "suspended" | null) {
+  switch (outcome) {
+    case "failed":
+      return AUTH_COPY.signInFailed;
+    case "ended":
+      return AUTH_COPY.sessionEnded;
+    case "suspended":
+      return `${AUTH_COPY.suspended} ${AUTH_COPY.contactEmail}`;
+    default:
+      return null;
+  }
+}
+
 export function HomePage() {
+  const session = useSession();
+  const [params] = useSearchParams();
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  if (session.data?.kind === "signed-in") return <Navigate to={homeFor(session.data.me)} replace />;
+
+  const fromSession = session.data?.kind === "ended" || session.data?.kind === "suspended" ? session.data.kind : null;
+  const message = startError ?? outcomeMessage((params.get("signin") as SignInOutcome | null) ?? fromSession);
+
+  async function signIn() {
+    setStarting(true);
+    setStartError(null);
+    try {
+      const res = await fetch("/api/auth/start", { method: "POST", credentials: "same-origin" });
+      const body = (await res.json()) as { url?: string; error?: string; message?: string };
+      if (res.ok && body.url) {
+        window.location.assign(body.url);
+        return; // Keep the spinner while the browser leaves for Google.
+      }
+      setStartError(body.error === AUTH_ERRORS.rateLimited ? AUTH_COPY.rateLimited : AUTH_COPY.signInFailed);
+    } catch {
+      setStartError(AUTH_COPY.signInFailed);
+    }
+    setStarting(false);
+  }
+
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-6 px-4">
       <h1 className="text-large-title">Church Projects Hub</h1>
@@ -9,17 +54,21 @@ export function HomePage() {
         A private work tracker for Immanuel Fellowship Church volunteer teams. Each team plans and tracks its own
         projects; an admin approves who can see what.
       </p>
-      <div className="flex items-center gap-4">
-        <button
-          type="button"
-          disabled
-          className="rounded-[var(--radius-control)] bg-accent px-4 py-2 font-medium text-on-accent disabled:opacity-60"
-        >
-          Sign in with Google
-        </button>
-        <Link to="/privacy" className="text-accent-ink underline-offset-4 hover:underline">
-          Privacy policy
-        </Link>
+      {message && (
+        <p role="alert" className="rounded-card border border-danger-line bg-danger-soft px-4 py-3 text-secondary text-ink">
+          {message}
+        </p>
+      )}
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-4">
+          <Button loading={starting} onClick={signIn}>
+            Sign in with Google
+          </Button>
+          <Link to="/privacy" className="text-accent-ink underline-offset-4 hover:underline">
+            Privacy policy
+          </Link>
+        </div>
+        <p className="text-secondary text-ink-2">{AUTH_COPY.accountHint}</p>
       </div>
     </main>
   );

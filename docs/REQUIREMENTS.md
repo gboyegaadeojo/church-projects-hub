@@ -2,7 +2,7 @@
 
 Oct 14, 2026 · @G
 
-**Version 4.2** — single engineer-ready document · **Owner:** @G, Immanuel Fellowship Church (IFC) · **Audience:** software engineers building and maintaining this product · **Status:** active baseline; pre-build decisions in section 21.
+**Version 4.3** — single engineer-ready document · **Owner:** @G, Immanuel Fellowship Church (IFC) · **Audience:** software engineers building and maintaining this product · **Status:** active baseline; pre-build decisions in section 21.
 
 > This is the single source of truth. Read it fully before writing any code. Functional requirements take precedence over design guidance where they conflict. Any conflict found during implementation must be documented and brought to @G for a decision — never resolved silently.
 
@@ -10,6 +10,7 @@ Oct 14, 2026 · @G
 
 | Version | Date | Summary |
 | --- | --- | --- |
+| 4.3 | 14 Oct 2026 | Stage 1 decisions: "Confirmed action failed" copy added (section 14); type-to-confirm matching ignores letter case and leading or trailing spaces (section 11.14); side sheets round only their two inner corners, bottom sheets only their top corners (section 9); theme preference (Light, Dark, System) moves to the user's profile in Stage 2, with the browser setting kept as the fallback for signed-out pages and first paint. Stage 2a decisions: sign-in rate limit raised to 30 attempts per minute per IP, counted when sign-in starts (church Wi-Fi shares one IP) (NFR-4, RATE-1); "Sign-in didn't work" copy added (section 14); "sign-in rate limit hit" audit event written at most once per IP per minute (section 6). |
 | 4.2 | 14 Oct 2026 | Pre-build review: Google sign-in publishing (public home and privacy pages, verified domain); Cloudflare API secrets for usage panel and backups; free-tier budget calculated for Workers, D1 and email; Brevo domain authentication; files served through the Worker; rich text stored as Tiptap JSON; confirmation screens for every destructive action; search, bell refresh, due-date, data-safety, retention purge, duplicate-account, audit-event and operations rules added. |
 | 4.1 | 14 Oct 2026 | NFR-8 clarifies both restore paths; App Admin emails removed from env vars (resolved from DB); local migration setup added; section 19 simplified to the decided state; pre-code checklist gets owners and status; admin notification recipients resolved from DB at send time; success measure updated; domain decision updated. |
 | 4.0 | 14 Oct 2026 | Merged design requirements document; added missing specs for file upload, rich text, notification bell, error boundaries, first deploy, and testing strategy. |
@@ -241,7 +242,7 @@ Each requirement has an ID traceable to a GitHub issue and a test. Priority: **M
 
 | ID | Requirement | Priority |
 | --- | --- | --- |
-| RATE-1 | Sign-in rate limit hit: "Too many sign-in attempts. Please wait a minute and try again." No error code. | M |
+| RATE-1 | Sign-in rate limit hit (more than 30 sign-in attempts in a minute from one IP, NFR-4): "Too many sign-in attempts. Please wait a minute and try again." No error code. | M |
 | RATE-2 | Access request limit hit (5/day): "You've submitted the maximum requests for today. Check back tomorrow, or contact an admin directly." | M |
 | RATE-3 | Feedback limit hit (20/day): "You've sent a lot of feedback today — thank you! You can submit more tomorrow." | M |
 
@@ -252,7 +253,7 @@ Each requirement has an ID traceable to a GitHub issue and a test. Priority: **M
 | NFR-1 | Security | Authorization checked in the API on every request, against the user's project role. |
 | NFR-2 | Security | Sessions use HttpOnly, Secure, SameSite=Lax cookies. CSRF token on every write. OAuth uses PKCE; validates Google ID token signature, audience, and expiry. |
 | NFR-3 | Security | All input validated with shared Zod schemas on client and server. All SQL is parameterized. Rich text is stored as validated Tiptap JSON, never HTML (section 11.5). |
-| NFR-4 | Security | Rate limits: 10 sign-in attempts/min/IP, 5 access requests/day/user, 20 feedback submissions/day/user. The per-IP sign-in limit uses the Workers rate-limiting binding if the free plan offers it, otherwise a small D1 counter keyed by IP hash and minute; per-user daily limits count existing rows (`access_requests`, feedback tasks). |
+| NFR-4 | Security | Rate limits: 30 sign-in attempts/min/IP, 5 access requests/day/user, 20 feedback submissions/day/user. A sign-in attempt is counted when sign-in starts (the redirect to Google), not again on the return; the limit is set for many volunteers signing in at once behind one church Wi-Fi IP. When the limit is hit, a "sign-in rate limit hit" audit event is written at most once per IP per minute. The per-IP sign-in limit uses the Workers rate-limiting binding if the free plan offers it, otherwise a small D1 counter keyed by IP hash and minute; per-user daily limits count existing rows (`access_requests`, feedback tasks). |
 | NFR-5 | Privacy | Store only name, email, and Google avatar URL. No personal data in logs. See ADM-6 for the deletion process. |
 | NFR-6 | Reliability | 99.5% monthly availability. No deploys between Saturday 6 pm and Sunday 2 pm. |
 | NFR-7 | Reliability | CI required: type check, unit tests, API tests, then preview deploy. Main branch deploys to production; one-click rollback available. |
@@ -849,6 +850,7 @@ Concise, human, respectful, action-oriented. Church context may inform warmth; t
 | High-impact confirmation | "Type MEDIA to confirm." (matching ignores letter case and leading or trailing spaces) |
 | After a destructive action | "Task deleted." / "Member removed." / "Project archived." |
 | Confirmed action failed | "That didn't go through. Check your connection and try again." |
+| Sign-in failed (cancelled, unverified email, Google error) | "Sign-in didn't work. Please try again." |
 | Sign-in account hint | "Use the same Google account each time." |
 | Data safety notice | "Don't include children's details or confidential pastoral information." |
 

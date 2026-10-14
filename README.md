@@ -15,11 +15,17 @@ A private, Jira-style work tracker for Immanuel Fellowship Church volunteer team
 
 ```sh
 npm install
-npm run db:migrate:local   # once migrations exist (Stage 2 onward)
-npm run dev                # http://localhost:5173
+npm run db:migrate:local   # creates the local D1 tables; re-run after pulling new migrations
+npm run dev                # http://localhost:5174
 ```
 
-Local secrets go in `.dev.vars` — copy `.dev.vars.example` and fill it in.
+Local secrets go in `.dev.vars` (next to `wrangler.jsonc`) — copy `.dev.vars.example` and fill it in. Generate `SESSION_SECRET` with:
+
+```sh
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+```
+
+The dev server always runs on port 5174 (`strictPort`), because Google only accepts the exact redirect URI registered on the OAuth client. Add `http://localhost:5174/api/auth/callback` as an authorized redirect URI in Google Cloud Console. If something else is using 5174, the dev server stops with an error instead of moving to another port.
 
 ## Everyday commands
 
