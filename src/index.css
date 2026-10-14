@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/*
+  Design tokens — starting values from docs/REQUIREMENTS.md section 9.
+  Stage 1 (design foundation) completes these: full colour roles, elevation, focus rings, motion.
+  Components use these tokens only; no hardcoded values.
+*/
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+
+  --text-large-title: 34px;
+  --text-title: 22px;
+  --text-body: 17px;
+  --text-secondary: 15px;
+  --text-caption: 13px;
+  --text-label: 12px;
+
+  --radius-card: 12px;
+  --radius-control: 10px;
+  --radius-sheet: 20px;
+  --radius-chip: 6px;
+
+  --color-surface: var(--surface-primary);
+  --color-surface-2: var(--surface-secondary);
+  --color-ink: var(--text-primary);
+  --color-ink-2: var(--text-secondary);
+  --color-line: var(--border);
+  --color-accent: var(--accent);
+}
+
+:root {
+  --surface-primary: #ffffff;
+  --surface-secondary: #f4f4f6;
+  --text-primary: #1c1c1e;
+  --text-secondary: #5c5c66;
+  --border: #e3e3e8;
+  --accent: #2f6fed;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface-primary: #121214;
+    --surface-secondary: #1c1c1f;
+    --text-primary: #f2f2f5;
+    --text-secondary: #a6a6b0;
+    --border: #2c2c31;
+    --accent: #6b9bff;
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface-primary: #121214;
+  --surface-secondary: #1c1c1f;
+  --text-primary: #f2f2f5;
+  --text-secondary: #a6a6b0;
+  --border: #2c2c31;
+  --accent: #6b9bff;
+}
+
+html,
+body {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

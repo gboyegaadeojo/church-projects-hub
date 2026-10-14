@@ -1,0 +1,9 @@
+# Local secrets for `npm run dev`. Copy to .dev.vars (git-ignored) and fill in.
+# Production values are set with: npx wrangler secret put <NAME>
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=http://localhost:5173/api/auth/callback
+SESSION_SECRET=
+BREVO_API_KEY=
+CF_ACCOUNT_ID=
+CF_ANALYTICS_TOKEN=

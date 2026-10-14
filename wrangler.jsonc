@@ -1,0 +1,44 @@
+{
+  // Church Projects Hub — Cloudflare Worker config.
+  // Requirements: docs/REQUIREMENTS.md (section 5 stack, section 18 secrets).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "church-projects-hub",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // React app built by Vite. Static asset requests are free and do not invoke the Worker.
+  // Never set a global run_worker_first (section 5 budget rule).
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "church-projects-hub",
+      // Replace with the id printed by: npx wrangler d1 create church-projects-hub
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "r2_buckets": [
+    {
+      "binding": "FILES",
+      // Create with: npx wrangler r2 bucket create church-projects-hub-files
+      "bucket_name": "church-projects-hub-files"
+    }
+  ],
+
+  // One schedule only (free plan allows 5 per account, shared with the checklist app).
+  // worker/jobs/dispatch.ts decides what runs on each tick.
+  "triggers": { "crons": ["*/5 * * * *"] },
+
+  "vars": {
+    "APP_BASE_URL": "http://localhost:5173",
+    "EMAIL_FROM": "media@ifcwpg.com"
+  }
+}
