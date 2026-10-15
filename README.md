@@ -33,6 +33,7 @@ The dev server always runs on port 5174 (`strictPort`), because Google only acce
 | --- | --- |
 | `npm run dev` | React app + Worker + local D1 and R2 |
 | `npm test` | Tests inside the Workers runtime |
+| `npm run test:low-mem` | The same tests one file at a time, for low-memory machines (use it if `npm test` crashes with "JavaScript heap out of memory") |
 | `npm run typecheck` | TypeScript checks for app, Worker and config |
 | `npm run build` | Production build |
 | `npm run db:generate` | New migration from `worker/db/schema.ts` |
