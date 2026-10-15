@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router";
 import type { MeResponse } from "../../shared/auth";
+import { useProfileTheme } from "../lib/profile";
 import { homeFor, useSession } from "../lib/session";
 import { Skeleton, useDelayedFlag } from "./ui/Skeleton";
 
@@ -18,6 +19,7 @@ export function SessionGate({
 }) {
   const session = useSession();
   const showSkeleton = useDelayedFlag(session.isPending);
+  useProfileTheme(session.data?.kind === "signed-in" ? session.data.me.user.theme : undefined);
 
   if (session.isPending) {
     return (

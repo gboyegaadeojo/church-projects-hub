@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { PROJECT_COLOURS } from "../../shared/projects";
 
 // NFR-13 / section 13: text ≥ 4.5:1, UI component boundaries and focus rings ≥ 3:1, in both themes.
 // Reads the palette blocks straight from src/index.css so the tokens and this check cannot drift apart.
@@ -91,6 +92,10 @@ const pairs: Array<[string, string, number]> = [
   ["accent", "surface-card", 3],
   ["danger", "surface-page", 3],
   ["danger", "surface-card", 3],
+  // Project colours (dots and icons are graphics): ≥ 3:1 on every surface, including selected rows
+  ...PROJECT_COLOURS.flatMap((colour) =>
+    [...surfaces, "accent-soft"].map((bg): [string, string, number] => [`project-${colour}`, bg, 3]),
+  ),
 ];
 
 describe("NFR-13 colour contrast", () => {

@@ -52,6 +52,16 @@
   --accent-soft: #e8efff;
   --accent-ink: #1d4fd8;
 
+  /* Project colours (PROJ-1): the dot and icon that mark a project; graphics, ≥ 3:1 on every surface */
+  --project-blue: #2563eb;
+  --project-teal: #0f766e;
+  --project-green: #15803d;
+  --project-amber: #b45309;
+  --project-orange: #c2410c;
+  --project-red: #dc2626;
+  --project-pink: #db2777;
+  --project-purple: #7c3aed;
+
   /* Error / destructive */
   --danger: #c62828;
   --danger-hover: #ab1f1f;
@@ -126,6 +136,16 @@
   --accent-soft: #18233d;
   --accent-ink: #8fb4ff;
 
+  /* Project colours lifted for dark surfaces */
+  --project-blue: #6b9bff;
+  --project-teal: #2dd4bf;
+  --project-green: #4ade80;
+  --project-amber: #fbbf24;
+  --project-orange: #fb923c;
+  --project-red: #f87171;
+  --project-pink: #f472b6;
+  --project-purple: #a78bfa;
+
   --danger: #c9372c;
   --danger-hover: #b32e24;
   --danger-pressed: #9c271f;
@@ -190,6 +210,15 @@
   --color-accent-pressed: var(--accent-pressed);
   --color-accent-soft: var(--accent-soft);
   --color-accent-ink: var(--accent-ink);
+
+  --color-project-blue: var(--project-blue);
+  --color-project-teal: var(--project-teal);
+  --color-project-green: var(--project-green);
+  --color-project-amber: var(--project-amber);
+  --color-project-orange: var(--project-orange);
+  --color-project-red: var(--project-red);
+  --color-project-pink: var(--project-pink);
+  --color-project-purple: var(--project-purple);
 
   --color-danger: var(--danger);
   --color-danger-hover: var(--danger-hover);
@@ -260,6 +289,11 @@
   --spacing-touch: 44px;
   --spacing-icon: 20px;
   --spacing-icon-sm: 16px;
+  /* App shell (section 12): sidebar on desktop, icon rail on tablet, bottom bar on mobile */
+  --spacing-sidebar: 256px;
+  --spacing-rail: 72px;
+  --spacing-bottom-nav: 64px;
+  --container-page: 1024px; /* readable width of page content (max-w-page) */
 
   --radius-card: 12px;
   --radius-control: 10px;

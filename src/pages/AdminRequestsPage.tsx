@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Inbox, UserPlus, X } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
-import { Link } from "react-router";
 import {
   type AccessQueueResponse,
   accessQueueResponse,
@@ -16,7 +15,9 @@ import {
   REASON_MAX,
 } from "../../shared/access";
 import type { MeResponse } from "../../shared/auth";
-import { SessionGate } from "../components/SessionGate";
+import { AdminTabs } from "../components/shell/AdminTabs";
+import { useMe } from "../components/shell/AppShell";
+import { PageLayout } from "../components/shell/PageLayout";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
@@ -38,12 +39,7 @@ const ROLE_OPTIONS = PROJECT_ROLE_VALUES.map((value) => ({ value, label: PROJECT
 const dateFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
 export function AdminRequestsPage() {
-  return (
-    <SessionGate allow={(me) => me.user.status === "active"}>{(me) => <AccessQueue me={me} />}</SessionGate>
-  );
-}
-
-function AccessQueue({ me }: { me: MeResponse }) {
+  const me = useMe();
   const queue = useQuery({
     queryKey: QUEUE_KEY,
     queryFn: async () => accessQueueResponse.parse(await api("/api/admin/access-queue")),
@@ -54,7 +50,7 @@ function AccessQueue({ me }: { me: MeResponse }) {
 
   if (queue.error instanceof ApiError && queue.error.status === 403) {
     return (
-      <Page>
+      <Page me={me}>
         <EmptyState icon={Inbox} title="Only project and app admins can review access requests." />
       </Page>
     );
@@ -86,7 +82,7 @@ function AccessQueue({ me }: { me: MeResponse }) {
   ];
 
   return (
-    <Page>
+    <Page me={me}>
       {queue.isError ? (
         <ErrorState title="We couldn't load access requests." description="Check your connection and try again." onRetry={() => void queue.refetch()} />
       ) : (
@@ -119,17 +115,12 @@ function AccessQueue({ me }: { me: MeResponse }) {
   );
 }
 
-function Page({ children }: { children: ReactNode }) {
+function Page({ me, children }: { me: MeResponse; children: ReactNode }) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-8 px-4 py-12">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
-        <h1 className="text-title">Access requests</h1>
-        <Link to="/work" className="text-accent-ink underline-offset-4 hover:underline">
-          Back to My Work
-        </Link>
-      </div>
+    <PageLayout title="Access requests">
+      <AdminTabs me={me} />
       {children}
-    </main>
+    </PageLayout>
   );
 }
 

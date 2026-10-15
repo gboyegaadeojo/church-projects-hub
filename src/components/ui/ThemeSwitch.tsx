@@ -12,8 +12,16 @@ const options: Array<{ value: ThemePreference; label: string; icon: LucideIcon }
   { value: "system", label: "System", icon: Monitor },
 ];
 
-export function ThemeSwitch({ className }: { className?: string }) {
-  const { preference, setPreference } = useTheme();
+type ThemeSwitchProps = {
+  className?: string;
+  /** Signed in: saves the choice to the profile (it applies the theme itself). Defaults to this browser only. */
+  onPreferenceChange?: (preference: ThemePreference) => void;
+};
+
+export function ThemeSwitch({ className, onPreferenceChange }: ThemeSwitchProps) {
+  const theme = useTheme();
+  const { preference } = theme;
+  const setPreference = onPreferenceChange ?? theme.setPreference;
   const labelId = useId();
   return (
     <div className={cn("flex flex-col gap-2", className)}>

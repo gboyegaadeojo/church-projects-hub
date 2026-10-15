@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router";
 import { AUTH_COPY, type SignInOutcome } from "../../shared/auth";
+import { APP_NAME, BrandMark } from "../components/shell/BrandMark";
 import { Button } from "../components/ui/Button";
 import { homeFor, useSession } from "../lib/session";
 import { startGoogleSignIn } from "../lib/signin";
@@ -34,10 +35,11 @@ export function HomePage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-6 px-4">
-      <h1 className="text-large-title">Church Projects Hub</h1>
+      <BrandMark showName={false} />
+      <h1 className="text-large-title">{APP_NAME}</h1>
       <p className="text-ink-2">
-        A private work tracker for Immanuel Fellowship Church volunteer teams. Each team plans and tracks its own
-        projects; an admin approves who can see what.
+        A private work tracker for Immanuel Fellowship Church volunteer teams. Each ministry team plans and tracks its
+        own work here, and an admin approves who can see each project.
       </p>
       {message && (
         <p role="alert" className="rounded-card border border-danger-line bg-danger-soft px-4 py-3 text-secondary text-ink">

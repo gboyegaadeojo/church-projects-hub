@@ -4,7 +4,10 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { AppProviders } from "./components/ui/AppProviders";
 import "./index.css";
+import { AppShell } from "./components/shell/AppShell";
+import { AdminProjectsPage } from "./pages/AdminProjectsPage";
 import { AdminRequestsPage } from "./pages/AdminRequestsPage";
+import { ProjectPage, ProjectsPage } from "./pages/ProjectsPage";
 import { HomePage } from "./pages/HomePage";
 import { InvitePage } from "./pages/InvitePage";
 import { PrivacyPage } from "./pages/PrivacyPage";
@@ -26,8 +29,14 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/" element={<HomePage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/request-access" element={<RequestAccessPage />} />
-            <Route path="/work" element={<WorkPage />} />
-            <Route path="/admin/requests" element={<AdminRequestsPage />} />
+            {/* Active members: inside the app shell (section 12). */}
+            <Route element={<AppShell />}>
+              <Route path="/work" element={<WorkPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/projects/:key" element={<ProjectPage />} />
+              <Route path="/admin/requests" element={<AdminRequestsPage />} />
+              <Route path="/admin/projects" element={<AdminProjectsPage />} />
+            </Route>
             <Route path="/invite/:token" element={<InvitePage />} />
             {/* Security-state screens (section 11.7) */}
             <Route path="/suspended" element={<SuspendedPage />} />

@@ -26,6 +26,11 @@ const variants: Record<ButtonVariant, string> = {
     "disabled:bg-disabled disabled:text-ink-disabled disabled:border disabled:border-line",
 };
 
+/** The button look for a router <Link>: navigation stays a link, but reads as the page's action. */
+export function buttonClasses(variant: ButtonVariant = "primary", className?: string): string {
+  return cn(base, variants[variant], "px-4", className);
+}
+
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   /** Leading icon. Replaced by a spinner while loading. */
