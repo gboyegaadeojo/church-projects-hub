@@ -81,8 +81,12 @@ export function request(path: string, init: RequestInit & { ip?: string; cookie?
   return app.request(`${ORIGIN}${path}`, { ...init, method, headers }, env);
 }
 
-export async function startSignIn(ip: string) {
-  const res = await request("/api/auth/start", { method: "POST", ip });
+export async function startSignIn(ip: string, invite?: string) {
+  const res = await request("/api/auth/start", {
+    method: "POST",
+    ip,
+    ...(invite ? { body: JSON.stringify({ invite }), headers: { "Content-Type": "application/json" } } : {}),
+  });
   const body = (await res.json()) as { url?: string; error?: string; message?: string };
   const oauthCookie = cookiesFrom(res)["__Host-cph_oauth"];
   return { res, body, oauthCookie, url: body.url ? new URL(body.url) : undefined };
@@ -98,13 +102,15 @@ type SignInOptions = {
   token?: (nonce: string) => Promise<string>;
   /** Override the state sent back on the callback. */
   state?: string;
+  /** Invite token from an invite link, accepted during sign-in (AUTH-9). */
+  invite?: string;
 };
 
 /** The whole browser round trip: /start, Google, /callback. Returns the callback response and session cookie. */
 export async function signIn(opts: SignInOptions = {}) {
   const ip = opts.ip ?? freshIp();
   const sub = opts.sub ?? freshSub();
-  const start = await startSignIn(ip);
+  const start = await startSignIn(ip, opts.invite);
   if (!start.url || !start.oauthCookie) throw new Error(`start failed: ${start.res.status}`);
   pendingNonce = start.url.searchParams.get("nonce") ?? "";
   nextToken =
@@ -135,4 +141,27 @@ export async function signedInClient(opts: SignInOptions = {}) {
   const me = await request("/api/auth/me", { cookie: signedIn.sessionCookie });
   const body = (await me.json()) as { user: { id: number }; csrfToken: string };
   return { ...signedIn, cookie: signedIn.sessionCookie, userId: body.user.id, csrfToken: body.csrfToken };
+}
+
+export type Client = Awaited<ReturnType<typeof signedInClient>>;
+
+/** An API call as a signed-in person: session cookie, CSRF token on writes, JSON body. */
+export function call(
+  client: Pick<Client, "cookie" | "csrfToken" | "ip">,
+  method: string,
+  path: string,
+  body?: unknown,
+  headers: Record<string, string> = {},
+) {
+  return request(path, {
+    method,
+    ip: client.ip,
+    cookie: client.cookie,
+    headers: {
+      ...(method === "GET" ? {} : { "X-CSRF-Token": client.csrfToken }),
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...headers,
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
 }

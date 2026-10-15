@@ -1,3 +1,4 @@
+import type { ProjectContext } from "./auth/permissions";
 import type { User } from "./db/schema";
 
 export type AuthContext = { user: User; sessionId: string };
@@ -7,5 +8,7 @@ export type AppEnv = {
   Variables: {
     /** Set by requireSession. */
     auth: AuthContext;
+    /** Set by requirePermission for project actions. */
+    project: ProjectContext;
   };
 };
