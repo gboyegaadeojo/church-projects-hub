@@ -4,9 +4,12 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { AppProviders } from "./components/ui/AppProviders";
 import "./index.css";
+import { AdminRequestsPage } from "./pages/AdminRequestsPage";
 import { HomePage } from "./pages/HomePage";
+import { InvitePage } from "./pages/InvitePage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { RequestAccessPage } from "./pages/RequestAccessPage";
+import { InviteExpiredPage, InviteMismatchPage, SuspendedPage } from "./pages/SecurityScreens";
 import { WorkPage } from "./pages/WorkPage";
 
 const queryClient = new QueryClient();
@@ -24,6 +27,12 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/request-access" element={<RequestAccessPage />} />
             <Route path="/work" element={<WorkPage />} />
+            <Route path="/admin/requests" element={<AdminRequestsPage />} />
+            <Route path="/invite/:token" element={<InvitePage />} />
+            {/* Security-state screens (section 11.7) */}
+            <Route path="/suspended" element={<SuspendedPage />} />
+            <Route path="/invite-expired" element={<InviteExpiredPage />} />
+            <Route path="/invite-mismatch" element={<InviteMismatchPage />} />
             {DevComponentsPage && (
               <Route
                 path="/dev/components"

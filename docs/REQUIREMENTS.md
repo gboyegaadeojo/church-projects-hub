@@ -10,7 +10,7 @@ Oct 14, 2026 · @G
 
 | Version | Date | Summary |
 | --- | --- | --- |
-| 4.3 | 14 Oct 2026 | Stage 1 decisions: "Confirmed action failed" copy added (section 14); type-to-confirm matching ignores letter case and leading or trailing spaces (section 11.14); side sheets round only their two inner corners, bottom sheets only their top corners (section 9); theme preference (Light, Dark, System) moves to the user's profile in Stage 2, with the browser setting kept as the fallback for signed-out pages and first paint. Stage 2a decisions: sign-in rate limit raised to 30 attempts per minute per IP, counted when sign-in starts (church Wi-Fi shares one IP) (NFR-4, RATE-1); "Sign-in didn't work" copy added (section 14); "sign-in rate limit hit" audit event written at most once per IP per minute (section 6). |
+| 4.3 | 14 Oct 2026 | Stage 1 decisions: "Confirmed action failed" copy added (section 14); type-to-confirm matching ignores letter case and leading or trailing spaces (section 11.14); side sheets round only their two inner corners, bottom sheets only their top corners (section 9); theme preference (Light, Dark, System) moves to the user's profile in Stage 2, with the browser setting kept as the fallback for signed-out pages and first paint. Stage 2a decisions: sign-in rate limit raised to 30 attempts per minute per IP, counted when sign-in starts (church Wi-Fi shares one IP) (NFR-4, RATE-1); "Sign-in didn't work" copy added (section 14); "sign-in rate limit hit" audit event written at most once per IP per minute (section 6). Stage 2b decisions: destructive actions carry an `X-Confirm-Action` header set only by the confirmation dialog, and the API returns 428 without it (sections 11.14, 17); invites are tied to the invited email, case-insensitive, with new mismatch copy (AUTH-9, section 14); RATE-2 counts one request per project, per calendar day in the user's timezone, and an over-limit submission is rejected whole. |
 | 4.2 | 14 Oct 2026 | Pre-build review: Google sign-in publishing (public home and privacy pages, verified domain); Cloudflare API secrets for usage panel and backups; free-tier budget calculated for Workers, D1 and email; Brevo domain authentication; files served through the Worker; rich text stored as Tiptap JSON; confirmation screens for every destructive action; search, bell refresh, due-date, data-safety, retention purge, duplicate-account, audit-event and operations rules added. |
 | 4.1 | 14 Oct 2026 | NFR-8 clarifies both restore paths; App Admin emails removed from env vars (resolved from DB); local migration setup added; section 19 simplified to the decided state; pre-code checklist gets owners and status; admin notification recipients resolved from DB at send time; success measure updated; domain decision updated. |
 | 4.0 | 14 Oct 2026 | Merged design requirements document; added missing specs for file upload, rich text, notification bell, error boundaries, first deploy, and testing strategy. |
@@ -142,7 +142,7 @@ Each requirement has an ID traceable to a GitHub issue and a test. Priority: **M
 | AUTH-6 | Sessions last 30 days, are revocable by an admin, and end immediately on suspension. | M |
 | AUTH-7 | A user whose session is revoked mid-use is redirected to sign-in with the message "Your session has ended. Please sign in again." No error code shown. | M |
 | AUTH-8 | A Pending user who has waited more than 48 hours with no decision sees a "Still waiting?" prompt with a one-click nudge email to the project admin. Limit: once per 24 hours per request. | S |
-| AUTH-9 | An admin can invite someone by email. The invite link is pre-approved for a specific project and role, expires after 7 days, and is single-use. Invited person skips the request queue on first sign-in. | M |
+| AUTH-9 | An admin can invite someone by email. The invite link is pre-approved for a specific project and role, expires after 7 days, and is single-use. It can only be accepted by a Google account whose email matches the invited email (letter case ignored); otherwise the person sees the invitation-mismatch copy in section 14. Invited person skips the request queue on first sign-in. | M |
 | AUTH-10 | A public home page at `/` (what the app is, who it's for, a Sign in with Google button) and a privacy policy at `/privacy`, both on the app's verified domain. Required to publish the Google sign-in for personal Gmail accounts (section 18). | M |
 
 ### Projects (PROJ)
@@ -243,7 +243,7 @@ Each requirement has an ID traceable to a GitHub issue and a test. Priority: **M
 | ID | Requirement | Priority |
 | --- | --- | --- |
 | RATE-1 | Sign-in rate limit hit (more than 30 sign-in attempts in a minute from one IP, NFR-4): "Too many sign-in attempts. Please wait a minute and try again." No error code. | M |
-| RATE-2 | Access request limit hit (5/day): "You've submitted the maximum requests for today. Check back tomorrow, or contact an admin directly." | M |
+| RATE-2 | Access request limit hit (5/day): "You've submitted the maximum requests for today. Check back tomorrow, or contact an admin directly." Each project requested counts as one request; the day is the calendar day in the user's timezone. A submission that would go over the limit is rejected whole. | M |
 | RATE-3 | Feedback limit hit (20/day): "You've sent a lot of feedback today — thank you! You can submit more tomorrow." | M |
 
 ## 4. Non-Functional Requirements
@@ -765,6 +765,7 @@ Every destructive action opens a confirmation dialog before anything changes. Th
 - **Dialog content:** a title naming the action and item ("Delete MEDIA-42?"), one sentence on the consequence ("This removes the task and its comments for everyone."), a Cancel button with initial focus, and a destructive button labelled with the verb ("Delete task"), never "OK" or "Yes".
 - **High-impact actions** (archive project, suspend user, approve data deletion, retention purge) also require typing the project key or the user's email before the destructive button enables. Matching ignores letter case and leading or trailing spaces.
 - Escape and clicking outside cancel. Keyboard and screen-reader accessible per section 13.
+- **Confirmation token:** when the person confirms, the dialog sends an `X-Confirm-Action` header naming the action (e.g. `access_request.deny`). Only the confirmation dialog sets it. The API rejects a covered action without the matching header with 428, so no code path can skip the confirmation.
 - After confirming: a toast confirms the result ("Task deleted."); the action is written to the audit log.
 
 ### 11.15 Public home and privacy pages (AUTH-10)
@@ -851,6 +852,7 @@ Concise, human, respectful, action-oriented. Church context may inform warmth; t
 | After a destructive action | "Task deleted." / "Member removed." / "Project archived." |
 | Confirmed action failed | "That didn't go through. Check your connection and try again." |
 | Sign-in failed (cancelled, unverified email, Google error) | "Sign-in didn't work. Please try again." |
+| Invitation for a different email | "This invitation was sent to a different email address. Sign in with that Google account, or ask the project admin for a new invite." |
 | Sign-in account hint | "Use the same Google account each time." |
 | Data safety notice | "Don't include children's details or confidential pastoral information." |
 
@@ -915,7 +917,7 @@ Tests are named after requirement IDs (e.g. `AUTH-3`) so regressions trace direc
 - **Tasks:** create, edit, move (concurrent version conflict), delete within/after 24 hours.
 - **Email outbox:** outbox row written in same transaction; deduplication; failure parking.
 - **Rate limits:** correct 429 response after limit exceeded.
-- **Destructive actions:** every covered action in section 11.14 is rejected by the API without the confirmation token the dialog sends, and writes an audit event when confirmed.
+- **Destructive actions:** every covered action in section 11.14 is rejected by the API with 428 without the `X-Confirm-Action` header the confirmation dialog sends (section 11.14), and writes an audit event when confirmed.
 - **Files:** a non-member gets 403 from `/api/attachments/:id`; a file whose bytes don't match an allowed type is rejected.
 - **Rich text:** JSON with a disallowed node, mark or link scheme is rejected with 400.
 - **Search:** results never include tasks from projects the user can't see.

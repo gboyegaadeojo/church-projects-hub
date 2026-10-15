@@ -1,5 +1,6 @@
 import { CircleAlert, type LucideIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { CONFIRM_HEADER } from "../../../shared/access";
 import { Button } from "./Button";
 import { Dialog, DialogContent } from "./Dialog";
 import { Field } from "./Field";
@@ -27,13 +28,28 @@ export type ConfirmDialogProps = {
   /** The verb, e.g. "Delete task", "Suspend user". */
   confirmLabel: string;
   confirmIcon?: LucideIcon;
-  /** Runs the action. If it returns a promise the button shows a spinner until it settles. */
-  onConfirm: () => void | Promise<void>;
+  /**
+   * Runs the action. If it returns a promise the button shows a spinner until it settles.
+   * Receives the confirmation headers to send with the request (section 11.14).
+   */
+  onConfirm: (confirmation: ConfirmationHeaders) => void | Promise<void>;
+  /** The API action name (e.g. "access_request.deny"); sent as X-Confirm-Action. */
+  confirmAction?: string;
   /** For high-impact actions: the project key or email the person must type. */
   confirmText?: string;
+  /** Extra fields the action needs, e.g. a required reason. Shown above the type-to-confirm field. */
+  children?: ReactNode;
+  /** Keeps the destructive button disabled, e.g. until a required reason is filled in. */
+  confirmDisabled?: boolean;
   /** Toast shown after the action succeeds, e.g. "Task deleted." */
   successMessage?: string;
 };
+
+/**
+ * The header the API requires on every destructive action. Only this dialog creates it, so no
+ * code path can perform a covered action without the person confirming.
+ */
+export type ConfirmationHeaders = Record<string, string>;
 
 export function ConfirmDialog({
   open,
@@ -43,7 +59,10 @@ export function ConfirmDialog({
   confirmLabel,
   confirmIcon,
   onConfirm,
+  confirmAction,
   confirmText,
+  children,
+  confirmDisabled = false,
   successMessage,
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -63,7 +82,8 @@ export function ConfirmDialog({
   }
 
   // Case-insensitive and ignores surrounding spaces, for project keys and email addresses alike.
-  const matches = confirmText === undefined || typed.trim().toLowerCase() === confirmText.trim().toLowerCase();
+  const matches =
+    !confirmDisabled && (confirmText === undefined || typed.trim().toLowerCase() === confirmText.trim().toLowerCase());
 
   function handleOpenChange(next: boolean) {
     // Keep the dialog up while the action is in flight so its result is never hidden.
@@ -76,7 +96,7 @@ export function ConfirmDialog({
     setFailed(false);
     setPending(true);
     try {
-      await onConfirm();
+      await onConfirm(confirmAction ? { [CONFIRM_HEADER]: confirmAction } : {});
       setPending(false);
       onOpenChange(false);
       if (successMessage) toast({ variant: "success", title: successMessage });
@@ -114,6 +134,7 @@ export function ConfirmDialog({
           </>
         }
       >
+        {children}
         {confirmText !== undefined && (
           <Field label={`Type ${confirmText} to confirm.`} required>
             <TextInput

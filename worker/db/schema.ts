@@ -137,11 +137,15 @@ export const accessRequests = sqliteTable(
     decidedBy: integer("decided_by").references(() => users.id),
     decidedAt: integer("decided_at"),
     decisionReason: text("decision_reason"),
+    // "Still waiting?" nudge (AUTH-8): at most once per 24 hours per request.
+    lastNudgedAt: integer("last_nudged_at"),
     ...timestamps,
   },
   (t) => [
     check("access_requests_status_check", oneOf("status", ACCESS_REQUEST_STATUSES)),
     index("access_requests_project_id_status_idx").on(t.projectId, t.status),
+    // RATE-2 counts a user's requests created today.
+    index("access_requests_user_id_created_at_idx").on(t.userId, t.createdAt),
     // One open request per user per project (section 6).
     uniqueIndex("access_requests_one_open_idx")
       .on(t.userId, t.projectId)
@@ -161,7 +165,8 @@ export const invites = sqliteTable(
     invitedBy: integer("invited_by")
       .notNull()
       .references(() => users.id),
-    // Random 256-bit, single-use, expires after 7 days (AUTH-9).
+    // SHA-256 of the random 256-bit token in the invite link, so the table holds no usable links.
+    // Single-use, expires after 7 days (AUTH-9).
     token: text("token").notNull(),
     expiresAt: integer("expires_at").notNull(),
     usedAt: integer("used_at"),

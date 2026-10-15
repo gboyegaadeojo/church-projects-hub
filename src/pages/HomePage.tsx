@@ -1,23 +1,17 @@
 import { useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router";
-import { AUTH_COPY, AUTH_ERRORS, type SignInOutcome } from "../../shared/auth";
+import { AUTH_COPY, type SignInOutcome } from "../../shared/auth";
 import { Button } from "../components/ui/Button";
 import { homeFor, useSession } from "../lib/session";
+import { startGoogleSignIn } from "../lib/signin";
 
 // Public home page (AUTH-10, section 11.15). Signed-in users are sent straight on.
 
-function outcomeMessage(outcome: SignInOutcome | "ended" | "suspended" | null) {
-  switch (outcome) {
-    case "failed":
-      return AUTH_COPY.signInFailed;
-    case "ended":
-      return AUTH_COPY.sessionEnded;
-    case "suspended":
-      return `${AUTH_COPY.suspended} ${AUTH_COPY.contactEmail}`;
-    default:
-      return null;
-  }
-}
+const OUTCOME_COPY: Record<SignInOutcome, string> = {
+  failed: AUTH_COPY.signInFailed,
+  // Section 11.7: the session-ended screen is sign-in with this single line.
+  ended: AUTH_COPY.sessionEnded,
+};
 
 export function HomePage() {
   const session = useSession();
@@ -26,24 +20,15 @@ export function HomePage() {
   const [startError, setStartError] = useState<string | null>(null);
 
   if (session.data?.kind === "signed-in") return <Navigate to={homeFor(session.data.me)} replace />;
+  if (session.data?.kind === "suspended") return <Navigate to="/suspended" replace />;
 
-  const fromSession = session.data?.kind === "ended" || session.data?.kind === "suspended" ? session.data.kind : null;
-  const message = startError ?? outcomeMessage((params.get("signin") as SignInOutcome | null) ?? fromSession);
+  const outcome = (session.data?.kind === "ended" ? "ended" : params.get("signin")) as SignInOutcome | null;
+  const message = startError ?? (outcome ? OUTCOME_COPY[outcome] : null) ?? null;
 
   async function signIn() {
     setStarting(true);
     setStartError(null);
-    try {
-      const res = await fetch("/api/auth/start", { method: "POST", credentials: "same-origin" });
-      const body = (await res.json()) as { url?: string; error?: string; message?: string };
-      if (res.ok && body.url) {
-        window.location.assign(body.url);
-        return; // Keep the spinner while the browser leaves for Google.
-      }
-      setStartError(body.error === AUTH_ERRORS.rateLimited ? AUTH_COPY.rateLimited : AUTH_COPY.signInFailed);
-    } catch {
-      setStartError(AUTH_COPY.signInFailed);
-    }
+    setStartError(await startGoogleSignIn());
     setStarting(false);
   }
 
