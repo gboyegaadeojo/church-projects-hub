@@ -95,6 +95,10 @@ Done when: the Media team could run its backlog for a week. Consider a pilot wit
 
 Requirements: sections 10, 11.10, 11.13, 12; TASK-13, NAV-2, NFR-18, NFR-20, NFR-21.
 
+Carried over from Stage 2c:
+- /request-access should sit inside the app shell for active members.
+- Once the service worker caches pages for offline use, update the cookie paragraph in the privacy policy (`src/pages/PrivacyPage.tsx`): "We use a sign-in cookie, and your browser stores your theme choice and recently viewed pages so the app works offline. We don't use tracking or advertising cookies."
+
 > Read CLAUDE.md and docs/REQUIREMENTS.md sections 10, 11.10, 11.11, 11.13 and 12. Add: command palette (Cmd/Ctrl+K), toasts and skeletons everywhere data loads, designed empty and error states, React error boundaries reporting to a client-error endpoint, the D1 maintenance page, the service worker and PWA manifest (Workbox via the Vite PWA plugin), the offline banner with writes disabled, and the add-to-home-screen prompt after the second login. Check every screen at 360, 768, 1024 and 1440 px and at 200% zoom. Plan first.
 
 ---

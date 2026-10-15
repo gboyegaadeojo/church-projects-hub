@@ -64,8 +64,10 @@ export function PrivacyPage() {
           </ul>
           <p>
             The hub runs on Cloudflare. Emails about your work are sent through Brevo, which receives only what each email
-            needs. We don't sell your data, show ads or use tracking cookies. The only cookies keep you signed in and protect
-            your session.
+            needs. We don't sell your data or show ads.
+          </p>
+          <p>
+            We use a sign-in cookie, and your browser stores your theme choice. We don't use tracking or advertising cookies.
           </p>
         </Section>
 
