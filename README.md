@@ -72,7 +72,7 @@ Everyone who signs in starts as Pending, so the first App Admins are promoted by
 
    The output should say `changes: 1`.
 4. Repeat steps 2 and 3 for kome@ifcwpg.com.
-5. Each person reloads the app. From then on, App Admins approve everyone else from the access queue (`/admin/requests`), so no more SQL is needed.
+5. Each person reloads the app. The first App Admin page load also creates the built-in Hub Feedback project (key `HUB`, App Admins only, PROJ-7); it is re-created the same way if it ever goes missing. From then on, App Admins create team projects at Manage projects (`/admin/projects`) and approve everyone else from the access queue (`/admin/requests`), so no more SQL is needed.
 
 ### Local testing
 

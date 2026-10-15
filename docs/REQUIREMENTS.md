@@ -2,7 +2,7 @@
 
 Oct 14, 2026 · @G
 
-**Version 4.3** — single engineer-ready document · **Owner:** @G, Immanuel Fellowship Church (IFC) · **Audience:** software engineers building and maintaining this product · **Status:** active baseline; pre-build decisions in section 21.
+**Version 4.4** — single engineer-ready document · **Owner:** @G, Immanuel Fellowship Church (IFC) · **Audience:** software engineers building and maintaining this product · **Status:** active baseline; pre-build decisions in section 21.
 
 > This is the single source of truth. Read it fully before writing any code. Functional requirements take precedence over design guidance where they conflict. Any conflict found during implementation must be documented and brought to @G for a decision — never resolved silently.
 
@@ -10,6 +10,7 @@ Oct 14, 2026 · @G
 
 | Version | Date | Summary |
 | --- | --- | --- |
+| 4.4 | 14 Oct 2026 | Stage 2c decisions: the My Work welcome follows the time of day in the user's timezone ("Good morning", "Good afternoon" from noon, "Good evening" from 5 pm) (section 11.1); the Hub Feedback project uses the key HUB, which is reserved for it (PROJ-7); Hub Feedback is created when an App Admin loads the app, not only at sign-in, because the first App Admin is promoted by script after signing in (section 18); a text wordmark stands in for the church logo until the logo file is supplied (sections 11.6, 11.15). |
 | 4.3 | 14 Oct 2026 | Stage 1 decisions: "Confirmed action failed" copy added (section 14); type-to-confirm matching ignores letter case and leading or trailing spaces (section 11.14); side sheets round only their two inner corners, bottom sheets only their top corners (section 9); theme preference (Light, Dark, System) moves to the user's profile in Stage 2, with the browser setting kept as the fallback for signed-out pages and first paint. Stage 2a decisions: sign-in rate limit raised to 30 attempts per minute per IP, counted when sign-in starts (church Wi-Fi shares one IP) (NFR-4, RATE-1); "Sign-in didn't work" copy added (section 14); "sign-in rate limit hit" audit event written at most once per IP per minute (section 6). Stage 2b decisions: destructive actions carry an `X-Confirm-Action` header set only by the confirmation dialog, and the API returns 428 without it (sections 11.14, 17); invites are tied to the invited email, case-insensitive, with new mismatch copy (AUTH-9, section 14); RATE-2 counts one request per project, per calendar day in the user's timezone, and an over-limit submission is rejected whole. |
 | 4.2 | 14 Oct 2026 | Pre-build review: Google sign-in publishing (public home and privacy pages, verified domain); Cloudflare API secrets for usage panel and backups; free-tier budget calculated for Workers, D1 and email; Brevo domain authentication; files served through the Worker; rich text stored as Tiptap JSON; confirmation screens for every destructive action; search, bell refresh, due-date, data-safety, retention purge, duplicate-account, audit-event and operations rules added. |
 | 4.1 | 14 Oct 2026 | NFR-8 clarifies both restore paths; App Admin emails removed from env vars (resolved from DB); local migration setup added; section 19 simplified to the decided state; pre-code checklist gets owners and status; admin notification recipients resolved from DB at send time; success measure updated; domain decision updated. |
@@ -622,7 +623,7 @@ All screens implement the acceptance criteria listed in section 20.
 The user's personal starting point — the first screen after an approved sign-in.
 
 - Sections in order: Overdue → This week → Later → Mentions strip (if unread).
-- Welcome message: *"Good morning 👋 Here's what needs your attention this week."*
+- Welcome message: *"Good morning 👋 Here's what needs your attention this week."* The greeting follows the time of day in the user's timezone: "Good morning" before noon, "Good afternoon" until 5 pm, then "Good evening".
 - All dates in the user's configured timezone.
 - No decorative metrics or redundant cards.
 - Empty (no tasks assigned): *"You're all caught up. Check the board for work you can pick up."*
@@ -961,7 +962,7 @@ The app must be useful immediately after first deploy — no manual SQL commands
 ### Automatic on first deploy
 
 1. Database migrations are applied by CI with `wrangler d1 migrations apply` before each deploy (preview database first, then production). Idempotent: applied migrations are tracked in the `d1_migrations` table.
-2. "Hub Feedback" project created automatically (PROJ-7) if it does not exist. Runs on first App Admin sign-in.
+2. "Hub Feedback" project (key HUB, reserved) created automatically (PROJ-7) if it does not exist. Runs when an App Admin loads the app, so it also covers the first App Admin, who is promoted by script after signing in.
 3. Default workflow states seeded for new projects (Backlog, To Do, In Progress, In Review, Done).
 
 ### Local development setup
