@@ -5,6 +5,7 @@ import { AUTH_COPY, AUTH_ERRORS, type MeResponse, type SignInOutcome } from "../
 import { redeemInvite } from "../access/invites";
 import { AUDIT } from "../audit";
 import { getDb } from "../db/client";
+import { ensureHubFeedback } from "../projects/routes";
 import { randomToken, sha256Base64url } from "../lib/crypto";
 import type { AppEnv } from "../types";
 import { authorizeUrl, type GoogleClient, verifyIdToken } from "./google";
@@ -157,6 +158,8 @@ export function authRoutes(google: GoogleClient) {
   // Who am I, plus the CSRF token for writes. The client calls this on load.
   routes.get("/me", requireSession, async (c) => {
     const { user, sessionId } = c.get("auth");
+    // PROJ-7: an App Admin loading the app re-creates Hub Feedback if it is missing (no write otherwise).
+    if (user.appRole === "admin" && user.status === "active") await ensureHubFeedback(c.env);
     // Only decides whether to show the link to the access queue; the queue API checks for itself.
     const canReviewAccess =
       user.status === "active" &&
@@ -174,6 +177,7 @@ export function authRoutes(google: GoogleClient) {
         appRole: user.appRole,
         status: user.status,
         theme: user.theme,
+        timezone: user.timezone,
       },
       csrfToken: await csrfTokenFor(c.env.SESSION_SECRET, sessionId),
     };

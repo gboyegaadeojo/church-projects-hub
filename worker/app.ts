@@ -4,6 +4,8 @@ import { accessRequestRoutes } from "./access/requests";
 import type { GoogleClient } from "./auth/google";
 import { sameOriginWrites } from "./auth/middleware";
 import { authRoutes } from "./auth/routes";
+import { profileRoutes } from "./profile/routes";
+import { projectRoutes } from "./projects/routes";
 import type { AppEnv } from "./types";
 
 export type AppDeps = { google: GoogleClient };
@@ -26,6 +28,8 @@ export function createApp(deps: AppDeps) {
   // at the root never puts a session check on public routes like /health.
   app.route("/", accessRequestRoutes());
   app.route("/", inviteRoutes());
+  app.route("/", projectRoutes());
+  app.route("/", profileRoutes());
 
   // Unknown API routes return JSON, never the SPA shell.
   app.notFound((c) => c.json({ error: "Not found" }, 404));

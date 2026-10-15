@@ -1,47 +1,65 @@
-import { LogOut } from "lucide-react";
-import { Link, useNavigate } from "react-router";
-import type { MeResponse } from "../../shared/auth";
-import { SessionGate } from "../components/SessionGate";
-import { Button } from "../components/ui/Button";
-import { useSignOut } from "../lib/session";
+import { CircleCheck, FolderPlus } from "lucide-react";
+import { Link } from "react-router";
+import { ACCESS_COPY } from "../../shared/access";
+import { useMe } from "../components/shell/AppShell";
+import { PageLayout } from "../components/shell/PageLayout";
+import { buttonClasses } from "../components/ui/Button";
+import { Skeleton, useDelayedFlag } from "../components/ui/Skeleton";
+import { EmptyState, ErrorState } from "../components/ui/States";
+import { welcomeLine } from "../lib/greeting";
+import { useMyProjects } from "../lib/projects";
 
-// Temporary landing page for approved members until My Work (NAV-3) and the app shell (Stage 2c).
+// My Work (section 11.1), the first screen after an approved sign-in. Tasks arrive in Stage 3 (NAV-3);
+// until then it greets the person and shows the matching empty state.
+
+export const WORK_COPY = {
+  allCaughtUp: "You're all caught up. Check the board for work you can pick up.",
+} as const;
+
 export function WorkPage() {
-  return <SessionGate allow={(me) => me.user.status === "active"}>{(me) => <Work me={me} />}</SessionGate>;
-}
+  const me = useMe();
+  const projects = useMyProjects();
+  const showSkeleton = useDelayedFlag(projects.isPending);
 
-const linkClass = "text-accent-ink underline-offset-4 hover:underline";
-
-function Work({ me }: { me: MeResponse }) {
-  const signOut = useSignOut();
-  const navigate = useNavigate();
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-6 px-4">
-      <h1 className="text-title">My Work</h1>
-      <p className="text-ink-2">Signed in as {me.user.name}. Your projects will appear here.</p>
-      <nav aria-label="Account" className="flex flex-col gap-3">
-        {me.canReviewAccess && (
-          <Link to="/admin/requests" className={linkClass}>
-            Access requests and invites
-          </Link>
-        )}
-        {/* AUTH-5: moves to the profile menu with the app shell in Stage 2c. */}
-        <Link to="/request-access" className={linkClass}>
-          Request access to more projects
-        </Link>
-      </nav>
-      <div>
-        <Button
-          variant="secondary"
-          icon={LogOut}
-          onClick={async () => {
-            await signOut(me.csrfToken);
-            navigate("/", { replace: true });
-          }}
-        >
-          Sign out
-        </Button>
-      </div>
-    </main>
+    <PageLayout title="My Work" intro={welcomeLine(me.user.timezone)}>
+      {projects.isPending ? (
+        <div aria-busy="true" aria-label="Loading your work" className="flex flex-col gap-3">
+          {showSkeleton && (
+            <>
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-20 w-full" />
+            </>
+          )}
+        </div>
+      ) : projects.isError ? (
+        <ErrorState
+          title="We couldn't load your work."
+          description="Check your connection and try again."
+          onRetry={() => void projects.refetch()}
+          retrying={projects.isFetching}
+        />
+      ) : projects.data.length === 0 ? (
+        <EmptyState
+          icon={FolderPlus}
+          title={ACCESS_COPY.noProjects}
+          action={
+            <Link to="/request-access" className={buttonClasses()}>
+              Request access
+            </Link>
+          }
+        />
+      ) : (
+        <EmptyState
+          icon={CircleCheck}
+          title={WORK_COPY.allCaughtUp}
+          action={
+            <Link to="/projects" className={buttonClasses()}>
+              Go to projects
+            </Link>
+          }
+        />
+      )}
+    </PageLayout>
   );
 }
