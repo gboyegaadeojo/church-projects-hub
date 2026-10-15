@@ -12,10 +12,13 @@ export const AUDIT = {
   requestDenied: "access.request_denied",
   inviteSent: "invite.sent",
   inviteUsed: "invite.used",
+  projectCreated: "project.created",
+  projectEdited: "project.edited",
+  projectHiddenChanged: "project.hidden_changed",
 } as const;
 export type AuditAction = (typeof AUDIT)[keyof typeof AUDIT];
 
-export type AuditTargetType = "user" | "session" | "ip" | "access_request" | "invite";
+export type AuditTargetType = "user" | "session" | "ip" | "access_request" | "invite" | "project";
 
 export type AuditEvent = {
   actorId: number | null;

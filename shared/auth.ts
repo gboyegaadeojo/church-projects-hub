@@ -40,6 +40,8 @@ export const meResponse = z.object({
     appRole: z.enum(["admin", "member"]),
     status: z.enum(["pending", "active", "suspended"]),
     theme: z.enum(["light", "dark", "system"]),
+    /** IANA timezone; all dates show in it (section 11.1). */
+    timezone: z.string(),
   }),
   csrfToken: z.string(),
   /** App Admin, or Project Admin of at least one project: show the access queue link. */
