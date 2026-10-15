@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AUTH_ERRORS, CSRF_HEADER, meResponse, type MeResponse } from "../../shared/auth";
+import { AUTH_ERRORS, meResponse, type MeResponse } from "../../shared/auth";
+import { api } from "./api";
 
 // Who is signed in, from GET /api/auth/me. Fetched once per page load (no polling, section 5);
 // every authenticated API response re-checks the session server-side anyway.
@@ -32,22 +33,11 @@ export function homeFor(me: MeResponse): string {
   return me.user.status === "pending" ? "/request-access" : "/work";
 }
 
-/**
- * Every write carries the session's CSRF token (NFR-2). A 401 session_ended sends the person to
- * sign-in with "Your session has ended. Please sign in again." (AUTH-7).
- */
-export async function apiWrite(path: string, csrfToken: string, init: RequestInit = {}): Promise<Response> {
-  const headers = new Headers(init.headers);
-  headers.set(CSRF_HEADER, csrfToken);
-  const res = await fetch(path, { method: "POST", ...init, headers, credentials: "same-origin" });
-  if (res.status === 401) window.location.assign("/?signin=ended");
-  return res;
-}
-
 export function useSignOut() {
   const queryClient = useQueryClient();
   return async (csrfToken: string) => {
-    await apiWrite("/api/auth/logout", csrfToken).catch(() => undefined);
+    await api("/api/auth/logout", { method: "POST", csrfToken }).catch(() => undefined);
+    queryClient.clear();
     queryClient.setQueryData<SessionState>(SESSION_QUERY_KEY, { kind: "signed-out" });
   };
 }
