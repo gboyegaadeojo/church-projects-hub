@@ -23,7 +23,7 @@ export const AUTH_ERRORS = {
 } as const;
 
 /** `?signin=` values the callback redirects home with. */
-export const SIGNIN_OUTCOMES = ["failed", "suspended", "ended"] as const;
+export const SIGNIN_OUTCOMES = ["failed", "ended"] as const;
 export type SignInOutcome = (typeof SIGNIN_OUTCOMES)[number];
 
 /** Header that carries the CSRF token on every write (NFR-2). */
@@ -42,6 +42,8 @@ export const meResponse = z.object({
     theme: z.enum(["light", "dark", "system"]),
   }),
   csrfToken: z.string(),
+  /** App Admin, or Project Admin of at least one project: show the access queue link. */
+  canReviewAccess: z.boolean(),
 });
 export type MeResponse = z.infer<typeof meResponse>;
 

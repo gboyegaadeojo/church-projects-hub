@@ -170,12 +170,12 @@ describe("AUTH-2 First sign-in creates a Pending user", () => {
     expect(res.headers.get("Location")).toBe("/work");
   });
 
-  it("does not start a session for a suspended user", async () => {
+  it("does not start a session for a suspended user and sends them to the suspended screen (section 11.7)", async () => {
     const sub = freshSub();
     await signIn({ sub });
     await env.DB.prepare("UPDATE users SET status = 'suspended' WHERE google_sub = ?").bind(sub).run();
     const { res, sessionCookie } = await signIn({ sub });
-    expect(res.headers.get("Location")).toBe("/?signin=suspended");
+    expect(res.headers.get("Location")).toBe("/suspended");
     expect(sessionCookie).toBeUndefined();
   });
 

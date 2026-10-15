@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { inviteRoutes } from "./access/invites";
+import { accessRequestRoutes } from "./access/requests";
 import type { GoogleClient } from "./auth/google";
 import { sameOriginWrites } from "./auth/middleware";
 import { authRoutes } from "./auth/routes";
@@ -20,6 +22,10 @@ export function createApp(deps: AppDeps) {
   });
 
   app.route("/auth", authRoutes(deps.google));
+  // Each route in these carries its own guards (requireSession, requirePermission), so mounting
+  // at the root never puts a session check on public routes like /health.
+  app.route("/", accessRequestRoutes());
+  app.route("/", inviteRoutes());
 
   // Unknown API routes return JSON, never the SPA shell.
   app.notFound((c) => c.json({ error: "Not found" }, 404));

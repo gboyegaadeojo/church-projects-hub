@@ -27,6 +27,9 @@ export async function runScheduledJobs(now: Date, _env: Env): Promise<DueJobs> {
   const due = dueJobs(now);
   // Stage 5: send due email_outbox rows.
   // Stage 5: build digests for users whose local time is 7 am. Stage 7: incremental report_snapshots.
-  // Stage 6: retention queue (ADM-8), orphaned R2 cleanup, invite expiry.
+  // Stage 6: retention queue (ADM-8), orphaned R2 cleanup, invite expiry (audit "invite expired").
+  // TODO(Stage 5, section 7): daily, queue one reminder email_outbox row for each access request pending
+  // more than 3 days — template "access_request.reminder", recipients all active App Admins resolved at
+  // send time (section 8 rule 6), dedupe key "reminder:<request id>" so each request is reminded once.
   return due;
 }

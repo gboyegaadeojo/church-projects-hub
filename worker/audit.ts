@@ -7,13 +7,20 @@ export const AUDIT = {
   firstSignIn: "user.first_sign_in",
   sessionRevoked: "session.revoked",
   signInRateLimited: "signin.rate_limited",
+  requestSubmitted: "access.request_submitted",
+  requestApproved: "access.request_approved",
+  requestDenied: "access.request_denied",
+  inviteSent: "invite.sent",
+  inviteUsed: "invite.used",
 } as const;
 export type AuditAction = (typeof AUDIT)[keyof typeof AUDIT];
+
+export type AuditTargetType = "user" | "session" | "ip" | "access_request" | "invite";
 
 export type AuditEvent = {
   actorId: number | null;
   action: AuditAction;
-  targetType: "user" | "session";
+  targetType: AuditTargetType;
   targetId: string | number;
   detail?: Record<string, unknown>;
   ipHash: string | null;

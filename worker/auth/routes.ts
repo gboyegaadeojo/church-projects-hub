@@ -1,13 +1,23 @@
 import { type Context, Hono } from "hono";
 import { deleteCookie, getSignedCookie, setSignedCookie } from "hono/cookie";
+import { type InviteOutcome, inviteToken } from "../../shared/access";
 import { AUTH_COPY, AUTH_ERRORS, type MeResponse, type SignInOutcome } from "../../shared/auth";
+import { redeemInvite } from "../access/invites";
 import { AUDIT } from "../audit";
 import { getDb } from "../db/client";
-import { hmac, randomToken, sha256Base64url } from "../lib/crypto";
+import { randomToken, sha256Base64url } from "../lib/crypto";
 import type { AppEnv } from "../types";
 import { authorizeUrl, type GoogleClient, verifyIdToken } from "./google";
+import { ipHash } from "./ip";
 import { requireSession } from "./middleware";
 import { clearSessionCookie, createSession, csrfTokenFor, endSession, setSessionCookie } from "./session";
+
+/** Where each invite outcome lands after sign-in (AUTH-9, section 11.7). */
+const INVITE_LANDING: Record<InviteOutcome, string> = {
+  accepted: "/work",
+  expired: "/invite-expired",
+  mismatch: "/invite-mismatch",
+};
 
 // Short-lived cookie holding state, PKCE verifier and nonce between /start and /callback (section 7 step 1).
 const OAUTH_COOKIE = "cph_oauth";
@@ -20,12 +30,6 @@ const OAUTH_COOKIE_OPTIONS = {
   // Lax lets the cookie come back on Google's top-level GET redirect to /callback.
   sameSite: "Lax",
 } as const;
-
-/** Keyed HMAC of the client IP: lets us rate-limit and audit without storing IPs (NFR-5). */
-export function ipHash(c: Context<AppEnv>): Promise<string> {
-  const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
-  return hmac(c.env.SESSION_SECRET, `ip:${ip}`);
-}
 
 /** RATE-1 / NFR-4: 30 sign-in attempts per minute per IP, via the Workers rate-limiting binding. */
 async function signInAllowed(c: Context<AppEnv>, ipKey: string): Promise<boolean> {
@@ -57,16 +61,19 @@ export function authRoutes(google: GoogleClient) {
   const routes = new Hono<AppEnv>();
 
   // Step 1: the home page button calls this, then navigates to the returned Google URL.
+  // The invite screen passes { invite: <token> } so the invite is accepted on the way back (AUTH-9).
   routes.post("/start", async (c) => {
     const ipKey = await ipHash(c);
     if (!(await signInAllowed(c, ipKey))) {
       await auditRateLimitHit(c, ipKey, Date.now());
       return c.json({ error: AUTH_ERRORS.rateLimited, message: AUTH_COPY.rateLimited }, 429);
     }
+    const body = (await c.req.json().catch(() => ({}))) as { invite?: unknown };
+    const invite = inviteToken.safeParse(body?.invite).success ? (body.invite as string) : "";
     const state = randomToken(32);
     const nonce = randomToken(32);
     const codeVerifier = randomToken(32);
-    await setSignedCookie(c, OAUTH_COOKIE, `${state}~${codeVerifier}~${nonce}`, c.env.SESSION_SECRET, {
+    await setSignedCookie(c, OAUTH_COOKIE, `${state}~${codeVerifier}~${nonce}~${invite}`, c.env.SESSION_SECRET, {
       ...OAUTH_COOKIE_OPTIONS,
       maxAge: OAUTH_COOKIE_MAX_AGE_S,
     });
@@ -85,7 +92,7 @@ export function authRoutes(google: GoogleClient) {
 
     const code = c.req.query("code");
     const state = c.req.query("state");
-    const [expectedState, codeVerifier, nonce] = typeof stored === "string" ? stored.split("~") : [];
+    const [expectedState, codeVerifier, nonce, invite] = typeof stored === "string" ? stored.split("~") : [];
     // Google sends ?error=access_denied when the person cancels; that also lands here.
     if (!code || !state || !expectedState || !codeVerifier || !nonce || state !== expectedState) {
       return home(c, "failed");
@@ -122,7 +129,8 @@ export function authRoutes(google: GoogleClient) {
     ]);
     const user = refreshed?.results[0];
     if (!user || user.deleted_at !== null) return home(c, "failed");
-    if (user.status === "suspended") return home(c, "suspended");
+    // Section 11.7: suspended people get the suspended screen and no session.
+    if (user.status === "suspended") return c.redirect("/suspended", 302);
 
     const db = getDb(c.env);
     const sessionId = await createSession(db, {
@@ -132,13 +140,32 @@ export function authRoutes(google: GoogleClient) {
       now,
     });
     await setSessionCookie(c, sessionId);
+
+    if (invite) {
+      // AUTH-9: an invited person skips the request queue.
+      const outcome = await redeemInvite(c.env, {
+        token: invite,
+        user: { id: user.id, email: identity.email },
+        ipHash: ipKey,
+        now,
+      });
+      return c.redirect(INVITE_LANDING[outcome], 302);
+    }
     return c.redirect(user.status === "pending" ? "/request-access" : "/work", 302);
   });
 
   // Who am I, plus the CSRF token for writes. The client calls this on load.
   routes.get("/me", requireSession, async (c) => {
     const { user, sessionId } = c.get("auth");
+    // Only decides whether to show the link to the access queue; the queue API checks for itself.
+    const canReviewAccess =
+      user.status === "active" &&
+      (user.appRole === "admin" ||
+        (await c.env.DB.prepare("SELECT 1 FROM project_members WHERE user_id = ?1 AND role = 'admin' LIMIT 1")
+          .bind(user.id)
+          .first()) !== null);
     const body: MeResponse = {
+      canReviewAccess,
       user: {
         id: user.id,
         email: user.email,
