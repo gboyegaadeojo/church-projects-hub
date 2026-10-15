@@ -47,10 +47,14 @@ const SHARED: Omit<Persona, "id">[] = [
   { key: "pendingWaiting", name: "Robin Waiting", email: "robin.waiting@example.org", status: "pending", appRole: "member", memberships: [] },
   { key: "wrongAccount", name: "Alex Otheraccount", email: "alex.other@example.org", status: "pending", appRole: "member", memberships: [] },
   { key: "suspended", name: "Jordan Suspended", email: "jordan.suspended@example.org", status: "suspended", appRole: "member", memberships: [] },
+  // Approved but in no project yet (section 11.1 empty state).
+  { key: "loner", name: "Lee Newmember", email: "lee.newmember@example.org", status: "active", appRole: "member", memberships: [] },
 ];
 
 const PER_VIEWPORT = ["submitter", "nudger", "approvee", "denyee", "invitee"] as const;
-type PerViewportKey = (typeof PER_VIEWPORT)[number];
+/** Active Media contributors whose settings change (theme on the profile). */
+const PER_VIEWPORT_ACTIVE = ["themer"] as const;
+type PerViewportKey = (typeof PER_VIEWPORT)[number] | (typeof PER_VIEWPORT_ACTIVE)[number];
 
 function titleCase(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -68,9 +72,19 @@ export const PERSONAS: Persona[] = [
       memberships: [],
     })),
   ),
+  ...VIEWPORTS.flatMap((v) =>
+    PER_VIEWPORT_ACTIVE.map((k) => ({
+      key: `${k}-${v}`,
+      name: `${titleCase(k)} ${titleCase(v)}`,
+      email: `${k}.${v}@example.org`,
+      status: "active" as const,
+      appRole: "member" as const,
+      memberships: [{ projectId: 1, role: "contributor" as const }],
+    })),
+  ),
 ].map((p, i) => ({ ...p, id: i + 1 }));
 
-type SharedKey = "admin" | "contributor" | "pendingNew" | "pendingWaiting" | "wrongAccount" | "suspended";
+type SharedKey = "admin" | "contributor" | "pendingNew" | "pendingWaiting" | "wrongAccount" | "suspended" | "loner";
 
 export function persona(key: SharedKey): Persona;
 export function persona(key: PerViewportKey, viewport: Viewport): Persona;

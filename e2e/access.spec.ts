@@ -1,61 +1,15 @@
-import { test as base, type BrowserContext, expect, type Page, type TestInfo } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { ACCESS_COPY } from "../shared/access";
 import { expectNoViolations } from "./support/axe";
-import {
-  DENIAL_REASON,
-  INVITES,
-  type Persona,
-  persona,
-  sessionIdFor,
-  sessionSecret,
-  signedSessionCookie,
-  type Viewport,
-} from "./support/fixtures";
+import { DENIAL_REASON, INVITES, persona } from "./support/fixtures";
+import { test, viewportOf } from "./support/pageAs";
 
 // Stage 2b screens in a real browser: request access and live status (AUTH-3, AUTH-8, section 11.6),
 // the access queue (section 7), the confirmation token (section 11.14), invites (AUTH-9) and the
 // security screens (section 11.7), with axe (NFR-13) in both themes.
 //
-// The e2e server has its own seeded database (e2e/support/prepare-db.ts). People sign in by a seeded
-// session cookie instead of Google; everything after that is the real Worker, middleware and D1.
-// People whose state changes have one copy per viewport, so desktop and mobile runs never collide.
-
-const secret = sessionSecret();
-
-type Scheme = "light" | "dark";
-
-/**
- * `pageAs(who)`: a page signed in as `who` (or signed out with null), in its own browser context, so
- * two people can be on screen in one test. Every context is closed when the test ends.
- */
-const test = base.extend<{ pageAs: (who: Persona | null, colorScheme?: Scheme) => Promise<Page> }>({
-  pageAs: async ({ browser }, use, testInfo) => {
-    const { baseURL, viewport, hasTouch } = testInfo.project.use;
-    const contexts: BrowserContext[] = [];
-    await use(async (who, colorScheme = "light") => {
-      const context = await browser.newContext({ baseURL, colorScheme, viewport, hasTouch });
-      contexts.push(context);
-      if (who) {
-        await context.addCookies([
-          {
-            name: "__Host-cph_session",
-            value: signedSessionCookie(sessionIdFor(who), secret),
-            // __Host- cookies need domain + path here: Chromium rejects the `url` form for http origins.
-            domain: new URL(baseURL!).hostname,
-            path: "/",
-            secure: true,
-            httpOnly: true,
-            sameSite: "Lax",
-          },
-        ]);
-      }
-      return context.newPage();
-    });
-    await Promise.all(contexts.map((c) => c.close()));
-  },
-});
-
-const viewportOf = (testInfo: TestInfo) => testInfo.project.name as Viewport;
+// People sign in with seeded session cookies (e2e/support/pageAs.ts). People whose state changes have
+// one copy per viewport, so desktop and mobile runs never collide.
 
 for (const scheme of ["light", "dark"] as const) {
   test.describe(`NFR-13 access screens in ${scheme} mode`, () => {
@@ -139,10 +93,13 @@ for (const scheme of ["light", "dark"] as const) {
       }
     });
 
-    test("My Work links an admin to the access queue", async ({ pageAs }) => {
+    test("The app shell links an admin to the access queue", async ({ pageAs }, testInfo) => {
       const page = await pageAs(persona("admin"), scheme);
       await page.goto("/work");
-      await expect(page.getByRole("link", { name: "Access requests and invites" })).toBeVisible();
+      // Sidebar on desktop; the Admin tab of the bottom bar on mobile (section 12).
+      const name = viewportOf(testInfo) === "desktop" ? "Access requests" : "Admin";
+      await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name, exact: true }).click();
+      await expect(page.getByRole("heading", { level: 1, name: "Access requests" })).toBeVisible();
       await expectNoViolations(page);
     });
   });
