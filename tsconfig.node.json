@@ -8,6 +8,8 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
+    // e2e/support/prepare-db.ts runs directly in Node (type stripping), which needs the .ts in imports.
+    "allowImportingTsExtensions": true,
     "types": ["node"]
   },
   "include": ["vite.config.ts", "vitest.config.ts", "drizzle.config.ts", "playwright.config.ts", "e2e"]
