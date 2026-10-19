@@ -1,0 +1,54 @@
+# Nightly database backup (NFR-8): full D1 export to the church-projects-hub-backups R2 bucket at 3 am Winnipeg.
+# GitHub cron is UTC, so both 08:00 (3 am CDT) and 09:00 (3 am CST) are scheduled and the off-season one skips.
+# Kept 30 days by the bucket's lifecycle rule "expire-d1-backups" (prefix d1/). Restore steps: README, Restoring.
+name: Backup
+
+on:
+  schedule:
+    - cron: "0 8 * * *"
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - id: slot
+        name: Is this 3 am in Winnipeg?
+        env:
+          SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Backup skipped: add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets (README, Deploys)."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            node scripts/ops-window-cli.ts backup "$SCHEDULE" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.slot.outputs.run == 'true'
+        run: npm ci
+      - if: steps.slot.outputs.run == 'true'
+        name: Export D1 and upload to R2
+        run: |
+          set -euo pipefail
+          key="d1/church-projects-hub-$(TZ=America/Winnipeg date +%Y-%m-%d-%H%M).sql.gz"
+          npx wrangler d1 export church-projects-hub --remote --output backup.sql --skip-confirmation
+          gzip -9 backup.sql
+          npx wrangler r2 object put "church-projects-hub-backups/$key" --file backup.sql.gz --content-type application/gzip --remote
+          echo "Backed up to church-projects-hub-backups/$key ($(du -h backup.sql.gz | cut -f1))" >> "$GITHUB_STEP_SUMMARY"

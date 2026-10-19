@@ -69,6 +69,7 @@ Carried over from Stage 1: move the theme preference (Light, Dark, System) to th
 > Split into pull requests: (a) schema + sign-in + sessions, (b) permissions + pending/approval + invites, (c) shell + pages + project creation, (d) deploy and backup workflows. Plan first.
 
 Stage 2d check: once deployed, confirm the Workers rate-limiting binding (`SIGNIN_RATE_LIMITER` in `wrangler.jsonc`, RATE-1) works on the free plan, e.g. 31 quick POSTs to `/api/auth/start` from one IP should return a 429. If the free plan doesn't offer it, fall back to a small D1 counter keyed by IP hash and minute (NFR-4).
+**Checked 19 Oct 2026:** works on the free plan. 90 quick POSTs from one IP within a minute returned 31 × 200 then 59 × 429. No fallback needed.
 
 After this stage: set the production secrets (`npx wrangler secret put …`), add the custom domain (hub.ifcwpg.com), publish the Google consent screen, and run the first-admin script for gboyega@ and kome@.
 
