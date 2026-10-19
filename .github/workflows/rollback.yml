@@ -1,0 +1,40 @@
+# One-click rollback (NFR-7): Actions → Rollback → Run workflow. Puts the previous Worker version back
+# (or the version ID given). It does not undo database migrations; see README, Rolling back.
+# Allowed during the Sunday freeze, since it restores a version that already ran in production.
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: What went wrong
+        required: true
+      version_id:
+        description: Worker version ID to go back to (leave empty for the previous one)
+        required: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Roll back the Worker
+        env:
+          VERSION_ID: ${{ inputs.version_id }}
+          REASON: ${{ inputs.reason }}
+        run: npx wrangler rollback $VERSION_ID --message "$REASON" --yes

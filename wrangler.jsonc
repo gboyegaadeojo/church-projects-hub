@@ -19,8 +19,8 @@
     {
       "binding": "DB",
       "database_name": "church-projects-hub",
-      // Replace with the id printed by: npx wrangler d1 create church-projects-hub
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // Production database (created 19 Oct 2026). Local dev and tests use a local copy, never this one.
+      "database_id": "483598e8-a78a-466b-8cff-b8e46b803419",
       "migrations_dir": "migrations"
     }
   ],
@@ -28,7 +28,8 @@
   "r2_buckets": [
     {
       "binding": "FILES",
-      // Create with: npx wrangler r2 bucket create church-projects-hub-files
+      // Attachments only. Nightly database backups go to the separate church-projects-hub-backups
+      // bucket (.github/workflows/backup.yml), which the Worker has no binding to.
       "bucket_name": "church-projects-hub-files"
     }
   ],
@@ -44,8 +45,9 @@
     { "name": "SIGNIN_RATE_LIMITER", "namespace_id": "2101", "simple": { "limit": 30, "period": 60 } }
   ],
 
+  // Production values. `npm run dev` overrides APP_BASE_URL from .dev.vars (http://localhost:5174).
   "vars": {
-    "APP_BASE_URL": "http://localhost:5174",
+    "APP_BASE_URL": "https://hub.ifcwpg.com",
     "EMAIL_FROM": "media@ifcwpg.com"
   }
 }
