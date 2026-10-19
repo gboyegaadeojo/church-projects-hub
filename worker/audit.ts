@@ -15,10 +15,32 @@ export const AUDIT = {
   projectCreated: "project.created",
   projectEdited: "project.edited",
   projectHiddenChanged: "project.hidden_changed",
+  // Workflow: columns, labels, components or milestones changed (section 6).
+  workflowChanged: "workflow.changed",
+  // Destructive actions (section 6, 11.14).
+  taskDeleted: "task.deleted",
+  commentDeleted: "comment.deleted",
+  subtaskDeleted: "subtask.deleted",
+  attachmentDeleted: "attachment.deleted",
+  savedFilterDeleted: "saved_filter.deleted",
 } as const;
 export type AuditAction = (typeof AUDIT)[keyof typeof AUDIT];
 
-export type AuditTargetType = "user" | "session" | "ip" | "access_request" | "invite" | "project";
+export type AuditTargetType =
+  | "user"
+  | "session"
+  | "ip"
+  | "access_request"
+  | "invite"
+  | "project"
+  | "task"
+  | "comment"
+  | "subtask"
+  | "attachment"
+  | "label"
+  | "component"
+  | "milestone"
+  | "saved_filter";
 
 export type AuditEvent = {
   actorId: number | null;
@@ -28,6 +50,22 @@ export type AuditEvent = {
   detail?: Record<string, unknown>;
   ipHash: string | null;
 };
+
+/** The same insert as a raw D1 statement, for batches written in SQL (tasks). */
+export function auditStatement(env: Pick<Env, "DB">, event: AuditEvent, at: number = Date.now()) {
+  return env.DB.prepare(
+    `INSERT INTO audit_log (actor_id, action, target_type, target_id, detail_json, ip_hash, at)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
+  ).bind(
+    event.actorId,
+    event.action,
+    event.targetType,
+    String(event.targetId),
+    JSON.stringify(event.detail ?? {}),
+    event.ipHash,
+    at,
+  );
+}
 
 /** Insert statement for one audit event, so callers can batch it with the change it records. */
 export function auditInsert(db: Db, event: AuditEvent) {

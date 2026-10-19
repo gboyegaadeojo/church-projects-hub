@@ -6,6 +6,9 @@ import { sameOriginWrites } from "./auth/middleware";
 import { authRoutes } from "./auth/routes";
 import { profileRoutes } from "./profile/routes";
 import { projectRoutes } from "./projects/routes";
+import { itemRoutes } from "./tasks/items";
+import { orgRoutes } from "./tasks/org";
+import { taskRoutes } from "./tasks/routes";
 import type { AppEnv } from "./types";
 
 export type AppDeps = { google: GoogleClient };
@@ -30,6 +33,9 @@ export function createApp(deps: AppDeps) {
   app.route("/", inviteRoutes());
   app.route("/", projectRoutes());
   app.route("/", profileRoutes());
+  app.route("/", taskRoutes());
+  app.route("/", itemRoutes());
+  app.route("/", orgRoutes());
 
   // Unknown API routes return JSON, never the SPA shell.
   app.notFound((c) => c.json({ error: "Not found" }, 404));

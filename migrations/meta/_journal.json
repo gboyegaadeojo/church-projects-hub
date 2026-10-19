@@ -15,6 +15,20 @@
       "when": 1791996836775,
       "tag": "0001_access_requests_nudge",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792397518120,
+      "tag": "0002_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792397567873,
+      "tag": "0003_tasks_search",
+      "breakpoints": true
     }
   ]
 }

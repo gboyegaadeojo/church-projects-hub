@@ -48,7 +48,13 @@ jobs:
         run: |
           set -euo pipefail
           key="d1/church-projects-hub-$(TZ=America/Winnipeg date +%Y-%m-%d-%H%M).sql.gz"
-          npx wrangler d1 export church-projects-hub --remote --output backup.sql --skip-confirmation
+          # `d1 export` refuses databases with FTS5 tables, so every table except the search index is named.
+          # The index is rebuilt after a restore with scripts/rebuild-search.sql.
+          tables=$(npx wrangler d1 execute church-projects-hub --remote --json --command \
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'tasks_fts%' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY name" \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s.slice(s.indexOf('[')))[0].results.map(r=>'--table='+r.name).join(' ')))")
+          test -n "$tables"
+          npx wrangler d1 export church-projects-hub --remote --output backup.sql --skip-confirmation $tables
           gzip -9 backup.sql
           npx wrangler r2 object put "church-projects-hub-backups/$key" --file backup.sql.gz --content-type application/gzip --remote
           echo "Backed up to church-projects-hub-backups/$key ($(du -h backup.sql.gz | cut -f1))" >> "$GITHUB_STEP_SUMMARY"
