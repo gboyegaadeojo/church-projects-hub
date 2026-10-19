@@ -135,7 +135,10 @@ gunzip backup.sql.gz
 # 2. Load it into a new database
 npx wrangler d1 create church-projects-hub-restored
 npx wrangler d1 execute church-projects-hub-restored --remote --file backup.sql
+
+# 3. Rebuild the task search index (exports can't include FTS5 tables, so it isn't in the backup)
+npx wrangler d1 execute church-projects-hub-restored --remote --file scripts/rebuild-search.sql
 ```
 
-3. In `wrangler.jsonc`, set `database_name` to `church-projects-hub-restored` and `database_id` to the ID that `d1 create` printed. Commit to `main` (outside the Sunday freeze); the deploy workflow applies any newer migrations and deploys.
-4. Record "restore performed" in the audit log from the admin area once it exists (Stage 6); until then note it in the pull request.
+4. In `wrangler.jsonc`, set `database_name` to `church-projects-hub-restored` and `database_id` to the ID that `d1 create` printed. Commit to `main` (outside the Sunday freeze); the deploy workflow applies any newer migrations and deploys.
+5. Record "restore performed" in the audit log from the admin area once it exists (Stage 6); until then note it in the pull request.

@@ -198,6 +198,240 @@ export const workflowStates = sqliteTable(
   ],
 );
 
+// ---- Tasks (Stage 3: TASK, ORG, NAV)
+
+export const TASK_TYPES = ["task", "bug", "idea", "epic"] as const;
+export const PRIORITIES = ["urgent", "high", "medium", "low"] as const;
+export const SCOPES = ["in_scope", "out_of_scope", "parked"] as const;
+
+export const labels = sqliteTable(
+  "labels",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id),
+    name: text("name").notNull(),
+    colour: text("colour").notNull(),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("labels_project_id_name_idx").on(t.projectId, sql`${t.name} COLLATE NOCASE`)],
+);
+
+export const components = sqliteTable(
+  "components",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id),
+    name: text("name").notNull(),
+    leadId: integer("lead_id").references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("components_project_id_name_idx").on(t.projectId, sql`${t.name} COLLATE NOCASE`)],
+);
+
+export const milestones = sqliteTable(
+  "milestones",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id),
+    name: text("name").notNull(),
+    // Calendar date YYYY-MM-DD, like due dates.
+    targetDate: text("target_date"),
+    releasedAt: integer("released_at"),
+    ...timestamps,
+  },
+  (t) => [index("milestones_project_id_idx").on(t.projectId)],
+);
+
+export const tasks = sqliteTable(
+  "tasks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id),
+    // From projects.next_task_number in the same batch as the insert, so keys (MEDIA-42) never collide.
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    // Tiptap JSON (section 11.5), validated by shared/richtext.ts; description_text is the plain-text copy.
+    descriptionJson: text("description_json").notNull().default('{"type":"doc","content":[]}'),
+    descriptionText: text("description_text").notNull().default(""),
+    type: text("type", { enum: TASK_TYPES }).notNull().default("task"),
+    stateId: integer("state_id")
+      .notNull()
+      .references(() => workflowStates.id),
+    priority: text("priority", { enum: PRIORITIES }).notNull().default("medium"),
+    scope: text("scope", { enum: SCOPES }).notNull().default("in_scope"),
+    assigneeId: integer("assignee_id").references(() => users.id),
+    reporterId: integer("reporter_id")
+      .notNull()
+      .references(() => users.id),
+    // Calendar date YYYY-MM-DD, no time (section 11.3).
+    dueDate: text("due_date"),
+    epicId: integer("epic_id").references((): AnySQLiteColumn => tasks.id),
+    componentId: integer("component_id").references(() => components.id),
+    milestoneId: integer("milestone_id").references(() => milestones.id),
+    // Fractional index within the column (fractional-indexing), compared with plain string order.
+    rank: text("rank").notNull(),
+    // Optimistic concurrency (NFR-10): every change increments it.
+    version: integer("version").notNull().default(0),
+    deletedAt: integer("deleted_at"),
+    ...timestamps,
+  },
+  (t) => [
+    check("tasks_type_check", oneOf("type", TASK_TYPES)),
+    check("tasks_priority_check", oneOf("priority", PRIORITIES)),
+    check("tasks_scope_check", oneOf("scope", SCOPES)),
+    uniqueIndex("tasks_project_id_number_idx").on(t.projectId, t.number),
+    index("tasks_project_id_state_id_rank_idx").on(t.projectId, t.stateId, t.rank),
+    index("tasks_assignee_id_due_date_idx").on(t.assigneeId, t.dueDate),
+    index("tasks_epic_id_idx").on(t.epicId),
+  ],
+);
+
+export const taskLabels = sqliteTable(
+  "task_labels",
+  {
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id),
+    labelId: integer("label_id")
+      .notNull()
+      .references(() => labels.id),
+  },
+  (t) => [primaryKey({ columns: [t.taskId, t.labelId] }), index("task_labels_label_id_idx").on(t.labelId)],
+);
+
+export const subtasks = sqliteTable(
+  "subtasks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id),
+    title: text("title").notNull(),
+    done: integer("done", { mode: "boolean" }).notNull().default(false),
+    position: integer("position").notNull(),
+    ...timestamps,
+  },
+  (t) => [index("subtasks_task_id_position_idx").on(t.taskId, t.position)],
+);
+
+export const comments = sqliteTable(
+  "comments",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id),
+    authorId: integer("author_id")
+      .notNull()
+      .references(() => users.id),
+    bodyJson: text("body_json").notNull(),
+    bodyText: text("body_text").notNull(),
+    // TASK-4: edits show "edited".
+    editedAt: integer("edited_at"),
+    deletedAt: integer("deleted_at"),
+    ...timestamps,
+  },
+  (t) => [index("comments_task_id_idx").on(t.taskId)],
+);
+
+// @mentions parsed from descriptions and comments on save (section 11.5); My Work's "Mentioned me" (NAV-3).
+export const mentions = sqliteTable(
+  "mentions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id),
+    // Null when the mention is in the task description.
+    commentId: integer("comment_id").references(() => comments.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    // Set when the person opens the task; unread mentions show on My Work.
+    seenAt: integer("seen_at"),
+    ...timestamps,
+  },
+  (t) => [index("mentions_user_id_seen_at_idx").on(t.userId, t.seenAt), index("mentions_task_id_idx").on(t.taskId)],
+);
+
+export const attachments = sqliteTable(
+  "attachments",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id),
+    r2Key: text("r2_key").notNull().unique(),
+    filename: text("filename").notNull(),
+    mime: text("mime").notNull(),
+    bytes: integer("bytes").notNull(),
+    uploadedBy: integer("uploaded_by")
+      .notNull()
+      .references(() => users.id),
+    deletedAt: integer("deleted_at"),
+    ...timestamps,
+  },
+  (t) => [index("attachments_task_id_idx").on(t.taskId)],
+);
+
+// TASK-8: assignee and reporter are added automatically.
+export const watchers = sqliteTable(
+  "watchers",
+  {
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+  },
+  (t) => [primaryKey({ columns: [t.taskId, t.userId] }), index("watchers_user_id_idx").on(t.userId)],
+);
+
+// TASK-6 history and every report (section 16). Append-only, like the audit log.
+export const taskEvents = sqliteTable(
+  "task_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => tasks.id),
+    actorId: integer("actor_id").references(() => users.id),
+    field: text("field").notNull(),
+    oldValue: text("old_value"),
+    newValue: text("new_value"),
+    at: integer("at").notNull().default(nowMs),
+  },
+  (t) => [index("task_events_task_id_at_idx").on(t.taskId, t.at)],
+);
+
+// ORG-5: saved filters, private or shared to the project.
+export const savedFilters = sqliteTable(
+  "saved_filters",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id),
+    ownerId: integer("owner_id")
+      .notNull()
+      .references(() => users.id),
+    name: text("name").notNull(),
+    queryJson: text("query_json").notNull(),
+    shared: integer("shared", { mode: "boolean" }).notNull().default(false),
+    ...timestamps,
+  },
+  (t) => [index("saved_filters_project_id_idx").on(t.projectId)],
+);
+
 // Append-only (ADM-3). Rows are never updated, so `at` stands in for created_at/updated_at
 // and actor_id for created_by. actor_id is null for system events.
 export const auditLog = sqliteTable(
