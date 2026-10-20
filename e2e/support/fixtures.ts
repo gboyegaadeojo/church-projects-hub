@@ -24,10 +24,17 @@ export const PROJECTS = [
   // The task detail tests run alongside the board tests, so they get their own projects.
   { id: 7, key: "DETDESK", name: "Detail desktop", description: "Task detail tests on desktop.", hidden: true },
   { id: 8, key: "DETMOB", name: "Detail mobile", description: "Task detail tests on mobile.", hidden: true },
+  // Stage 8 journeys (e2e/journeys.spec.ts): an empty board to work through, and a project to archive.
+  { id: 9, key: "JRNDESK", name: "Journey desktop", description: "Journey tests on desktop.", hidden: true },
+  { id: 10, key: "JRNMOB", name: "Journey mobile", description: "Journey tests on mobile.", hidden: true },
+  { id: 11, key: "ARCDESK", name: "Archive desktop", description: "Archive test on desktop.", hidden: true },
+  { id: 12, key: "ARCMOB", name: "Archive mobile", description: "Archive test on mobile.", hidden: true },
 ] as const;
 
 export const BOARD_PROJECTS = { desktop: PROJECTS[4], mobile: PROJECTS[5] } as const;
 export const DETAIL_PROJECTS = { desktop: PROJECTS[6], mobile: PROJECTS[7] } as const;
+export const JOURNEY_PROJECTS = { desktop: PROJECTS[8], mobile: PROJECTS[9] } as const;
+export const ARCHIVE_PROJECTS = { desktop: PROJECTS[10], mobile: PROJECTS[11] } as const;
 /** Every project seeded with the board tasks below. */
 export const TASK_PROJECTS = [BOARD_PROJECTS.desktop, BOARD_PROJECTS.mobile, DETAIL_PROJECTS.desktop, DETAIL_PROJECTS.mobile] as const;
 
@@ -81,7 +88,7 @@ const SHARED: Omit<Persona, "id">[] = [
 
 const PER_VIEWPORT = ["submitter", "nudger", "approvee", "denyee", "invitee"] as const;
 /** Active contributors whose settings or tasks change: theme on the profile (Media), and board moves. */
-const PER_VIEWPORT_ACTIVE = ["themer", "mover", "suspendee", "roler"] as const;
+const PER_VIEWPORT_ACTIVE = ["themer", "mover", "suspendee", "roler", "revokee"] as const;
 type PerViewportKey = (typeof PER_VIEWPORT)[number] | (typeof PER_VIEWPORT_ACTIVE)[number];
 
 function titleCase(s: string) {
@@ -109,7 +116,7 @@ export const PERSONAS: Persona[] = [
       appRole: "member" as const,
       memberships:
         k === "mover"
-          ? [BOARD_PROJECTS[v], DETAIL_PROJECTS[v]].map((p) => ({ projectId: p.id, role: "contributor" as const }))
+          ? [BOARD_PROJECTS[v], DETAIL_PROJECTS[v], JOURNEY_PROJECTS[v]].map((p) => ({ projectId: p.id, role: "contributor" as const }))
           : [{ projectId: 1, role: "contributor" as const }],
     })),
   ),
