@@ -115,3 +115,39 @@ export function notificationHref(n: Pick<NotificationItem, "type" | "payload">):
   if (n.type === "access.decided") return n.payload.decision === "approved" && n.payload.projectKey ? `/projects/${n.payload.projectKey}` : "/request-access";
   return "/notifications";
 }
+
+// ---- Email settings (NOTIF-5) and one-click unsubscribe (NOTIF-6)
+
+/** Events a person can set. The weekly summary isn't built yet, so it isn't offered. */
+export const SETTABLE_EVENTS = NOTIFICATION_TYPES.filter((t) => t !== "project.weekly_summary");
+/** Shown only to people who decide access requests; the 3-day reminder only to App Admins. */
+export const DECIDER_EVENTS: readonly NotificationType[] = ["access.requested", "access.nudge"];
+export const APP_ADMIN_EVENTS: readonly NotificationType[] = ["access.reminder"];
+
+const notificationType = z.enum(NOTIFICATION_TYPES as [NotificationType, ...NotificationType[]]);
+const emailMode = z.enum(EMAIL_MODES);
+
+export const notificationSettingsResponse = z.object({
+  timezone: z.string(),
+  events: z.array(z.object({ type: notificationType, mode: emailMode, defaultMode: emailMode })),
+});
+export type NotificationSettings = z.infer<typeof notificationSettingsResponse>;
+
+export const updateNotificationSettingsBody = z
+  .object({
+    timezone: z.string().min(1).max(64).optional(),
+    events: z.partialRecord(notificationType, emailMode).optional(),
+  })
+  .refine((b) => b.timezone !== undefined || b.events !== undefined);
+
+/** "digest" stands for every event the person gets in the morning digest. */
+export const unsubscribeBody = z.object({
+  u: z.coerce.number().int().positive(),
+  e: z.union([notificationType, z.literal("digest")]),
+  t: z.string().min(10).max(100),
+});
+
+export const UNSUBSCRIBE_COPY = {
+  done: "You're unsubscribed.",
+  invalid: "This unsubscribe link isn't valid. You can change your email settings after signing in.",
+} as const;

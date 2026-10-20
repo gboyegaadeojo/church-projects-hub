@@ -2,6 +2,7 @@
 // Each job is filled in during its build stage; until then the dispatcher only decides what is due.
 
 import { emailSenderFor } from "../email/sender";
+import { dueReminderStatements, queueDigests } from "./digest";
 import { cleanOrphanedAttachments } from "./orphans";
 import { accessReminderStatement, sendDueEmails } from "./outbox";
 
@@ -34,8 +35,12 @@ export async function runScheduledJobs(now: Date, env: Env): Promise<DueJobs> {
     await cleanOrphanedAttachments(env, ms);
     // Section 7: one reminder per request pending more than 3 days, queued before this tick's send.
     await accessReminderStatement(env, ms).run();
+    // NOTIF-2: due in 7 days, due tomorrow, overdue — mostly into the 7 am digest.
+    await env.DB.batch(dueReminderStatements(env, ms));
   }
-  // Stage 5c: build digests for users whose local time is 7 am. Stage 7: incremental report_snapshots.
+  // Section 8 rule 3: digests for everyone whose local time is 7 am, sent by the outbox step below.
+  if (due.hourly) await queueDigests(env, ms);
+  // Stage 7: incremental report_snapshots.
   // Stage 6: retention queue (ADM-8), invite expiry (audit "invite expired").
   if (due.outbox) await sendDueEmails(env, emailSenderFor(env), ms);
   return due;
