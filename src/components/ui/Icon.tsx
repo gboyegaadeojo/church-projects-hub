@@ -1,11 +1,11 @@
 import type { LucideIcon } from "lucide-react";
 import { cn } from "../../lib/cn";
 
-// The one icon family is Lucide (section 9): 20 px, 1.5 px stroke.
+// The one icon family is Lucide (section 9): 18 px (14 px small), 1.5 px stroke.
 // CSS size comes from the --spacing-icon tokens (size-icon / size-icon-sm). Lucide also needs the
 // pixel size to keep the stroke at exactly 1.5 px (absoluteStrokeWidth); these mirror those tokens.
 const STROKE_WIDTH = 1.5;
-const PIXEL_SIZE = { md: 20, sm: 16 } as const;
+const PIXEL_SIZE = { md: 18, sm: 14 } as const;
 
 type IconProps = {
   icon: LucideIcon;

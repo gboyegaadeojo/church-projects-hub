@@ -4,8 +4,10 @@ import { useId } from "react";
 import { cn } from "../../lib/cn";
 import { useTheme, type ThemePreference } from "../../theme/theme";
 import { Icon } from "./Icon";
+import { Tooltip } from "./Tooltip";
 
-// Light / Dark / System switch (section 9). A radio group styled as a segmented control.
+// Light / Dark / System switch (section 9): three small icon buttons — sun, moon, screen — in one row.
+// A radio group, so each icon has its name ("Light", "Dark", "System") for screen readers and a tooltip.
 const options: Array<{ value: ThemePreference; label: string; icon: LucideIcon }> = [
   { value: "light", label: "Light", icon: Sun },
   { value: "dark", label: "Dark", icon: Moon },
@@ -24,7 +26,7 @@ export function ThemeSwitch({ className, onPreferenceChange }: ThemeSwitchProps)
   const setPreference = onPreferenceChange ?? theme.setPreference;
   const labelId = useId();
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
+    <div className={cn("flex items-center justify-between gap-3", className)}>
       <span id={labelId} className="text-secondary font-medium text-ink">
         Theme
       </span>
@@ -33,21 +35,22 @@ export function ThemeSwitch({ className, onPreferenceChange }: ThemeSwitchProps)
         value={preference}
         onValueChange={(value) => setPreference(value as ThemePreference)}
         orientation="horizontal"
-        className="inline-flex w-fit gap-1 rounded-control border border-line-strong bg-card p-1"
+        className="inline-flex gap-0.5 rounded-pill border border-line bg-page p-0.5"
       >
         {options.map((option) => (
-          <RadioGroup.Item
-            key={option.value}
-            value={option.value}
-            className={cn(
-              "inline-flex min-h-touch items-center gap-2 rounded-chip px-3 text-secondary text-ink-2",
-              "transition-colors duration-(--duration-menu) ease-out state-hover:bg-hover state-hover:text-ink",
-              "data-[state=checked]:bg-accent-soft data-[state=checked]:font-medium data-[state=checked]:text-accent-ink",
-            )}
-          >
-            <Icon icon={option.icon} />
-            {option.label}
-          </RadioGroup.Item>
+          <Tooltip key={option.value} content={option.label}>
+            <RadioGroup.Item
+              value={option.value}
+              aria-label={option.label}
+              className={cn(
+                "inline-flex size-touch items-center justify-center rounded-pill text-ink-2",
+                "transition-colors duration-(--duration-menu) ease-out state-hover:bg-hover state-hover:text-ink",
+                "data-[state=checked]:bg-card data-[state=checked]:text-accent-ink data-[state=checked]:shadow-raised",
+              )}
+            >
+              <Icon icon={option.icon} size="sm" />
+            </RadioGroup.Item>
+          </Tooltip>
         ))}
       </RadioGroup.Root>
     </div>

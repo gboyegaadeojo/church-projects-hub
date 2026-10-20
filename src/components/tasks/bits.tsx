@@ -78,8 +78,14 @@ export function DueBadge({ dueDate, today, done = false }: { dueDate: string | n
 
 export function LabelChip({ label, className }: { label: Pick<Label, "name" | "colour">; className?: string }) {
   return (
-    <span className={cn("inline-flex max-w-full items-center gap-1 rounded-chip border border-line px-1.5 py-0.5 text-label text-ink", className)}>
-      <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", PROJECT_COLOUR_CLASSES[label.colour].bg)} />
+    <span
+      className={cn(
+        "inline-flex max-w-full items-center gap-1 rounded-chip border px-1.5 py-0.5 text-label text-ink",
+        PROJECT_COLOUR_CLASSES[label.colour].soft,
+        className,
+      )}
+    >
+      <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", PROJECT_COLOUR_CLASSES[label.colour].bg)} />
       <span className="truncate">{label.name}</span>
     </span>
   );
