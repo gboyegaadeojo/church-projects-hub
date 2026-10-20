@@ -100,3 +100,22 @@ test("ADM-4 the usage panel shows emails and explains the missing analytics", as
   await expectNoViolations(page);
   await page.screenshot({ path: "test-results/usage-panel.png", fullPage: true });
 });
+
+test("ADM-6 / ADM-8 the data deletion page lists requests and the retention queue", async ({ pageAs }) => {
+  const page = await pageAs(persona("admin"));
+  await page.goto("/admin/deletions");
+  await expect(page.getByRole("heading", { level: 2, name: "Deletion requests" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Eligible for deletion" })).toBeVisible();
+  await expectNoViolations(page);
+});
+
+test("ADM-6 a person can find the deletion request on Your data", async ({ pageAs }) => {
+  const page = await pageAs(persona("loner"));
+  await page.goto("/settings/data");
+  await expect(page.getByRole("heading", { level: 1, name: "Your data" })).toBeVisible();
+  await page.getByRole("button", { name: "Request deletion" }).click();
+  // Only open the dialog; the shared persona must not actually ask.
+  await expect(page.getByRole("alertdialog", { name: "Ask to delete your data?" })).toBeVisible();
+  await expectNoViolations(page, "[role=alertdialog]");
+  await page.keyboard.press("Escape");
+});

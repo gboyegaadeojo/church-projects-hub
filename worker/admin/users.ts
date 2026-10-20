@@ -171,7 +171,7 @@ export function adminUserRoutes() {
     const now = Date.now();
     const ip = await ipHash(c);
     await c.env.DB.batch([
-      c.env.DB.prepare("UPDATE users SET status = 'suspended', updated_at = ?2 WHERE id = ?1").bind(user.id, now),
+      c.env.DB.prepare("UPDATE users SET status = 'suspended', suspended_at = ?2, updated_at = ?2 WHERE id = ?1").bind(user.id, now),
       c.env.DB.prepare("UPDATE sessions SET revoked_at = ?2, updated_at = ?2 WHERE user_id = ?1 AND revoked_at IS NULL").bind(user.id, now),
       auditStatement(c.env, { actorId: actor.id, action: AUDIT.userSuspended, targetType: "user", targetId: user.id, detail: { previousStatus: user.status }, ipHash: ip }, now),
     ]);
@@ -187,7 +187,7 @@ export function adminUserRoutes() {
     const status = user.project_count > 0 || user.app_role === "admin" ? "active" : "pending";
     const now = Date.now();
     await c.env.DB.batch([
-      c.env.DB.prepare("UPDATE users SET status = ?2, updated_at = ?3 WHERE id = ?1").bind(user.id, status, now),
+      c.env.DB.prepare("UPDATE users SET status = ?2, suspended_at = NULL, updated_at = ?3 WHERE id = ?1").bind(user.id, status, now),
       auditStatement(c.env, { actorId: actor.id, action: AUDIT.userRestored, targetType: "user", targetId: user.id, detail: { status }, ipHash: await ipHash(c) }, now),
     ]);
     return c.json({ ok: true, status });

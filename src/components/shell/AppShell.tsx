@@ -1,5 +1,6 @@
 import {
   CircleUser,
+  Database,
   FolderKanban,
   FolderPlus,
   Gauge,
@@ -15,6 +16,7 @@ import {
   Settings2,
   Shield,
   Users,
+  UserX,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from "react-router";
@@ -72,6 +74,7 @@ export function adminLinks(me: MeResponse): { to: string; label: string; icon: L
     ...(me.user.appRole === "admin" ? [{ to: "/admin/users", label: "Users", icon: Users }] : []),
     ...(me.user.appRole === "admin" ? [{ to: "/admin/audit", label: "Audit log", icon: ScrollText }] : []),
     ...(me.user.appRole === "admin" ? [{ to: "/admin/usage", label: "Usage", icon: Gauge }] : []),
+    ...(me.user.appRole === "admin" ? [{ to: "/admin/deletions", label: "Data deletion", icon: UserX }] : []),
   ];
 }
 
@@ -351,6 +354,10 @@ function ProfilePanel({ me, onDone }: { me: MeResponse; onDone: () => void }) {
         <Link to="/settings/notifications" className={linkClass} onClick={onDone}>
           <Icon icon={Mail} />
           Email settings
+        </Link>
+        <Link to="/settings/data" className={linkClass} onClick={onDone}>
+          <Icon icon={Database} />
+          Your data
         </Link>
         <Link to="/privacy" className={linkClass} onClick={onDone}>
           <Icon icon={Shield} />
