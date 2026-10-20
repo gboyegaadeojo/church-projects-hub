@@ -434,6 +434,25 @@ export const savedFilters = sqliteTable(
   (t) => [index("saved_filters_project_id_idx").on(t.projectId)],
 );
 
+// In-app bell (NOTIF-4, section 11.8). The type is a shared/notifications.ts event; the payload is the few
+// words the bell needs (task key and title, project name), captured when it happened.
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    type: text("type").notNull(),
+    actorId: integer("actor_id").references(() => users.id),
+    taskId: integer("task_id").references(() => tasks.id),
+    payloadJson: text("payload_json").notNull().default("{}"),
+    readAt: integer("read_at"),
+    createdAt: integer("created_at").notNull().default(nowMs),
+  },
+  (t) => [index("notifications_user_id_read_at_idx").on(t.userId, t.readAt), index("notifications_user_id_created_at_idx").on(t.userId, t.createdAt)],
+);
+
 // The "small error table" (section 5): one row per server error or crashed section (11.13), counted by the
 // error-spike alert (NFR-15). No personal data: a section name, a request id and a hashed IP only (NFR-5).
 export const appErrors = sqliteTable(

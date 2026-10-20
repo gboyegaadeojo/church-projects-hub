@@ -6,6 +6,7 @@ import { ipHash } from "../auth/ip";
 import { requireSession } from "../auth/middleware";
 import type { Action } from "../auth/permissions";
 import type { AppEnv } from "../types";
+import { noticesStatements } from "../notify";
 import { insertMentions, mentionsIn } from "./queries";
 import { guardTask, invalid, unconfirmed } from "./routes";
 import { refreshSearch } from "./search";
@@ -148,6 +149,12 @@ export function itemRoutes() {
     const { task, project } = access;
     // The new comment, found again within the batch by its task, author and time.
     const commentIdSql = "(SELECT id FROM comments WHERE task_id = ?6 AND author_id = ?3 AND created_at = ?4 ORDER BY id DESC LIMIT 1)";
+    // NOTIF-1 / section 8: assignee, reporter and watchers hear about the comment; the people @mentioned get
+    // a mention instead (never both).
+    const { results: watching } = await c.env.DB.prepare("SELECT user_id FROM watchers WHERE task_id = ?1").bind(task.id).all<{ user_id: number }>();
+    const followers = [task.assignee_id, task.reporter_id, ...watching.map((w) => w.user_id)].filter(
+      (id): id is number => id !== null && !mentions.includes(id),
+    );
     const [inserted] = await c.env.DB.batch([
       c.env.DB.prepare(
         `INSERT INTO comments (task_id, author_id, body_json, body_text, created_at, updated_at, created_by)
@@ -155,6 +162,14 @@ export function itemRoutes() {
       ).bind(task.id, user.id, JSON.stringify(doc), text, now),
       insertMentions(c.env, { projectId: project.id, isSystem: project.isSystem, userIds: mentions, actorId: user.id, now, taskIdSql: "?6", taskId: task.id, commentIdSql }),
       refreshSearch(c.env, task.id),
+      ...noticesStatements(
+        c.env,
+        [
+          { type: "task.mentioned", recipients: mentions, actorId: user.id, task: { id: task.id }, projectId: project.id, payload: {} },
+          { type: "task.commented", recipients: followers, actorId: user.id, task: { id: task.id }, projectId: project.id, payload: {} },
+        ],
+        now,
+      ),
     ]);
     const id = (inserted!.results as { id: number }[])[0]!.id;
     const comment: Comment = { id, authorId: user.id, body: doc, createdAt: now, editedAt: null };
@@ -196,6 +211,9 @@ export function itemRoutes() {
           taskId: access.task.id,
           commentIdSql: String(row.id),
         }),
+        ...noticesStatements(c.env, [
+          { type: "task.mentioned", recipients: added, actorId: user.id, task: { id: access.task.id }, projectId: access.project.id, payload: {} },
+        ]),
       );
     }
     await c.env.DB.batch(statements);

@@ -13,6 +13,7 @@ import { ProjectPage } from "./pages/ProjectPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { HomePage } from "./pages/HomePage";
 import { InvitePage } from "./pages/InvitePage";
+import { NotificationsPage } from "./pages/NotificationsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { RequestAccessPage } from "./pages/RequestAccessPage";
 import { SearchPage } from "./pages/SearchPage";
@@ -39,6 +40,7 @@ function App() {
         <Route element={<AppShell />}>
           <Route path="/work" element={<WorkPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:key" element={<ProjectPage />} />
           <Route path="/admin/requests" element={<AdminRequestsPage />} />

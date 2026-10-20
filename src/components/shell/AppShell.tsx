@@ -22,6 +22,7 @@ import { useSaveTheme } from "../../lib/profile";
 import { PROJECT_COLOUR_CLASSES, PROJECT_ICON_COMPONENTS, useMyProjects } from "../../lib/projects";
 import { useSignOut } from "../../lib/session";
 import { CommandPalette, openCommandPalette } from "../CommandPalette";
+import { NotificationBell } from "../NotificationBell";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { SessionGate } from "../SessionGate";
 import { InstallPrompt, OfflineBanner } from "../StatusBanners";
@@ -114,6 +115,13 @@ function Shell({ me, children }: { me: MeResponse; children?: ReactNode }) {
         tabIndex={-1}
         className="min-w-0 flex-1 pb-[calc(var(--spacing-bottom-nav)+env(safe-area-inset-bottom))] outline-none md:pb-0"
       >
+        {/* Phones: a slim top bar with the bell (section 11.8: bell in the app header). */}
+        <div className="flex items-center justify-between border-b border-line bg-card px-4 py-1 md:hidden">
+          <Link to="/work" className="rounded-control">
+            <BrandMark />
+          </Link>
+          <NotificationBell me={me} />
+        </div>
         <OfflineBanner />
         {/* Section 11.13: a crashed page stays inside the shell; navigation keeps working. Keyed so it resets. */}
         <ErrorBoundary key={pathname} section={pathname.split("/")[1] || "home"}>
@@ -215,6 +223,7 @@ function Sidebar({ me, collapsed, onToggle }: { me: MeResponse; collapsed: boole
         <Link to="/work" className="rounded-control">
           <BrandMark showName={!collapsed} />
         </Link>
+        <NotificationBell me={me} side={collapsed ? "right" : "bottom"} />
         {onToggle && (
           <IconButton
             icon={collapsed ? PanelLeftOpen : PanelLeftClose}

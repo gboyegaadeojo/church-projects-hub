@@ -19,6 +19,7 @@ import { authorize, forbidden, idParam, requireConfirmation } from "../auth/auth
 import { ipHash } from "../auth/ip";
 import { requireSession } from "../auth/middleware";
 import { startOfDay } from "../lib/time";
+import { noticeStatements, requestDeciders } from "../notify";
 import type { AppEnv } from "../types";
 
 // Access requests and approvals (AUTH-3, AUTH-5, AUTH-8, RATE-2, section 7).
@@ -44,11 +45,12 @@ type DecisionTarget = {
   user_status: string;
   project_id: number;
   project_key: string;
+  project_name: string;
 };
 
 async function loadDecisionTarget(c: Context<AppEnv>, requestId: number): Promise<DecisionTarget | null> {
   return c.env.DB.prepare(
-    `SELECT r.id, r.status, r.user_id, u.status AS user_status, r.project_id, p.key AS project_key
+    `SELECT r.id, r.status, r.user_id, u.status AS user_status, r.project_id, p.key AS project_key, p.name AS project_name
      FROM access_requests r JOIN users u ON u.id = r.user_id JOIN projects p ON p.id = r.project_id
      WHERE r.id = ?1`,
   )
@@ -108,9 +110,17 @@ export function accessRequestRoutes() {
          FROM access_requests WHERE user_id = ?1 AND project_id = ?6 AND status = 'pending'`,
       ).bind(user.id, AUDIT.requestSubmitted, JSON.stringify({ projectId: p.id, projectKey: p.key }), ip, now, p.id),
     ]);
-    // TODO(Stage 5, section 8 "New access request"): queue one email_outbox row per project in this same
-    // batch — template "access_request.new", recipients the project's active Project Admins, or all
-    // active App Admins if it has none (resolved at send time), dedupe key "request:<request id>".
+    // NOTIF-3: each project's deciders (its Project Admins, or App Admins if it has none) hear about it.
+    for (const p of projects) {
+      statements.push(
+        ...noticeStatements(c.env, {
+          type: "access.requested",
+          recipients: await requestDeciders(c.env, p.id),
+          actorId: user.id,
+          payload: { projectKey: p.key, projectName: p.name },
+        }, now),
+      );
+    }
     try {
       await c.env.DB.batch(statements);
     } catch (err) {
@@ -268,6 +278,31 @@ export function accessRequestRoutes() {
         `UPDATE access_requests SET status = 'approved', decided_by = ?3, decided_at = ?2, updated_at = ?2
          WHERE id = ?1 AND status = 'pending'`,
       ).bind(target.id, now, user.id),
+      // The audit row and the notice each follow only if the step before changed a row (changes() = 1), so a
+      // second admin deciding in the same millisecond can't log or notify twice.
+      c.env.DB.prepare(
+        `INSERT INTO audit_log (actor_id, action, target_type, target_id, detail_json, ip_hash, at)
+         SELECT ?3, ?4, 'access_request', CAST(CAST(?1 AS INTEGER) AS TEXT), ?5, ?6, ?2 WHERE changes() = 1`,
+      ).bind(
+        target.id,
+        now,
+        user.id,
+        AUDIT.requestApproved,
+        JSON.stringify({ projectId: target.project_id, projectKey: target.project_key, userId: target.user_id, role }),
+        await ipHash(c),
+      ),
+      // NOTIF-3: the requester.
+      ...noticeStatements(
+        c.env,
+        {
+          type: "access.decided",
+          recipients: [target.user_id],
+          actorId: user.id,
+          payload: { projectKey: target.project_key, projectName: target.project_name, decision: "approved" },
+          onlyIf: "changes() = 1",
+        },
+        now,
+      ),
       // An existing membership (e.g. from an invite) keeps its role.
       c.env.DB.prepare(
         `INSERT INTO project_members (project_id, user_id, role, added_by, created_at, updated_at, created_by)
@@ -277,19 +312,6 @@ export function accessRequestRoutes() {
       c.env.DB.prepare(
         `UPDATE users SET status = 'active', updated_at = ?2 WHERE id = ?4 AND status = 'pending' AND ${decided}`,
       ).bind(target.id, now, user.id, target.user_id),
-      c.env.DB.prepare(
-        `INSERT INTO audit_log (actor_id, action, target_type, target_id, detail_json, ip_hash, at)
-         SELECT ?3, ?4, 'access_request', CAST(CAST(?1 AS INTEGER) AS TEXT), ?5, ?6, ?2 WHERE ${decided}`,
-      ).bind(
-        target.id,
-        now,
-        user.id,
-        AUDIT.requestApproved,
-        JSON.stringify({ projectId: target.project_id, projectKey: target.project_key, userId: target.user_id, role }),
-        await ipHash(c),
-      ),
-      // TODO(Stage 5, section 8 "Access request approved or denied"): queue an email_outbox row in this same
-      // batch — template "access_request.approved", recipient the requester, payload { projectName, role }.
     ]);
     if (results[0]?.meta.changes !== 1) return c.json({ error: ACCESS_ERRORS.alreadyDecided }, 409);
     return c.json({ ok: true });
@@ -316,8 +338,7 @@ export function accessRequestRoutes() {
         ).bind(target.id, now, user.id, parsed.data.reason),
         c.env.DB.prepare(
           `INSERT INTO audit_log (actor_id, action, target_type, target_id, detail_json, ip_hash, at)
-           SELECT ?3, ?4, 'access_request', CAST(CAST(?1 AS INTEGER) AS TEXT), ?5, ?6, ?2
-           WHERE EXISTS (SELECT 1 FROM access_requests WHERE id = ?1 AND status = 'denied' AND decided_at = ?2 AND decided_by = ?3)`,
+           SELECT ?3, ?4, 'access_request', CAST(CAST(?1 AS INTEGER) AS TEXT), ?5, ?6, ?2 WHERE changes() = 1`,
         ).bind(
           target.id,
           now,
@@ -331,8 +352,18 @@ export function accessRequestRoutes() {
           }),
           await ipHash(c),
         ),
-        // TODO(Stage 5, section 8 "Access request approved or denied"): queue an email_outbox row in this same
-        // batch — template "access_request.denied", recipient the requester, payload { projectName, reason }.
+        // NOTIF-3: the requester, only after the audit row above (which follows only a recorded decision).
+        ...noticeStatements(
+          c.env,
+          {
+            type: "access.decided",
+            recipients: [target.user_id],
+            actorId: user.id,
+            payload: { projectKey: target.project_key, projectName: target.project_name, decision: "denied" },
+            onlyIf: "changes() = 1",
+          },
+          now,
+        ),
       ]);
       if (results[0]?.meta.changes !== 1) return c.json({ error: ACCESS_ERRORS.alreadyDecided }, 409);
       return c.json({ ok: true });

@@ -1,5 +1,7 @@
 import { AUTH_ERRORS, CSRF_HEADER } from "../../shared/auth";
+import { UNREAD_HEADER } from "../../shared/notifications";
 import { setMaintenance } from "./maintenance";
+import { setUnread } from "./notifications";
 import { isOnline } from "./online";
 
 // One way to call the API from the app. It sends the CSRF token on writes (NFR-2) and handles the
@@ -45,6 +47,9 @@ export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
     body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
     credentials: "same-origin",
   });
+  // Section 11.8: every signed-in response carries the unread count for the bell.
+  const unreadHeader = res.headers.get(UNREAD_HEADER);
+  if (unreadHeader !== null) setUnread(Number(unreadHeader));
   const body = (await res.json().catch(() => null)) as { error?: string } | null;
   if (res.ok) return body as T;
 

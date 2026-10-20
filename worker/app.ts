@@ -3,6 +3,7 @@ import { inviteRoutes } from "./access/invites";
 import { accessRequestRoutes } from "./access/requests";
 import type { GoogleClient } from "./auth/google";
 import { clientErrorRoutes, handleError } from "./errors";
+import { notificationRoutes, unreadHeader } from "./notifications";
 import { sameOriginWrites } from "./auth/middleware";
 import { authRoutes } from "./auth/routes";
 import { profileRoutes } from "./profile/routes";
@@ -23,6 +24,7 @@ export function createApp(deps: AppDeps) {
   const app = new Hono<AppEnv>().basePath("/api");
 
   app.use("*", sameOriginWrites);
+  app.use("*", unreadHeader);
 
   // Health check: confirms the Worker is up and can reach D1.
   app.get("/health", async (c) => {
@@ -46,6 +48,7 @@ export function createApp(deps: AppDeps) {
   app.route("/", filterRoutes());
   app.route("/", attachmentRoutes());
   app.route("/", workRoutes());
+  app.route("/", notificationRoutes());
 
   // Unknown API routes return JSON, never the SPA shell.
   app.notFound((c) => c.json({ error: "Not found" }, 404));
