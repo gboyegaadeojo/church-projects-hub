@@ -2,6 +2,7 @@ import {
   CircleUser,
   FolderKanban,
   FolderPlus,
+  Gauge,
   House,
   Inbox,
   type LucideIcon,
@@ -9,6 +10,7 @@ import {
   Mail,
   PanelLeftClose,
   PanelLeftOpen,
+  ScrollText,
   Search,
   Settings2,
   Shield,
@@ -68,6 +70,8 @@ export function adminLinks(me: MeResponse): { to: string; label: string; icon: L
     ...(me.canReviewAccess ? [{ to: "/admin/requests", label: "Access requests", icon: Inbox }] : []),
     ...(me.user.appRole === "admin" ? [{ to: "/admin/projects", label: "Manage projects", icon: Settings2 }] : []),
     ...(me.user.appRole === "admin" ? [{ to: "/admin/users", label: "Users", icon: Users }] : []),
+    ...(me.user.appRole === "admin" ? [{ to: "/admin/audit", label: "Audit log", icon: ScrollText }] : []),
+    ...(me.user.appRole === "admin" ? [{ to: "/admin/usage", label: "Usage", icon: Gauge }] : []),
   ];
 }
 

@@ -8,6 +8,8 @@ import { sameOriginWrites } from "./auth/middleware";
 import { authRoutes } from "./auth/routes";
 import { emailRoutes } from "./email/routes";
 import { manageRoutes } from "./access/manage";
+import { adminAuditRoutes } from "./admin/audit";
+import { adminUsageRoutes } from "./admin/usage";
 import { adminUserRoutes } from "./admin/users";
 import { feedbackRoutes } from "./feedback/routes";
 import { profileRoutes } from "./profile/routes";
@@ -57,6 +59,8 @@ export function createApp(deps: AppDeps) {
   app.route("/", feedbackRoutes());
   app.route("/", adminUserRoutes());
   app.route("/", manageRoutes());
+  app.route("/", adminAuditRoutes());
+  app.route("/", adminUsageRoutes());
 
   // Unknown API routes return JSON, never the SPA shell.
   app.notFound((c) => c.json({ error: "Not found" }, 404));

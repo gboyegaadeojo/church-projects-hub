@@ -79,3 +79,24 @@ test("ADM-7 a sent invite is listed and can be cancelled", async ({ pageAs }, te
   await expect(row).toContainText("Cancelled");
   await expectNoViolations(page);
 });
+
+test("ADM-3 the audit log filters by action and offers a CSV export", async ({ pageAs }) => {
+  const page = await pageAs(persona("admin"));
+  await page.goto("/admin/audit");
+  await expect(page.getByRole("heading", { level: 1, name: "Audit log" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Export CSV" })).toHaveAttribute("href", /\/api\/admin\/audit\.csv/);
+  await page.getByRole("combobox", { name: "Action" }).click();
+  await page.getByRole("option", { name: "user.first_sign_in" }).click();
+  await expect(page.getByRole("link", { name: "Export CSV" })).toHaveAttribute("href", /action=user\.first_sign_in/);
+  await expect(page.getByRole("table").or(page.getByText("Nothing matches these filters.")).first()).toBeVisible();
+  await expectNoViolations(page);
+});
+
+test("ADM-4 the usage panel shows emails and explains the missing analytics", async ({ pageAs }) => {
+  const page = await pageAs(persona("admin"));
+  await page.goto("/admin/usage");
+  await expect(page.getByRole("meter", { name: "Emails sent today" })).toBeVisible();
+  await expect(page.getByText("Worker and database numbers need Cloudflare analytics.")).toBeVisible();
+  await expectNoViolations(page);
+  await page.screenshot({ path: "test-results/usage-panel.png", fullPage: true });
+});
