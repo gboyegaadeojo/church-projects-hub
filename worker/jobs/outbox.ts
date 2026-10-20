@@ -4,13 +4,13 @@ import { type EmailSender, unsubscribeUrls } from "../email/sender";
 // Sends due instant emails (section 8 "Sending mechanics"), every 5 minutes from the cron dispatcher.
 // - Failures retry after 5, 30 and 120 minutes, then park as failed (visible to admins in Stage 6).
 // - A failed email never undoes or blocks the action that queued it (NFR-9): the action committed already.
-// - Cap protection: past 6 instant emails for a person today, or 240 for everyone today (80% of Brevo's 300),
+// - Cap protection: past 6 instant emails for a person today, or 80 for everyone today (80% of Resend's free 100),
 //   instant emails move into that person's next digest — except access-request emails, which stay instant.
 // - At most BATCH emails per run, to stay inside the Worker's CPU and subrequest limits (NFR-22).
 
 export const RETRY_AFTER_MIN = [5, 30, 120] as const;
 export const PER_PERSON_DAILY = 6;
-export const DAILY_SWITCH_TO_DIGEST = 240;
+export const DAILY_SWITCH_TO_DIGEST = 80;
 const BATCH = 20;
 const ALWAYS_INSTANT = new Set<string>(["access.requested", "access.decided", "access.nudge", "access.reminder", "invite", "digest"]);
 

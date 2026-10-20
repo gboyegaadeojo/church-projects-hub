@@ -2,7 +2,7 @@
 
 Oct 14, 2026 · @G
 
-**Version 4.4** — single engineer-ready document · **Owner:** @G, Immanuel Fellowship Church (IFC) · **Audience:** software engineers building and maintaining this product · **Status:** active baseline; pre-build decisions in section 21.
+**Version 4.5** — single engineer-ready document · **Owner:** @G, Immanuel Fellowship Church (IFC) · **Audience:** software engineers building and maintaining this product · **Status:** active baseline; pre-build decisions in section 21.
 
 > This is the single source of truth. Read it fully before writing any code. Functional requirements take precedence over design guidance where they conflict. Any conflict found during implementation must be documented and brought to @G for a decision — never resolved silently.
 
@@ -10,6 +10,7 @@ Oct 14, 2026 · @G
 
 | Version | Date | Summary |
 | --- | --- | --- |
+| 4.5 | 20 Oct 2026 | Email provider changed from Brevo to Resend at @G's request, on the Resend free plan (100 emails/day, 3,000/month): instant emails switch to the digest at 80 a day (80%), Resend domain verification replaces Brevo's DNS records, `RESEND_API_KEY` replaces `BREVO_API_KEY`, and the free-tier email budget is recalculated (sections 5, 8, 18, 21). |
 | 4.4 | 14 Oct 2026 | Stage 2c decisions: the My Work welcome follows the time of day in the user's timezone ("Good morning", "Good afternoon" from noon, "Good evening" from 5 pm) (section 11.1); the Hub Feedback project uses the key HUB, which is reserved for it (PROJ-7); Hub Feedback is created when an App Admin loads the app, not only at sign-in, because the first App Admin is promoted by script after signing in (section 18); a text wordmark stands in for the church logo until the logo file is supplied (sections 11.6, 11.15). |
 | 4.3 | 14 Oct 2026 | Stage 1 decisions: "Confirmed action failed" copy added (section 14); type-to-confirm matching ignores letter case and leading or trailing spaces (section 11.14); side sheets round only their two inner corners, bottom sheets only their top corners (section 9); theme preference (Light, Dark, System) moves to the user's profile in Stage 2, with the browser setting kept as the fallback for signed-out pages and first paint. Stage 2a decisions: sign-in rate limit raised to 30 attempts per minute per IP, counted when sign-in starts (church Wi-Fi shares one IP) (NFR-4, RATE-1); "Sign-in didn't work" copy added (section 14); "sign-in rate limit hit" audit event written at most once per IP per minute (section 6). Stage 2b decisions: destructive actions carry an `X-Confirm-Action` header set only by the confirmation dialog, and the API returns 428 without it (sections 11.14, 17); invites are tied to the invited email, case-insensitive, with new mismatch copy (AUTH-9, section 14); RATE-2 counts one request per project, per calendar day in the user's timezone, and an over-limit submission is rejected whole. |
 | 4.2 | 14 Oct 2026 | Pre-build review: Google sign-in publishing (public home and privacy pages, verified domain); Cloudflare API secrets for usage panel and backups; free-tier budget calculated for Workers, D1 and email; Brevo domain authentication; files served through the Worker; rich text stored as Tiptap JSON; confirmation screens for every destructive action; search, bell refresh, due-date, data-safety, retention purge, duplicate-account, audit-event and operations rules added. |
@@ -269,7 +270,7 @@ Each requirement has an ID traceable to a GitHub issue and a test. Priority: **M
 | NFR-16 | Cost | Worker requests and D1 stay inside free-tier limits with at least 5x headroom at 50 users and 3x at 150 users, Hub and checklist app combined (budget in section 5). Email stays under the 300/day cap through cap protection; switch provider at about 100 active users. Usage panel warns at 80%. |
 | NFR-17 | Maintainability | One TypeScript codebase, one repo. Documented setup in under 15 minutes for a new volunteer developer. |
 | NFR-18 | Reliability | If D1 is unavailable: show a maintenance page — "The hub is temporarily unavailable. We're aware and working on it." No stack traces. |
-| NFR-19 | Reliability | If Brevo is unavailable, in-app notifications still work. Email delivery resumes automatically on recovery. |
+| NFR-19 | Reliability | If Resend is unavailable, in-app notifications still work. Email delivery resumes automatically on recovery. |
 | NFR-20 | PWA / Offline | App shell, My Work, and task pages visited in the last session are cached by the service worker and available offline. Cached content shows a persistent amber banner. All writes disabled offline in v1. |
 | NFR-21 | PWA / Offline | PWA manifest: name, short name, icons (192 px + 512 px), theme colour matching project accent, `display: standalone`. Add-to-home-screen prompt shown once after the user's second login. |
 | NFR-22 | Performance | Every Worker request and cron run stays within the free plan's 10 ms CPU limit. Heavy work is done in SQL (D1 time doesn't count as Worker CPU) or split into batches; CSV exports stream rows and cap at 5,000 rows per file. |
@@ -295,7 +296,7 @@ The browser only talks to the Worker. The Worker alone holds secrets, checks rol
 | Files | Cloudflare R2, served through the Worker | Attachments, no egress fees. The Worker checks project membership, then streams the file — no signed URLs or R2 access keys needed. |
 | Backups | Scheduled GitHub Actions job: `wrangler d1 export` → R2 | Uses no Worker CPU or cron slot; secrets live in GitHub. |
 | Sign-in | Google OAuth 2.0 (openid, email, profile) with PKCE | Basic scopes avoid Google's sensitive-scope verification. |
-| Email | Brevo (transactional email API), behind an `EmailSender` interface | Free plan: 300 emails/day; swappable if limits are hit. |
+| Email | Resend (transactional email API), behind an `EmailSender` interface | Free plan: 100 emails/day, 3,000/month; swappable if limits are hit. |
 | Scheduling | Cloudflare Cron Triggers — one schedule, every 5 minutes | The free plan allows 5 cron schedules per account, shared with the checklist app. One handler dispatches: outbox every run, digests and report snapshots at the top of each hour, daily jobs (retention queue, orphaned-file cleanup, invite expiry) at 3 am Winnipeg time. |
 | Validation | Zod schemas shared by client and server | One source of truth for every field rule. |
 | Testing | Vitest (unit + API), Playwright (end to end) | Covers permissions, approval flow, and board interactions. |
@@ -332,7 +333,7 @@ On its busiest day (Sunday), the Hub plus the checklist app uses about 11% of th
 | Worker requests (100,000) | 11,100 (11%) | 15,600 (16%) | 33,600 (34%) |
 | D1 rows read (5,000,000) | 250,000 (5%) | 450,000 (9%) | 1,310,000 (26%) |
 | D1 rows written (100,000) | 7,100 (7%) | 10,300 (10%) | 23,300 (23%) |
-| Emails, Brevo (300) | 55 (18%) | 105 (35%) | 315 (over the cap) |
+| Emails, Resend free (100) | 55 (55%) | 105 (over the cap) | 315 (over the cap) |
 
 **Rules that keep it in budget** (each is a requirement):
 
@@ -342,7 +343,7 @@ On its busiest day (Sunday), the Hub plus the checklist app uses about 11% of th
 - Report snapshots are incremental: each hourly run reads only `task_events` since the last run. Recomputing everything hourly would add about 480,000 rows read a day at the ceiling.
 - Backups run from GitHub Actions, not the Worker.
 - Static assets are never routed through the Worker (no global `run_worker_first`).
-- At about 100 active users, switch `EmailSender` to Workspace Gmail or a paid Brevo tier; until then, cap protection (section 8) keeps sending under 300 a day.
+- At about 40 active users, switch `EmailSender` to Workspace Gmail or a paid Resend plan; until then, cap protection (section 8) keeps sending under 100 a day (and the 3,000 a month that follows from it).
 
 ## 6. Data Model
 
@@ -432,7 +433,7 @@ After submitting a request, the user lands on a live status screen:
 
 ## 8. Email Notifications
 
-Brevo free plan: 300 emails/day, no monthly cap. Urgent events go instantly; everything else goes into a morning digest.
+Resend free plan: 100 emails/day, 3,000/month. Urgent events go instantly; everything else goes into a morning digest.
 
 ### Event table
 
@@ -465,8 +466,8 @@ Brevo free plan: 300 emails/day, no monthly cap. Urgent events go instantly; eve
 ### Cap protection
 
 - Per-person cap: 6 instant emails/day. Beyond that, excess falls into the next digest.
-- At 240 emails sent in a day (80% of the 300 cap), all remaining instant emails switch to digest — except access-request emails.
-- If the church outgrows the cap: swap the `EmailSender` interface to the church's Google Workspace Gmail (about 2,000 emails/day per sending account) or another free provider such as Resend (100/day). Config change only.
+- At 80 emails sent in a day (80% of the 100 cap), all remaining instant emails switch to digest — except access-request emails.
+- If the church outgrows the cap: swap the `EmailSender` interface to the church's Google Workspace Gmail (about 2,000 emails/day per sending account) or move to a paid Resend plan (50,000/month, no daily cap). Config change only.
 
 ### Email design
 
@@ -474,17 +475,17 @@ Brevo free plan: 300 emails/day, no monthly cap. Urgent events go instantly; eve
 - Footer: link to notification settings + one-click unsubscribe for that event type.
 - Sent from `media@ifcwpg.com` (`EMAIL_FROM`). Replies go to that Workspace mailbox.
 
-### Domain authentication for Brevo
+### Domain verification for Resend
 
-Brevo sends as ifcwpg.com once the domain is authenticated. Authentication is per domain, not per address, and it doesn't change how Google Workspace mail is sent.
+Resend sends as ifcwpg.com once the domain is verified in the Resend dashboard (Domains → Add domain). Verification is per domain, not per address, and it doesn't change how Google Workspace mail is sent: Resend's SPF and bounce records sit on a `send.` subdomain.
 
 | DNS record on ifcwpg.com | Purpose |
 | --- | --- |
-| Brevo code (TXT) | Proves the church owns the domain |
-| DKIM (two CNAMEs, 2048-bit) | Signs Brevo mail so it passes DMARC |
-| DMARC (one TXT) | The domain must have exactly one DMARC record. If one exists, add Brevo's `rua` address to it rather than creating a second. |
+| DKIM (TXT at `resend._domainkey`) | Signs Resend mail so it passes DMARC |
+| SPF (MX and TXT at `send.ifcwpg.com`) | Return path for bounces; aligns SPF on the subdomain |
+| DMARC (one TXT) | The domain must have exactly one DMARC record. If one exists, keep it rather than creating a second. |
 
-SPF changes are not needed for Brevo. Keep Workspace's existing SPF and DKIM records as they are. Check the Brevo dashboard shows the domain as authenticated before the first send.
+The root domain's SPF record doesn't change. Keep Workspace's existing SPF and DKIM records as they are. Copy the exact values from the Resend dashboard, and check it shows the domain as verified before the first send.
 
 ## 9. Visual Design System
 
@@ -977,7 +978,7 @@ For a first-time developer setting up locally, run `wrangler d1 migrations apply
 | `GOOGLE_CLIENT_SECRET` | Worker secret | From Google Cloud Console → OAuth 2.0 Client |
 | `GOOGLE_REDIRECT_URI` | Worker secret | The app's OAuth callback URL on the verified domain |
 | `SESSION_SECRET` | Worker secret | Random 256-bit value used to sign session cookies |
-| `BREVO_API_KEY` | Worker secret | From the Brevo dashboard |
+| `RESEND_API_KEY` | Worker secret | From the Resend dashboard (API Keys, sending access only) |
 | `APP_BASE_URL` | Worker secret | The app's public URL (used in email links) |
 | `EMAIL_FROM` | Worker secret | The sending address — set to `media@ifcwpg.com` |
 | `CF_ACCOUNT_ID` | Worker secret | Cloudflare account ID, for the usage panel |
@@ -1031,7 +1032,7 @@ No shared data model changes are required. Each app keeps its own D1 database. T
 | Confirm the app URL (recommended hub.ifcwpg.com) and that ifcwpg.com DNS is on Cloudflare (section 18) | @G | Not started |
 | Verify ifcwpg.com in Google Search Console | @G | Not started |
 | Google Cloud OAuth client created; consent screen set to External and published to Production | @G | Not started |
-| Brevo domain authentication for ifcwpg.com: Brevo code, DKIM, single DMARC record (section 8) | @G | Not started |
+| Resend domain verification for ifcwpg.com: DKIM, `send.` subdomain SPF/MX, single DMARC record (section 8) | @G | Not started |
 | Cloudflare API tokens created: analytics read-only for the Worker, deploy/backup token for GitHub | @G | Not started |
 | Clickable wireframes for 6 key screens reviewed with 3 volunteers | @G | Not started |
 | All environment variables in section 18 ready | @G | Not started |
@@ -1074,7 +1075,7 @@ All pre-build questions were settled by @G on 14 Oct 2026. Each decision is appl
 | --- | --- |
 | Which teams launch first? | Media Team only. 1 or 2 teams using the app within 90 days. |
 | Who are the App Admins? | gboyega@ifcwpg.com and kome@ifcwpg.com. Set via the first-deploy script (section 18). |
-| Does the church have Google Workspace? | Yes. Brevo is the primary sender (300 emails/day free); Workspace Gmail is the fallback behind `EmailSender` (section 8). |
+| Does the church have Google Workspace? | Yes. Resend is the primary sender (100 emails/day free); Workspace Gmail is the fallback behind `EmailSender` (section 8). |
 | Personal Gmail accounts allowed? | Yes. Sign-in is not restricted to the church domain; the approval step keeps the app private. Requires a published Google consent screen (section 18). |
 | Checklist app integration | Fully separate (section 19). A Planning Center integration may be added later; scope to be defined. |
 | Separate Cloudflare account or shared? | Shared — the combined budget is in section 5. |

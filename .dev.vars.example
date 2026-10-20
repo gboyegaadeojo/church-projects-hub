@@ -8,6 +8,6 @@ GOOGLE_REDIRECT_URI=http://localhost:5174/api/auth/callback
 APP_BASE_URL=http://localhost:5174
 # Random 256-bit value: node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
 SESSION_SECRET=
-BREVO_API_KEY=
+RESEND_API_KEY=
 CF_ACCOUNT_ID=
 CF_ANALYTICS_TOKEN=
