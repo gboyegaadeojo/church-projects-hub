@@ -179,8 +179,8 @@ test.describe("Access flows", () => {
     await admin.getByRole("combobox", { name: "Project" }).click();
     await admin.getByRole("option", { name: "Hospitality" }).click();
     await admin.getByLabel("Email").fill(invitee.email);
-    await admin.getByRole("button", { name: "Create invite link" }).click();
-    const created = admin.getByRole("status").filter({ hasText: "Invite link created." });
+    await admin.getByRole("button", { name: "Send invite" }).click();
+    const created = admin.getByRole("status").filter({ hasText: "Invite sent." });
     await expect(created).toBeVisible();
     await expectNoViolations(admin);
 

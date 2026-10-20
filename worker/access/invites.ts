@@ -112,7 +112,9 @@ export function inviteRoutes() {
       const token = randomToken(32);
       const tokenHash = await sha256Base64url(token);
       const expiresAt = now + INVITE_TTL_MS;
-      const key = await c.env.DB.prepare("SELECT key FROM projects WHERE id = ?").bind(project.id).first<string>("key");
+      const projectRow = await c.env.DB.prepare("SELECT key, name FROM projects WHERE id = ?").bind(project.id).first<{ key: string; name: string }>();
+      const key = projectRow?.key ?? null;
+      const link = `${c.env.APP_BASE_URL}/invite/${token}`;
 
       await c.env.DB.batch([
         c.env.DB.prepare(
@@ -130,12 +132,20 @@ export function inviteRoutes() {
           now,
           tokenHash,
         ),
-        // TODO(Stage 5, section 8 "Invite link sent"): queue an email_outbox row in this same batch —
-        // template "invite", recipient parsed.data.email, payload { link, projectName, role, invitedBy }.
+        // Section 8 "Invite link sent": emailed to the address, which isn't a user yet. The link is a credential,
+        // so the sender removes it from the row once the email has gone (worker/jobs/outbox.ts).
+        c.env.DB.prepare(
+          `INSERT INTO email_outbox (user_id, to_email, template, payload_json, mode, send_after, created_at)
+           VALUES (NULL, ?1, 'invite', ?2, 'instant', ?3, ?3)`,
+        ).bind(
+          parsed.data.email,
+          JSON.stringify({ link, projectName: projectRow?.name, role: parsed.data.role, actorName: user.name, expiresAt }),
+          now,
+        ),
       ]);
 
-      // Until email exists (Stage 5) the inviter copies this link. It is shown once and never stored.
-      return c.json({ link: `${c.env.APP_BASE_URL}/invite/${token}`, expiresAt }, 201);
+      // Also shown to the inviter once, to pass on directly if the email is slow. Never stored in the clear.
+      return c.json({ link, expiresAt }, 201);
     },
   );
 

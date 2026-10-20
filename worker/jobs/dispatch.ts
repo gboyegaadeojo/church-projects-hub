@@ -1,7 +1,9 @@
 // Single cron (every 5 minutes) dispatches all background work — see docs/REQUIREMENTS.md section 5.
 // Each job is filled in during its build stage; until then the dispatcher only decides what is due.
 
+import { emailSenderFor } from "../email/sender";
 import { cleanOrphanedAttachments } from "./orphans";
+import { accessReminderStatement, sendDueEmails } from "./outbox";
 
 export type DueJobs = {
   outbox: boolean; // every tick
@@ -27,12 +29,14 @@ export function dueJobs(now: Date): DueJobs {
 
 export async function runScheduledJobs(now: Date, env: Env): Promise<DueJobs> {
   const due = dueJobs(now);
-  if (due.daily) await cleanOrphanedAttachments(env, now.getTime());
-  // Stage 5: send due email_outbox rows.
-  // Stage 5: build digests for users whose local time is 7 am. Stage 7: incremental report_snapshots.
+  const ms = now.getTime();
+  if (due.daily) {
+    await cleanOrphanedAttachments(env, ms);
+    // Section 7: one reminder per request pending more than 3 days, queued before this tick's send.
+    await accessReminderStatement(env, ms).run();
+  }
+  // Stage 5c: build digests for users whose local time is 7 am. Stage 7: incremental report_snapshots.
   // Stage 6: retention queue (ADM-8), invite expiry (audit "invite expired").
-  // TODO(Stage 5, section 7): daily, queue one reminder email_outbox row for each access request pending
-  // more than 3 days — template "access_request.reminder", recipients all active App Admins resolved at
-  // send time (section 8 rule 6), dedupe key "reminder:<request id>" so each request is reminded once.
+  if (due.outbox) await sendDueEmails(env, emailSenderFor(env), ms);
   return due;
 }

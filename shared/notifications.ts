@@ -16,6 +16,10 @@ export const NOTIFICATION_EVENTS = {
   "task.overdue": { label: "A task of mine is overdue", bell: true, email: "digest" },
   "access.requested": { label: "Someone asks to join a project I run", bell: true, email: "instant" },
   "access.decided": { label: "My access request is decided", bell: true, email: "instant" },
+  // AUTH-8: the requester's "Still waiting?" reminder, to the project's deciders.
+  "access.nudge": { label: "Someone is still waiting to join a project I run", bell: true, email: "instant" },
+  // Section 7: requests still pending after 3 days, once, to every App Admin.
+  "access.reminder": { label: "Access requests waiting more than 3 days", bell: false, email: "instant" },
   "feedback.status_changed": { label: "My bug report or idea changes status", bell: true, email: "digest" },
   "project.weekly_summary": { label: "Weekly summary of projects I run", bell: false, email: "off" },
 } as const satisfies Record<string, { label: string; bell: boolean; email: EmailMode }>;
@@ -43,7 +47,10 @@ export const notificationPayload = z.object({
   projectName: z.string().optional(),
   stateName: z.string().optional(),
   decision: z.enum(["approved", "denied"]).optional(),
-  dueDate: z.string().optional(),
+  /** Section 7: a denial's reason is emailed to the requester. */
+  reason: z.string().optional(),
+  dueDate: z.string().nullable().optional(),
+  requesterName: z.string().optional(),
 });
 export type NotificationPayload = z.infer<typeof notificationPayload>;
 
@@ -90,6 +97,10 @@ export function describeNotification(n: Pick<NotificationItem, "type" | "actor" 
       return n.payload.decision === "approved"
         ? `You can now use ${n.payload.projectName ?? "the project"}`
         : `Your request to join ${n.payload.projectName ?? "the project"} was declined`;
+    case "access.nudge":
+      return `${who} is still waiting to join ${n.payload.projectName ?? "a project"}`;
+    case "access.reminder":
+      return "Access requests are waiting more than 3 days";
     case "feedback.status_changed":
       return `Your feedback ${task} moved to ${n.payload.stateName ?? "a new status"}`;
     case "project.weekly_summary":
@@ -100,7 +111,7 @@ export function describeNotification(n: Pick<NotificationItem, "type" | "actor" 
 /** Where a notification leads. */
 export function notificationHref(n: Pick<NotificationItem, "type" | "payload">): string {
   if (n.payload.taskKey && n.payload.projectKey) return `/projects/${n.payload.projectKey}?task=${n.payload.taskKey}`;
-  if (n.type === "access.requested") return "/admin/requests";
+  if (n.type === "access.requested" || n.type === "access.nudge" || n.type === "access.reminder") return "/admin/requests";
   if (n.type === "access.decided") return n.payload.decision === "approved" && n.payload.projectKey ? `/projects/${n.payload.projectKey}` : "/request-access";
   return "/notifications";
 }

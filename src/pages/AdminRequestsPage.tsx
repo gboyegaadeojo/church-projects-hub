@@ -238,7 +238,7 @@ function DenyDialog({ me, request, onClose }: { me: MeResponse; request: QueueRe
   );
 }
 
-/** AUTH-9. Until email arrives in Stage 5, the inviter copies the link and sends it themselves. */
+/** AUTH-9. The link is emailed to them (section 8); it is also shown once here to pass on directly. */
 function InviteForm({ me, projects }: { me: MeResponse; projects: AccessQueueResponse["invitableProjects"] }) {
   const [projectId, setProjectId] = useState(projects.length === 1 ? String(projects[0]!.id) : "");
   const [email, setEmail] = useState("");
@@ -301,7 +301,7 @@ function InviteForm({ me, projects }: { me: MeResponse; projects: AccessQueueRes
         )}
         <div>
           <Button type="submit" icon={UserPlus} loading={create.isPending}>
-            Create invite link
+            Send invite
           </Button>
         </div>
       </form>
@@ -314,7 +314,7 @@ function InviteLink({ link }: { link: string }) {
   return (
     <div role="status" className="flex flex-col gap-2 rounded-card border border-success-line bg-success-soft p-4">
       <p className="text-secondary font-medium text-success-ink">
-        Invite link created. Copy it now and send it to them; it won't be shown again.
+        Invite sent. We've emailed them the link. You can also copy it and send it yourself; it won't be shown again.
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <code className="min-w-0 flex-1 break-all rounded-control bg-card px-3 py-2 text-secondary text-ink">{link}</code>
