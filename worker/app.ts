@@ -11,6 +11,7 @@ import { filterRoutes } from "./tasks/filters";
 import { itemRoutes } from "./tasks/items";
 import { orgRoutes } from "./tasks/org";
 import { taskRoutes } from "./tasks/routes";
+import { workRoutes } from "./tasks/work";
 import type { AppEnv } from "./types";
 
 export type AppDeps = { google: GoogleClient };
@@ -40,6 +41,7 @@ export function createApp(deps: AppDeps) {
   app.route("/", orgRoutes());
   app.route("/", filterRoutes());
   app.route("/", attachmentRoutes());
+  app.route("/", workRoutes());
 
   // Unknown API routes return JSON, never the SPA shell.
   app.notFound((c) => c.json({ error: "Not found" }, 404));
