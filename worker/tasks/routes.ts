@@ -35,6 +35,7 @@ import {
   toPerson,
 } from "./queries";
 import { rankBetween } from "../../shared/rank";
+import { type Notice, noticesStatements } from "../notify";
 import { refreshSearch, refreshSearchFor, removeFromSearch } from "./search";
 
 // Tasks (TASK-1 to TASK-8, TASK-10, NFR-10, NFR-12). Every route checks the section 2 matrix in the API (NFR-1).
@@ -88,6 +89,11 @@ function eventsStatement(env: Env, taskId: number, actorId: number, now: number,
 }
 
 const str = (v: number | string | null | undefined) => (v === null || v === undefined ? null : String(v));
+
+async function stateNameOf(env: Env, stateId: number): Promise<string | null> {
+  const row = await env.DB.prepare("SELECT name FROM workflow_states WHERE id = ?1").bind(stateId).first<{ name: string }>();
+  return row?.name ?? null;
+}
 
 export function taskRoutes() {
   const routes = new Hono<AppEnv>();
@@ -224,6 +230,22 @@ export function taskRoutes() {
         taskIdSql: NEW_TASK_ID,
       }),
       refreshSearchFor(c.env, NEW_TASK_ID, project.id),
+      // NOTIF-1: the new assignee, and anyone @mentioned in the description.
+      ...noticesStatements(
+        c.env,
+        [
+          { type: "task.assigned", recipients: body.assigneeId ? [body.assigneeId] : [], actorId: user.id, task: { newInProject: project.id }, projectId: project.id, payload: {} },
+          {
+            type: "task.mentioned",
+            recipients: description.mentions.filter((id) => id !== body.assigneeId),
+            actorId: user.id,
+            task: { newInProject: project.id },
+            projectId: project.id,
+            payload: {},
+          },
+        ],
+        now,
+      ),
     ]);
     const taskId = (results[1]!.results as { id: number }[])[0]!.id;
     return c.json({ task: await loadTaskDetail(c.env, taskId) }, 201);
@@ -355,6 +377,26 @@ export function taskRoutes() {
     }
     if (descriptionChanged || body.title !== undefined) statements.push(refreshSearch(c.env, task.id));
 
+    // NOTIF-1: assigned, status change on the reporter's task, new @mentions in the description.
+    const notices: Notice[] = [];
+    if (refs.assigneeId) notices.push({ type: "task.assigned", recipients: [refs.assigneeId], actorId: user.id, task: { id: task.id }, projectId: project.id, payload: {} });
+    if (refs.stateId !== undefined) {
+      notices.push({
+        type: "task.status_changed",
+        recipients: [task.reporter_id],
+        actorId: user.id,
+        task: { id: task.id },
+        projectId: project.id,
+        payload: { stateName: (await stateNameOf(c.env, refs.stateId)) ?? undefined },
+      });
+    }
+    if (descriptionChanged) {
+      const before = mentionsIn(JSON.parse(task.description_json));
+      const added = description.mentions.filter((id) => !before.has(id));
+      notices.push({ type: "task.mentioned", recipients: added, actorId: user.id, task: { id: task.id }, projectId: project.id, payload: {} });
+    }
+    statements.push(...noticesStatements(c.env, notices, now));
+
     try {
       await db.batch(statements);
     } catch (err) {
@@ -400,7 +442,23 @@ export function taskRoutes() {
         .bind(task.id, stateId, rank, now),
     ];
     if (stateId !== task.state_id) {
-      statements.push(eventsStatement(c.env, task.id, user.id, now, [{ field: "state", old: String(task.state_id), new: String(stateId) }]));
+      statements.push(
+        eventsStatement(c.env, task.id, user.id, now, [{ field: "state", old: String(task.state_id), new: String(stateId) }]),
+        ...noticesStatements(
+          c.env,
+          [
+            {
+              type: "task.status_changed",
+              recipients: [task.reporter_id],
+              actorId: user.id,
+              task: { id: task.id },
+              projectId: project.id,
+              payload: { stateName: (await stateNameOf(c.env, stateId)) ?? undefined },
+            },
+          ],
+          now,
+        ),
+      );
     }
     await db.batch(statements);
     return c.json({ task: (await loadCard(c.env, task.id)) as TaskCard });
@@ -533,6 +591,16 @@ export function taskRoutes() {
         db.prepare("INSERT OR IGNORE INTO watchers (task_id, user_id) SELECT value, ?2 FROM json_each(?1)").bind(changed, body.assigneeId),
       );
     }
+    // NOTIF-1 per task: the new assignee, and each reporter whose task changed status.
+    const reporterOf = new Map(rows.map((r) => [r.id, r.reporter_id]));
+    const stateName = body.stateId !== undefined ? ((await stateNameOf(c.env, body.stateId)) ?? undefined) : undefined;
+    const bulkNotices: Notice[] = events.flatMap((e): Notice[] => {
+      const base = { actorId: user.id, task: { id: e.task }, projectId: project.id };
+      if (e.field === "assignee" && body.assigneeId) return [{ ...base, type: "task.assigned", recipients: [body.assigneeId], payload: {} }];
+      if (e.field === "state") return [{ ...base, type: "task.status_changed", recipients: [reporterOf.get(e.task)!], payload: { stateName } }];
+      return [];
+    });
+    statements.push(...noticesStatements(c.env, bulkNotices, now));
     await db.batch(statements);
     return c.json({ updated: JSON.parse(changed).length });
   });
