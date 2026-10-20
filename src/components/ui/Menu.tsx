@@ -67,6 +67,8 @@ export function MenuSeparator() {
 export const Popover = RadixPopover.Root;
 export const PopoverTrigger = RadixPopover.Trigger;
 export const PopoverClose = RadixPopover.Close;
+/** Positions the popover against something other than its trigger (e.g. an editor toolbar). */
+export const PopoverAnchor = RadixPopover.Anchor;
 
 export function PopoverContent({ className, children, ...rest }: ComponentPropsWithoutRef<typeof RadixPopover.Content>) {
   const container = usePortalContainer();

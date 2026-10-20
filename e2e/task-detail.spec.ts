@@ -67,11 +67,52 @@ test.describe("Section 11.3 task detail", () => {
     await detail.getByRole("checkbox", { name: "Check the backup encoder" }).click();
     await expect(detail.getByText("1 of 1 done")).toBeVisible();
 
-    await detail.getByLabel("Add a comment").fill("Encoder firmware updated.");
+    await detail.getByRole("textbox", { name: "Add a comment" }).fill("Encoder firmware updated.");
     await detail.getByRole("button", { name: "Comment", exact: true }).click();
     await expect(detail.getByText("Encoder firmware updated.")).toBeVisible();
     await expect(detail.getByText("Mover", { exact: false }).first()).toBeVisible();
     await expectNoViolations(page, "[role=dialog]");
+  });
+
+  test("Section 11.5 rich text: toolbar by keyboard, formatting, links and @mentions", async ({ pageAs }, testInfo) => {
+    const v = viewportOf(testInfo);
+    const project = DETAIL_PROJECTS[v];
+    const key = `${project.key}-2`;
+    const me = persona("mover", v);
+    const page = await pageAs(me);
+    await page.goto(`/projects/${project.key}?task=${key}`);
+    const detail = sheet(page, key);
+
+    await detail.getByRole("button", { name: TASK_COPY.emptyDescription }).click();
+    const description = detail.getByRole("textbox", { name: "Description" });
+    await expect(description).toHaveAttribute("aria-multiline", "true");
+    await expect(detail.getByText(TASK_COPY.dataSafety).first()).toBeVisible();
+    // The toolbar is one Tab stop; arrow keys move between tools.
+    const toolbar = detail.getByRole("toolbar", { name: "Description formatting" });
+    await toolbar.getByRole("button", { name: "Bold" }).focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(toolbar.getByRole("button", { name: "Italic" })).toBeFocused();
+    await expect(toolbar.getByRole("button", { name: "Bold" })).toHaveAttribute("tabindex", "-1");
+
+    await description.click();
+    await page.keyboard.type("Check the ");
+    await toolbar.getByRole("button", { name: "Bold" }).click();
+    await page.keyboard.type("backup");
+    await expectNoViolations(page, "[role=dialog]");
+    await detail.getByRole("button", { name: "Save description" }).click();
+    await expect(detail.getByText(TASK_COPY.saved)).toBeVisible();
+    await expect(detail.locator("strong", { hasText: "backup" })).toBeVisible();
+
+    const comment = detail.getByRole("textbox", { name: "Add a comment" });
+    await comment.click();
+    await page.keyboard.type("Thanks @Mov");
+    const listbox = page.getByRole("listbox", { name: "People to mention" });
+    await expect(listbox.getByRole("option", { name: me.name })).toHaveAttribute("aria-selected", "true");
+    await expect(comment).toHaveAttribute("aria-activedescendant", /.+/);
+    await page.keyboard.press("Enter");
+    await expect(listbox).toHaveCount(0);
+    await detail.getByRole("button", { name: "Comment", exact: true }).click();
+    await expect(detail.getByText(`@${me.name}`).last()).toBeVisible();
   });
 
   test("NFR-10 a conflicting change shows the conflict message and the latest version", async ({ pageAs }, testInfo) => {
