@@ -19,8 +19,7 @@ import {
   type ProjectSummary,
   updateProjectBody,
 } from "../../shared/projects";
-import { AdminTabs } from "../components/shell/AdminTabs";
-import { ProjectGlyph, useMe } from "../components/shell/AppShell";
+import { ADMIN_CRUMBS, ProjectGlyph, useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -46,10 +45,10 @@ export function AdminProjectsPage() {
   const me = useMe();
   return (
     <PageLayout
+      breadcrumbs={ADMIN_CRUMBS}
       title="Manage projects"
       actions={me.user.appRole === "admin" && <CreateProjectButton me={me} />}
     >
-      <AdminTabs me={me} />
       {me.user.appRole === "admin" ? (
         <ProjectTable me={me} />
       ) : (

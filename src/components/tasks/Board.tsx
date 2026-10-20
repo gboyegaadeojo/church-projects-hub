@@ -44,6 +44,17 @@ export type BoardProps = {
 };
 
 type Columns = Record<number, number[]>;
+
+/** A dot in the workflow category's colour beside each column name (the name carries the meaning). */
+export const CATEGORY_DOT: Record<WorkflowState["category"], string> = {
+  todo: "bg-status-todo",
+  in_progress: "bg-status-progress",
+  done: "bg-status-done",
+};
+
+function CategoryDot({ category }: { category: WorkflowState["category"] }) {
+  return <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", CATEGORY_DOT[category])} />;
+}
 const COLUMN_PREFIX = "column-";
 
 export function Board({ states, tasks, labels, people, today, canMove, offline = false, onOpen, onMove }: BoardProps) {
@@ -136,9 +147,10 @@ export function Board({ states, tasks, labels, people, today, canMove, offline =
           <button
             key={s.id}
             type="button"
-            className="min-h-touch shrink-0 rounded-chip border border-line-strong bg-card px-3 text-secondary text-ink state-hover:bg-hover"
+            className="inline-flex min-h-touch shrink-0 items-center gap-2 rounded-full border border-line-strong bg-card px-4 text-secondary text-ink state-hover:bg-hover"
             onClick={() => document.getElementById(`board-column-${s.id}`)?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" })}
           >
+            <CategoryDot category={s.category} />
             {s.name} <span className="text-ink-2 tabular-nums">{columns[s.id]?.length ?? 0}</span>
           </button>
         ))}
@@ -217,12 +229,13 @@ function Column({ state, ids, byId, labels, people, today, states, canMove, offl
     <section
       id={`board-column-${state.id}`}
       aria-labelledby={headingId}
-      className="relative flex w-[calc(100vw-2rem)] shrink-0 snap-start flex-col rounded-card bg-hover/60 md:w-72"
+      className="relative flex w-[calc(100vw-2rem)] shrink-0 snap-start flex-col rounded-card bg-column md:w-72"
     >
-      <h2 id={headingId} className="flex items-center justify-between gap-2 px-3 pt-3 pb-2 text-secondary font-medium text-ink">
-        <span className="truncate">{state.name}</span>
+      <h2 id={headingId} className="flex items-center gap-2 px-3 pt-3 pb-2 text-secondary font-semibold text-ink">
+        <CategoryDot category={state.category} />
+        <span className="min-w-0 flex-1 truncate">{state.name}</span>
         {/* Section 11.2: open-task count in the header. */}
-        <span className="rounded-chip bg-card px-2 text-label text-ink-2 tabular-nums">
+        <span className="rounded-full bg-card px-2 text-label text-ink-2 tabular-nums shadow-raised">
           <span className="sr-only">{ids.length === 1 ? "1 task" : `${ids.length} tasks`}</span>
           <span aria-hidden="true">{ids.length}</span>
         </span>
@@ -232,7 +245,7 @@ function Column({ state, ids, byId, labels, people, today, states, canMove, offl
           ref={setNodeRef}
           className={cn(
             "flex min-h-24 flex-1 flex-col gap-2 rounded-b-card p-2 transition-colors duration-(--duration-micro) ease-out",
-            isOver && "bg-accent-soft",
+            isOver && "bg-accent-soft outline-2 -outline-offset-4 outline-accent outline-dashed",
           )}
         >
           {ids.map((id) => {
@@ -331,12 +344,8 @@ export function CardBody({ task, labels, people, today, done, onOpen, className 
   const assignee = task.assigneeId !== null ? people.get(task.assigneeId) : undefined;
   const cardLabels = task.labelIds.map((id) => labels.get(id)).filter((l): l is Label => !!l);
   return (
-    <article className={cn("flex flex-col gap-2 rounded-control border border-line bg-card p-3 pr-12 shadow-raised", className)}>
-      <span className="flex items-center gap-1.5 text-label text-ink-2">
-        <TypeIcon type={task.type} />
-        <span className="tabular-nums">{task.key}</span>
-      </span>
-      <h3 className="text-secondary font-medium text-ink">
+    <article className={cn("lift flex flex-col gap-2.5 rounded-control border border-line bg-card p-3 shadow-raised", className)}>
+      <h3 className="pr-9 text-secondary font-medium text-ink">
         {onOpen ? (
           // The whole card is the open target; the button stretches over it (the Move button sits above).
           <button type="button" onClick={onOpen} className="text-left after:absolute after:inset-0 after:rounded-control after:content-['']">
@@ -354,11 +363,15 @@ export function CardBody({ task, labels, people, today, done, onOpen, className 
           {cardLabels.length > 2 && <span className="text-label text-ink-2">+{cardLabels.length - 2}</span>}
         </span>
       )}
-      <span className="flex items-center gap-2">
-        <PriorityIndicator priority={task.priority} />
+      <span className="flex flex-wrap items-center gap-2">
+        <span className={cn("inline-flex items-center gap-1.5 text-label font-semibold text-ink-2", done && "line-through")}>
+          <TypeIcon type={task.type} />
+          <span className="tabular-nums">{task.key}</span>
+        </span>
         <DueBadge dueDate={task.dueDate} today={today} done={done} />
         <SubtaskProgress done={task.subtasksDone} total={task.subtasksTotal} />
-        <span className="ml-auto">
+        <span className="ml-auto inline-flex items-center gap-2">
+          <PriorityIndicator priority={task.priority} />
           {assignee ? (
             <span className="inline-flex" title={assignee.name}>
               <Avatar name={assignee.name} url={assignee.avatarUrl} size="sm" />

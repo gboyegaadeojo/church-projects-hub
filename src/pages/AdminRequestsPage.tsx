@@ -16,8 +16,7 @@ import {
 } from "../../shared/access";
 import type { MeResponse } from "../../shared/auth";
 import { InviteList, INVITES_KEY } from "../components/InviteList";
-import { AdminTabs } from "../components/shell/AdminTabs";
-import { useMe } from "../components/shell/AppShell";
+import { ADMIN_CRUMBS, useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -51,7 +50,7 @@ export function AdminRequestsPage() {
 
   if (queue.error instanceof ApiError && queue.error.status === 403) {
     return (
-      <Page me={me}>
+      <Page>
         <EmptyState icon={Inbox} title="Only project and app admins can review access requests." />
       </Page>
     );
@@ -83,7 +82,7 @@ export function AdminRequestsPage() {
   ];
 
   return (
-    <Page me={me}>
+    <Page>
       {queue.isError ? (
         <ErrorState title="We couldn't load access requests." description="Check your connection and try again." onRetry={() => void queue.refetch()} />
       ) : (
@@ -119,10 +118,9 @@ export function AdminRequestsPage() {
   );
 }
 
-function Page({ me, children }: { me: MeResponse; children: ReactNode }) {
+function Page({ children }: { children: ReactNode }) {
   return (
-    <PageLayout title="Access requests">
-      <AdminTabs me={me} />
+    <PageLayout breadcrumbs={ADMIN_CRUMBS} title="Access requests">
       {children}
     </PageLayout>
   );

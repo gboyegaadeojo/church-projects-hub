@@ -1,5 +1,7 @@
 import {
+  ArrowLeft,
   ChartColumn,
+  ChevronDown,
   CircleUser,
   Database,
   FolderKanban,
@@ -7,15 +9,18 @@ import {
   Gauge,
   House,
   Inbox,
+  LayoutGrid,
   type LucideIcon,
   LogOut,
   Mail,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   ScrollText,
   Search,
   Settings2,
   Shield,
+  ShieldCheck,
   Users,
   UserX,
 } from "lucide-react";
@@ -38,15 +43,19 @@ import { Avatar } from "../ui/Avatar";
 import { Button, IconButton } from "../ui/Button";
 import { Dialog, SheetContent } from "../ui/Dialog";
 import { Icon } from "../ui/Icon";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/Menu";
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger, Popover, PopoverContent, PopoverTrigger } from "../ui/Menu";
 import { Skeleton } from "../ui/Skeleton";
 import { ThemeSwitch } from "../ui/ThemeSwitch";
 import { Tooltip } from "../ui/Tooltip";
 import { BrandMark } from "./BrandMark";
 
-// The app shell (section 12): a persistent sidebar on desktop, a collapsible icon rail on tablet and a
-// bottom navigation bar on mobile. Only Active members get it; Pending people and the security screens
-// (section 11.7) render without any app navigation.
+// The app shell (section 12), laid out like a work tracker:
+// - a top bar across the screen: logo, "Jump to…" search, Create, Help, notifications and the account menu;
+// - a sidebar on desktop (an icon rail on tablet) with the person's work and projects, and one
+//   "Administration" entry. Inside /admin the sidebar becomes the admin area's own navigation, so admin
+//   tools never crowd everyday navigation;
+// - a bottom navigation bar on mobile.
+// Only Active members get it; Pending people and the security screens (section 11.7) render without it.
 
 /** The signed-in person, for pages inside the shell. */
 export function useMe(): MeResponse {
@@ -58,6 +67,8 @@ export function AppShell() {
 }
 
 const RAIL_STORAGE_KEY = "cph-sidebar-expanded";
+/** Projects listed in the sidebar before "All projects" takes over. */
+const SIDEBAR_PROJECT_LIMIT = 6;
 
 function readExpanded(): boolean {
   try {
@@ -67,18 +78,71 @@ function readExpanded(): boolean {
   }
 }
 
+export type AdminGroup = "People" | "Projects" | "System";
+
+export type AdminLink = { to: string; label: string; icon: LucideIcon; group: AdminGroup; description: string };
+
 /** What the admin area holds for this person. Hiding these links is convenience; the API checks (NFR-1). */
-export function adminLinks(me: MeResponse): { to: string; label: string; icon: LucideIcon }[] {
-  return [
-    ...(me.canReviewAccess ? [{ to: "/admin/requests", label: "Access requests", icon: Inbox }] : []),
-    ...(me.user.appRole === "admin" ? [{ to: "/admin/projects", label: "Manage projects", icon: Settings2 }] : []),
-    ...(me.user.appRole === "admin" ? [{ to: "/admin/users", label: "Users", icon: Users }] : []),
-    ...(me.user.appRole === "admin" ? [{ to: "/admin/reports", label: "Church reports", icon: ChartColumn }] : []),
-    ...(me.user.appRole === "admin" ? [{ to: "/admin/audit", label: "Audit log", icon: ScrollText }] : []),
-    ...(me.user.appRole === "admin" ? [{ to: "/admin/usage", label: "Usage", icon: Gauge }] : []),
-    ...(me.user.appRole === "admin" ? [{ to: "/admin/deletions", label: "Data deletion", icon: UserX }] : []),
+export function adminLinks(me: MeResponse): AdminLink[] {
+  const appAdmin = me.user.appRole === "admin";
+  const links: (AdminLink | false)[] = [
+    me.canReviewAccess && {
+      to: "/admin/requests",
+      label: "Access requests",
+      icon: Inbox,
+      group: "People",
+      description: "Approve or deny people asking to join, and send invites.",
+    },
+    appAdmin && {
+      to: "/admin/users",
+      label: "Users",
+      icon: Users,
+      group: "People",
+      description: "Find anyone, change their projects, suspend or restore them.",
+    },
+    appAdmin && {
+      to: "/admin/projects",
+      label: "Manage projects",
+      icon: Settings2,
+      group: "Projects",
+      description: "Create projects, edit their name, colour and icon, or archive them.",
+    },
+    appAdmin && {
+      to: "/admin/reports",
+      label: "Church reports",
+      icon: ChartColumn,
+      group: "Projects",
+      description: "See how every team is doing, side by side.",
+    },
+    appAdmin && {
+      to: "/admin/audit",
+      label: "Audit log",
+      icon: ScrollText,
+      group: "System",
+      description: "Who changed what, and when. Search it or download it.",
+    },
+    appAdmin && {
+      to: "/admin/usage",
+      label: "Usage",
+      icon: Gauge,
+      group: "System",
+      description: "How much of the free plan the hub has used today and this month.",
+    },
+    appAdmin && {
+      to: "/admin/deletions",
+      label: "Data deletion",
+      icon: UserX,
+      group: "System",
+      description: "Deletion requests and old data that's ready to be removed.",
+    },
   ];
+  return links.filter((l): l is AdminLink => !!l);
 }
+
+export const ADMIN_GROUPS: AdminGroup[] = ["People", "Projects", "System"];
+
+/** Breadcrumb for every page inside the admin area. */
+export const ADMIN_CRUMBS = [{ to: "/admin", label: "Administration" }];
 
 /** The shell around one page that isn't a nested route (e.g. /request-access for active members). */
 export function ShellFrame({ me, children }: { me: MeResponse; children: ReactNode }) {
@@ -114,36 +178,29 @@ function Shell({ me, children }: { me: MeResponse; children?: ReactNode }) {
   }
 
   return (
-    <div className="min-h-dvh bg-page md:flex">
+    <div className="min-h-dvh bg-page">
       <a
         href="#main"
         className="sr-only z-50 rounded-control bg-elevated px-4 py-3 text-ink shadow-floating focus:not-sr-only focus:fixed focus:top-4 focus:left-4"
       >
         Skip to content
       </a>
-      <Sidebar me={me} collapsed={collapsed} onToggle={isTablet ? toggleRail : undefined} />
-      <main
-        id="main"
-        ref={mainRef}
-        tabIndex={-1}
-        className="min-w-0 flex-1 pb-[calc(var(--spacing-bottom-nav)+env(safe-area-inset-bottom))] outline-none md:pb-0"
-      >
-        {/* Phones: a slim top bar with the bell (section 11.8: bell in the app header). */}
-        <div className="flex items-center justify-between border-b border-line bg-card px-4 py-1 md:hidden">
-          <Link to="/work" className="rounded-control">
-            <BrandMark />
-          </Link>
-          <div className="flex items-center">
-            <HelpMenu />
-            <NotificationBell me={me} />
-          </div>
-        </div>
-        <OfflineBanner />
-        {/* Section 11.13: a crashed page stays inside the shell; navigation keeps working. Keyed so it resets. */}
-        <ErrorBoundary key={pathname} section={pathname.split("/")[1] || "home"}>
-          {children ?? <Outlet context={me} />}
-        </ErrorBoundary>
-      </main>
+      <TopBar me={me} />
+      <div className="md:flex">
+        <Sidebar me={me} collapsed={collapsed} onToggle={isTablet ? toggleRail : undefined} />
+        <main
+          id="main"
+          ref={mainRef}
+          tabIndex={-1}
+          className="min-w-0 flex-1 pb-[calc(var(--spacing-bottom-nav)+env(safe-area-inset-bottom))] outline-none md:pb-0"
+        >
+          <OfflineBanner />
+          {/* Section 11.13: a crashed page stays inside the shell; navigation keeps working. Keyed so it resets. */}
+          <ErrorBoundary key={pathname} section={pathname.split("/")[1] || "home"}>
+            {children ?? <Outlet context={me} />}
+          </ErrorBoundary>
+        </main>
+      </div>
       <BottomNav me={me} />
       <CommandPalette me={me} />
       <InstallPrompt me={me} />
@@ -151,13 +208,110 @@ function Shell({ me, children }: { me: MeResponse; children?: ReactNode }) {
   );
 }
 
+/* ---------- Top bar (every size) ---------- */
+
+function TopBar({ me }: { me: MeResponse }) {
+  return (
+    <header className="sticky top-0 z-30 flex h-topbar items-center gap-3 border-b border-line bg-card px-3 md:px-4">
+      <Link to="/work" className="shrink-0 rounded-control">
+        <BrandMark />
+      </Link>
+      <div className="hidden min-w-0 flex-1 justify-center px-4 md:flex">
+        <JumpToButton />
+      </div>
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <CreateButton me={me} />
+        <HelpMenu />
+        <NotificationBell me={me} />
+        <ProfilePopover me={me} />
+      </div>
+    </header>
+  );
+}
+
+/** Opens the command palette (NAV-2); the shortcut is shown so people learn it. */
+function JumpToButton() {
+  const mac = typeof navigator !== "undefined" && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
+  const shortcut = mac ? "⌘K" : "Ctrl K";
+  return (
+    <button
+      type="button"
+      onClick={openCommandPalette}
+      aria-keyshortcuts={mac ? "Meta+K" : "Control+K"}
+      className="lift flex min-h-touch w-full max-w-xl items-center gap-3 rounded-control border border-line-strong bg-page px-3 text-secondary text-ink-2 state-hover:border-accent state-hover:text-ink"
+    >
+      <Icon icon={Search} />
+      <span className="flex-1 truncate text-left">Jump to a task, project or page…</span>
+      <kbd className="rounded-chip border border-line bg-card px-1.5 text-label">{shortcut}</kbd>
+    </button>
+  );
+}
+
+/** Projects where this person may add tasks (section 2). The API checks again. */
+function creatableProjects(me: MeResponse, projects: ProjectSummary[]): ProjectSummary[] {
+  return projects.filter((p) => !p.archived && (me.user.appRole === "admin" || p.role === "admin" || p.role === "contributor"));
+}
+
+/** "Create": a new task in any project the person can add to. It opens that project's New task form. */
+function CreateButton({ me }: { me: MeResponse }) {
+  const projects = useMyProjects();
+  const navigate = useNavigate();
+  const targets = creatableProjects(me, projects.data ?? []);
+  if (targets.length === 0) return null;
+  // Desktop and tablet only: on phones the board's own New task button is in reach.
+  return (
+    <Menu>
+      <span className="mr-2 hidden md:block">
+        <MenuTrigger asChild>
+          <Button icon={Plus}>
+            Create
+            <Icon icon={ChevronDown} size="sm" />
+          </Button>
+        </MenuTrigger>
+      </span>
+      <MenuContent className="max-h-96 overflow-y-auto">
+        <MenuLabel>New task in…</MenuLabel>
+        {targets.map((p) => (
+          <MenuItem key={p.id} onSelect={() => navigate(`/projects/${p.key}?new=1`)}>
+            <ProjectTile project={p} size="sm" />
+            <span className="min-w-0 flex-1 truncate">{p.name}</span>
+          </MenuItem>
+        ))}
+      </MenuContent>
+    </Menu>
+  );
+}
+
+/* ---------- Project marks ---------- */
+
+/** A project's icon in its colour, for rows and lists. */
+export function ProjectGlyph({ project, size = "md" }: { project: Pick<ProjectSummary, "colour" | "icon">; size?: "md" | "sm" }) {
+  return <Icon icon={PROJECT_ICON_COMPONENTS[project.icon]} size={size} className={PROJECT_COLOUR_CLASSES[project.colour].text} />;
+}
+
+const TILE_SIZES = { sm: "size-6 rounded-chip", md: "size-10 rounded-control", lg: "size-12 rounded-card" } as const;
+
+/** A project's identity tile: its icon on a square of its colour (sidebar, headers, project cards). */
+export function ProjectTile({ project, size = "md" }: { project: Pick<ProjectSummary, "colour" | "icon">; size?: keyof typeof TILE_SIZES }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("inline-flex shrink-0 items-center justify-center text-on-accent", TILE_SIZES[size], PROJECT_COLOUR_CLASSES[project.colour].bg)}
+    >
+      <Icon icon={PROJECT_ICON_COMPONENTS[project.icon]} size={size === "sm" ? "sm" : "md"} />
+    </span>
+  );
+}
+
 /* ---------- Sidebar (tablet and desktop) ---------- */
 
 const navItemClasses = (active: boolean, collapsed: boolean) =>
   cn(
-    "flex min-h-touch items-center gap-3 rounded-control text-secondary transition-colors duration-(--duration-micro) ease-out",
+    "relative flex min-h-touch items-center gap-3 rounded-control text-secondary transition-colors duration-(--duration-micro) ease-out",
     collapsed ? "justify-center px-0" : "px-3",
-    active ? "bg-accent-soft font-medium text-accent-ink" : "text-ink state-hover:bg-hover",
+    active
+      ? "bg-accent-soft font-semibold text-accent-ink before:absolute before:inset-y-2 before:-left-3 before:w-1 before:rounded-r-full before:bg-accent before:content-['']"
+      : "text-ink state-hover:bg-hover",
   );
 
 function SidebarLink({
@@ -167,164 +321,182 @@ function SidebarLink({
   collapsed,
   end,
   leading,
+  trailing,
 }: {
   to: string;
   label: string;
   icon?: LucideIcon;
   collapsed: boolean;
   end?: boolean;
-  /** Replaces the icon (e.g. a project's coloured icon). */
+  /** Replaces the icon (e.g. a project's tile). */
   leading?: ReactNode;
+  /** Shown after the label when expanded; decorative. */
+  trailing?: ReactNode;
 }) {
   const link = (
     <NavLink to={to} end={end} aria-label={collapsed ? label : undefined} className={({ isActive }) => navItemClasses(isActive, collapsed)}>
       {leading ?? (icon && <Icon icon={icon} />)}
-      {!collapsed && <span className="min-w-0 truncate">{label}</span>}
+      {!collapsed && <span className="min-w-0 flex-1 truncate">{label}</span>}
+      {!collapsed && trailing}
     </NavLink>
   );
   return <li>{collapsed ? <Tooltip content={label} side="right">{link}</Tooltip> : link}</li>;
 }
 
-/** Opens the command palette (NAV-2); the shortcut is shown so people learn it. */
-function PaletteButton({ collapsed }: { collapsed: boolean }) {
-  const mac = typeof navigator !== "undefined" && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
-  const shortcut = mac ? "⌘K" : "Ctrl K";
-  const button = (
-    <button
-      type="button"
-      onClick={openCommandPalette}
-      aria-label={collapsed ? `Jump to (${shortcut})` : undefined}
-      aria-keyshortcuts={mac ? "Meta+K" : "Control+K"}
-      className={cn(
-        "mb-2 flex min-h-touch w-full items-center gap-3 rounded-control border border-line text-secondary text-ink-2 state-hover:bg-hover",
-        collapsed ? "justify-center" : "px-3",
-      )}
-    >
-      <Icon icon={Search} />
-      {!collapsed && (
-        <>
-          <span className="flex-1 text-left">Jump to…</span>
-          <kbd className="rounded-chip border border-line px-1.5 text-label">{shortcut}</kbd>
-        </>
-      )}
-    </button>
-  );
-  return collapsed ? <Tooltip content={`Jump to (${shortcut})`} side="right">{button}</Tooltip> : button;
-}
-
-export function ProjectGlyph({ project, size = "md" }: { project: Pick<ProjectSummary, "colour" | "icon">; size?: "md" | "sm" }) {
-  return <Icon icon={PROJECT_ICON_COMPONENTS[project.icon]} size={size} className={PROJECT_COLOUR_CLASSES[project.colour].text} />;
-}
-
 function SectionLabel({ collapsed, children }: { collapsed: boolean; children: string }) {
   return collapsed ? (
-    <div role="separator" className="mx-3 my-2 h-px bg-line" />
+    <div role="separator" className="mx-3 my-3 h-px bg-line" />
   ) : (
-    <h2 className="px-3 pt-4 pb-1 text-label text-ink-2">{children}</h2>
+    <h2 className="px-3 pt-5 pb-1.5 text-label font-semibold tracking-wide text-ink-2 uppercase">{children}</h2>
   );
 }
 
 function Sidebar({ me, collapsed, onToggle }: { me: MeResponse; collapsed: boolean; onToggle?: () => void }) {
-  const projects = useMyProjects();
-  const admin = adminLinks(me);
+  const { pathname } = useLocation();
+  const inAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
   return (
     <aside
       className={cn(
-        "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line bg-card md:flex",
+        "sticky top-topbar hidden h-[calc(100dvh-var(--spacing-topbar))] shrink-0 flex-col border-r border-line bg-card md:flex",
         "transition-[width] duration-(--duration-sheet) ease-out",
         collapsed ? "w-rail" : "w-sidebar",
       )}
     >
-      <div className={cn("flex items-center gap-2 border-b border-line p-4", collapsed ? "flex-col" : "justify-between")}>
-        <Link to="/work" className="rounded-control">
-          <BrandMark showName={!collapsed} />
-        </Link>
-        <div className={cn("flex items-center", collapsed && "flex-col")}>
-          <HelpMenu side={collapsed ? "right" : "bottom"} />
-          <NotificationBell me={me} side={collapsed ? "right" : "bottom"} />
-        </div>
-        {onToggle && (
+      {inAdmin ? <AdminNav me={me} collapsed={collapsed} /> : <MainNav me={me} collapsed={collapsed} />}
+      {onToggle && (
+        <div className={cn("border-t border-line p-3", collapsed && "flex justify-center")}>
           <IconButton
             icon={collapsed ? PanelLeftOpen : PanelLeftClose}
             label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
             onClick={onToggle}
           />
-        )}
-      </div>
-
-      <nav aria-label="Main" className="flex-1 overflow-y-auto p-3">
-        <PaletteButton collapsed={collapsed} />
-        <ul className="flex flex-col gap-1">
-          <SidebarLink to="/work" label="My Work" icon={House} collapsed={collapsed} />
-          <SidebarLink to="/search" label="Search" icon={Search} collapsed={collapsed} />
-        </ul>
-
-        <SectionLabel collapsed={collapsed}>Projects</SectionLabel>
-        <ul className="flex flex-col gap-1" aria-label={collapsed ? "Projects" : undefined}>
-          {projects.isPending &&
-            [0, 1].map((i) => (
-              <li key={i} className="px-3 py-3">
-                <Skeleton className="h-5 w-full" />
-              </li>
-            ))}
-          {projects.data?.map((p) => (
-            <SidebarLink
-              key={p.id}
-              to={`/projects/${p.key}`}
-              label={p.name}
-              collapsed={collapsed}
-              leading={<ProjectGlyph project={p} />}
-            />
-          ))}
-          <SidebarLink to="/projects" end label="All projects" icon={FolderKanban} collapsed={collapsed} />
-        </ul>
-
-        {admin.length > 0 && (
-          <>
-            <SectionLabel collapsed={collapsed}>Admin</SectionLabel>
-            <ul className="flex flex-col gap-1">
-              {admin.map((item) => (
-                <SidebarLink key={item.to} {...item} collapsed={collapsed} />
-              ))}
-            </ul>
-          </>
-        )}
-      </nav>
-
-      <div className="border-t border-line p-3">
-        <ProfilePopover me={me} collapsed={collapsed} />
-      </div>
+        </div>
+      )}
     </aside>
   );
 }
 
-function ProfilePopover({ me, collapsed }: { me: MeResponse; collapsed: boolean }) {
-  const [open, setOpen] = useState(false);
-  const trigger = (
-    <PopoverTrigger asChild>
-      <button
-        type="button"
-        aria-label={collapsed ? `Account: ${me.user.name}` : undefined}
-        className={cn(
-          "flex min-h-touch w-full items-center gap-3 rounded-control text-left state-hover:bg-hover",
-          collapsed ? "justify-center" : "px-2 py-2",
-        )}
-      >
-        <Avatar name={me.user.name} url={me.user.avatarUrl} size="sm" />
-        {!collapsed && (
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-secondary font-medium text-ink">{me.user.name}</span>
-            <span className="truncate text-caption text-ink-2">Account and theme</span>
-          </span>
-        )}
-      </button>
-    </PopoverTrigger>
+function MainNav({ me, collapsed }: { me: MeResponse; collapsed: boolean }) {
+  const projects = useMyProjects();
+  const { pathname } = useLocation();
+  const hasAdmin = adminLinks(me).length > 0;
+  const all = projects.data ?? [];
+  // Keep the list short; the open project always stays visible.
+  const currentKey = pathname.match(/^\/projects\/([^/]+)/)?.[1]?.toUpperCase();
+  let shown = all.slice(0, SIDEBAR_PROJECT_LIMIT);
+  const current = all.find((p) => p.key === currentKey);
+  if (current && !shown.includes(current)) shown = [...shown.slice(0, SIDEBAR_PROJECT_LIMIT - 1), current];
+  return (
+    <nav aria-label="Main" className="flex flex-1 flex-col overflow-y-auto p-3">
+      <SectionLabel collapsed={collapsed}>For you</SectionLabel>
+      <ul className="flex flex-col gap-1">
+        <SidebarLink to="/work" label="My Work" icon={House} collapsed={collapsed} />
+        <SidebarLink to="/search" label="Search" icon={Search} collapsed={collapsed} />
+      </ul>
+
+      <SectionLabel collapsed={collapsed}>Projects</SectionLabel>
+      <ul className="flex flex-col gap-1" aria-label={collapsed ? "Projects" : undefined}>
+        {projects.isPending &&
+          [0, 1].map((i) => (
+            <li key={i} className="px-3 py-3">
+              <Skeleton className="h-5 w-full" />
+            </li>
+          ))}
+        {shown.map((p) => (
+          <SidebarLink key={p.id} to={`/projects/${p.key}`} label={p.name} collapsed={collapsed} leading={<ProjectTile project={p} size="sm" />} />
+        ))}
+        <SidebarLink
+          to="/projects"
+          end
+          label="All projects"
+          icon={LayoutGrid}
+          collapsed={collapsed}
+          trailing={
+            all.length > shown.length && (
+              <span aria-hidden="true" className="rounded-chip bg-hover px-1.5 text-label text-ink-2 tabular-nums">
+                {all.length}
+              </span>
+            )
+          }
+        />
+      </ul>
+
+      {hasAdmin && (
+        <div className="mt-auto pt-4">
+          <ul className="flex flex-col gap-1 border-t border-line pt-3">
+            <SidebarLink to="/admin" label="Administration" icon={ShieldCheck} collapsed={collapsed} />
+          </ul>
+        </div>
+      )}
+    </nav>
+  );
+}
+
+/** Inside /admin: the admin area's own navigation, grouped, with a clear way back. */
+function AdminNav({ me, collapsed }: { me: MeResponse; collapsed: boolean }) {
+  const links = adminLinks(me);
+  const back = (
+    <Link
+      to="/work"
+      aria-label={collapsed ? "Back to My Work" : undefined}
+      className={cn(
+        "flex min-h-touch items-center gap-3 rounded-control text-secondary text-ink-2 state-hover:bg-hover state-hover:text-ink",
+        collapsed ? "justify-center" : "px-3",
+      )}
+    >
+      <Icon icon={ArrowLeft} />
+      {!collapsed && "Back to My Work"}
+    </Link>
   );
   return (
+    <nav aria-label="Admin" className="flex flex-1 flex-col overflow-y-auto p-3">
+      {collapsed ? <Tooltip content="Back to My Work" side="right">{back}</Tooltip> : back}
+      {!collapsed && (
+        <p className="flex items-center gap-2 px-3 pt-4 text-body font-semibold text-ink">
+          <Icon icon={ShieldCheck} className="text-accent-ink" />
+          Administration
+        </p>
+      )}
+      <ul className="mt-2 flex flex-col gap-1">
+        <SidebarLink to="/admin" end label="Overview" icon={LayoutGrid} collapsed={collapsed} />
+      </ul>
+      {ADMIN_GROUPS.map((group) => {
+        const items = links.filter((l) => l.group === group);
+        if (items.length === 0) return null;
+        return (
+          <div key={group}>
+            <SectionLabel collapsed={collapsed}>{group}</SectionLabel>
+            <ul className="flex flex-col gap-1">
+              {items.map((item) => (
+                <SidebarLink key={item.to} to={item.to} label={item.label} icon={item.icon} collapsed={collapsed} />
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
+
+/* ---------- Account ---------- */
+
+function ProfilePopover({ me }: { me: MeResponse }) {
+  const [open, setOpen] = useState(false);
+  return (
     <Popover open={open} onOpenChange={setOpen}>
-      {collapsed ? <Tooltip content="Account" side="right">{trigger}</Tooltip> : trigger}
-      <PopoverContent side="right" align="end" aria-label="Account" className="w-80">
+      <Tooltip content="Your account">
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Account: ${me.user.name}`}
+            className="ml-1 hidden size-touch items-center justify-center rounded-full state-hover:bg-hover md:inline-flex"
+          >
+            <Avatar name={me.user.name} url={me.user.avatarUrl} size="sm" className="ring-2 ring-accent-soft" />
+          </button>
+        </PopoverTrigger>
+      </Tooltip>
+      <PopoverContent side="bottom" align="end" aria-label="Account" className="w-80">
         <ProfilePanel me={me} onDone={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
@@ -385,20 +557,19 @@ function ProfilePanel({ me, onDone }: { me: MeResponse; onDone: () => void }) {
 
 const tabClasses = (active: boolean) =>
   cn(
-    "flex min-h-touch flex-1 flex-col items-center justify-center gap-0.5 rounded-control text-label",
-    active ? "text-accent-ink" : "text-ink-2 state-hover:text-ink",
+    "flex min-h-touch flex-1 flex-col items-center justify-center gap-0.5 rounded-control text-label transition-colors duration-(--duration-micro) ease-out",
+    active ? "bg-accent-soft font-semibold text-accent-ink" : "text-ink-2 state-hover:text-ink",
   );
 
 function BottomNav({ me }: { me: MeResponse }) {
   const [meOpen, setMeOpen] = useState(false);
-  const admin = adminLinks(me);
-  const { pathname } = useLocation();
+  const hasAdmin = adminLinks(me).length > 0;
   return (
     <nav
       aria-label="Main"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-card pb-[env(safe-area-inset-bottom)] md:hidden"
     >
-      <ul className="flex h-bottom-nav items-stretch gap-1 px-2 py-2">
+      <ul className="flex h-bottom-nav items-stretch gap-1 px-2 py-1.5">
         <li className="flex flex-1">
           <NavLink to="/work" className={({ isActive }) => tabClasses(isActive)}>
             <Icon icon={House} />
@@ -417,17 +588,12 @@ function BottomNav({ me }: { me: MeResponse }) {
             Search
           </NavLink>
         </li>
-        {admin.length > 0 && (
+        {hasAdmin && (
           <li className="flex flex-1">
-            {/* Any admin page counts as this tab, whichever one it opens. */}
-            <Link
-              to={admin[0]!.to}
-              className={tabClasses(pathname.startsWith("/admin"))}
-              aria-current={pathname.startsWith("/admin") ? "page" : undefined}
-            >
-              <Icon icon={Settings2} />
+            <NavLink to="/admin" className={({ isActive }) => tabClasses(isActive)}>
+              <Icon icon={ShieldCheck} />
               Admin
-            </Link>
+            </NavLink>
           </li>
         )}
         <li className="flex flex-1">

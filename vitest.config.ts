@@ -24,6 +24,11 @@ export default defineConfig({
                 GOOGLE_CLIENT_SECRET: "test-client-secret",
                 GOOGLE_REDIRECT_URI: "https://hub.test/api/auth/callback",
                 SESSION_SECRET: "test-session-secret-not-for-production-use-0000",
+                // Blank here even when a developer's .dev.vars has real keys: tests never call Resend or the
+                // Cloudflare analytics API, and they run the same on every machine.
+                RESEND_API_KEY: "",
+                CF_ACCOUNT_ID: "",
+                CF_ANALYTICS_TOKEN: "",
               },
             },
           }),

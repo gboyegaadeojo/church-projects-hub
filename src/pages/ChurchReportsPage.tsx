@@ -3,8 +3,7 @@ import { ChartColumn, WifiOff } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import { churchReports, REPORT_COPY, REPORT_RANGES } from "../../shared/reports";
 import { BarList, LineChart, ReportCard } from "../components/reports/Charts";
-import { AdminTabs } from "../components/shell/AdminTabs";
-import { useMe } from "../components/shell/AppShell";
+import { ADMIN_CRUMBS, useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
 import { Badge } from "../components/ui/Badge";
 import { Select } from "../components/ui/choices";
@@ -41,8 +40,7 @@ export function ChurchReportsPage() {
   const r = reports.data;
 
   return (
-    <PageLayout title="Church-wide reports">
-      <AdminTabs me={me} />
+    <PageLayout breadcrumbs={ADMIN_CRUMBS} title="Church-wide reports">
       {!isAdmin ? (
         <EmptyState icon={ChartColumn} title="Only app admins can see church-wide reports." />
       ) : !online ? (

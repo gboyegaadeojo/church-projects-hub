@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { AtSign, CircleCheck, FolderPlus } from "lucide-react";
-import type { ReactNode } from "react";
+import { AlarmClock, AtSign, CalendarClock, CalendarDays, CircleCheck, FolderPlus, type LucideIcon } from "lucide-react";
+import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
 import { ACCESS_COPY } from "../../shared/access";
 import { dueStatus, todayIn } from "../../shared/tasks";
@@ -13,6 +13,7 @@ import { Icon } from "../components/ui/Icon";
 import { Skeleton, useDelayedFlag } from "../components/ui/Skeleton";
 import { EmptyState, ErrorState } from "../components/ui/States";
 import { api } from "../lib/api";
+import { cn } from "../lib/cn";
 import { welcomeLine } from "../lib/greeting";
 import { useMyProjects } from "../lib/projects";
 
@@ -23,12 +24,12 @@ export { WORK_COPY };
 
 export const taskLink = (t: Pick<WorkTask, "key" | "project">) => `/projects/${t.project.key}?task=${t.key}`;
 
-export function TaskRow({ task, today }: { task: WorkTask; today: string }) {
+export function TaskRow({ task, today, index = 0 }: { task: WorkTask; today: string; index?: number }) {
   return (
-    <li>
+    <li style={{ "--i": index } as CSSProperties}>
       <Link
         to={taskLink(task)}
-        className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-control border border-line bg-card px-3 py-2 transition-colors duration-(--duration-micro) ease-out state-hover:bg-hover"
+        className="lift flex min-h-touch flex-wrap items-center gap-x-3 gap-y-1 rounded-control border border-line bg-card px-4 py-3 shadow-raised state-hover:border-accent"
       >
         <ProjectGlyph project={task.project} size="sm" />
         <span className="flex items-center gap-1 text-label text-ink-2 tabular-nums">
@@ -46,18 +47,29 @@ export function TaskRow({ task, today }: { task: WorkTask; today: string }) {
   );
 }
 
-function Group({ title, tasks, today }: { title: string; tasks: WorkTask[]; today: string }) {
+/** Each group has its own icon and tint, so urgency reads at a glance (never by colour alone: the title says it). */
+const GROUP_STYLE: Record<"Overdue" | "This week" | "Later", { icon: LucideIcon; tint: string }> = {
+  Overdue: { icon: AlarmClock, tint: "bg-overdue-soft text-overdue-ink" },
+  "This week": { icon: CalendarClock, tint: "bg-due-soon-soft text-due-soon-ink" },
+  Later: { icon: CalendarDays, tint: "bg-hover text-ink-2" },
+};
+
+function Group({ title, tasks, today }: { title: keyof typeof GROUP_STYLE; tasks: WorkTask[]; today: string }) {
   if (tasks.length === 0) return null;
   const id = `work-${title.toLowerCase().replace(/\s+/g, "-")}`;
+  const style = GROUP_STYLE[title];
   return (
-    <section aria-labelledby={id} className="flex flex-col gap-2">
-      <h2 id={id} className="flex items-center gap-2 text-body font-semibold text-ink">
+    <section aria-labelledby={id} className="flex flex-col gap-3">
+      <h2 id={id} className="flex items-center gap-3 text-body font-semibold text-ink">
+        <span className={cn("inline-flex size-8 items-center justify-center rounded-control", style.tint)}>
+          <Icon icon={style.icon} />
+        </span>
         {title}
-        <span className="text-secondary font-normal text-ink-2 tabular-nums">{tasks.length}</span>
+        <span className="rounded-full bg-hover px-2 text-label text-ink-2 tabular-nums">{tasks.length}</span>
       </h2>
-      <ul className="flex flex-col gap-2">
-        {tasks.map((t) => (
-          <TaskRow key={t.id} task={t} today={today} />
+      <ul className="stagger flex flex-col gap-2">
+        {tasks.map((t, i) => (
+          <TaskRow key={t.id} task={t} today={today} index={i} />
         ))}
       </ul>
     </section>
@@ -138,8 +150,10 @@ export function WorkPage() {
         )}
         {mentions.length > 0 && (
           <section aria-labelledby="work-mentions" className="flex flex-col gap-2">
-            <h2 id="work-mentions" className="flex items-center gap-2 text-body font-semibold text-ink">
-              <Icon icon={AtSign} className="text-accent-ink" />
+            <h2 id="work-mentions" className="flex items-center gap-3 text-body font-semibold text-ink">
+              <span className="inline-flex size-8 items-center justify-center rounded-control bg-accent-soft text-accent-ink">
+                <Icon icon={AtSign} />
+              </span>
               Mentioned you
             </h2>
             <ul className="flex flex-col gap-2">
@@ -147,7 +161,7 @@ export function WorkPage() {
                 <li key={m.id}>
                   <Link
                     to={`/projects/${m.projectKey}?task=${m.taskKey}`}
-                    className="flex flex-col rounded-control border border-info-line bg-info-soft px-3 py-2 state-hover:bg-hover"
+                    className="lift flex flex-col rounded-control border border-info-line bg-info-soft px-4 py-3"
                   >
                     <span className="text-secondary text-ink">
                       <span className="font-medium">{m.by}</span> mentioned you {m.inComment ? "in a comment on" : "in"}{" "}
@@ -165,7 +179,7 @@ export function WorkPage() {
   }
 
   return (
-    <PageLayout title="My Work" intro={welcomeLine(me.user.timezone)}>
+    <PageLayout hero title="My Work" intro={welcomeLine(me.user.timezone)}>
       {content}
     </PageLayout>
   );

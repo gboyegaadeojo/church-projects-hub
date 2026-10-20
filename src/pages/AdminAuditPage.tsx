@@ -2,8 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { Download, ScrollText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AUDIT_EXPORT_CAP, type AuditEntry, auditResponse } from "../../shared/admin";
-import { AdminTabs } from "../components/shell/AdminTabs";
-import { useMe } from "../components/shell/AppShell";
+import { ADMIN_CRUMBS, useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
 import { Button, buttonClasses } from "../components/ui/Button";
 import { Select } from "../components/ui/choices";
@@ -73,6 +72,7 @@ export function AdminAuditPage() {
 
   return (
     <PageLayout
+      breadcrumbs={ADMIN_CRUMBS}
       title="Audit log"
       intro="Every sign-in event, access decision, role change and deletion, kept for a year."
       actions={
@@ -84,7 +84,6 @@ export function AdminAuditPage() {
         )
       }
     >
-      <AdminTabs me={me} />
       {me.user.appRole !== "admin" ? (
         <EmptyState icon={ScrollText} title="Only app admins can read the audit log." />
       ) : (

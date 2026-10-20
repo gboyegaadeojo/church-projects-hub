@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, WifiOff } from "lucide-react";
+import { WifiOff } from "lucide-react";
 import { useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { EMPTY_FILTER, filterFromSearch, filterToSearch, type TaskFilter } from "../../shared/filters";
@@ -7,13 +7,12 @@ import { projectResponse } from "../../shared/projects";
 import { type ProjectReports, projectReports, REPORT_COPY, REPORT_RANGES } from "../../shared/reports";
 import { PRIORITIES, PRIORITY_LABELS } from "../../shared/tasks";
 import { BarList, LineChart, Progress, ReportCard, StackedBar } from "../components/reports/Charts";
-import { useMe } from "../components/shell/AppShell";
+import { ProjectTile, useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
+import { ProjectTabs } from "../components/shell/ProjectTabs";
 import { FilterBar } from "../components/tasks/FilterBar";
-import { buttonClasses } from "../components/ui/Button";
 import { Select } from "../components/ui/choices";
 import { Field } from "../components/ui/Field";
-import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
 import { EmptyState, ErrorState } from "../components/ui/States";
 import { api } from "../lib/api";
@@ -60,13 +59,10 @@ export function ProjectReportsPage() {
     <PageLayout
       title={project.data ? `${project.data.name} reports` : "Reports"}
       intro="Created vs completed and cycle time update every hour; everything else is live."
-      actions={
-        <Link to={`/projects/${key}`} className={buttonClasses("secondary")}>
-          <Icon icon={ArrowLeft} />
-          Back to board
-        </Link>
-      }
+      breadcrumbs={[{ to: "/projects", label: "Projects" }, ...(project.data ? [{ to: `/projects/${project.data.key}`, label: project.data.name }] : [])]}
+      leading={project.data && <ProjectTile project={project.data} size="lg" />}
     >
+      <ProjectTabs projectKey={project.data?.key ?? key.toUpperCase()} active="reports" />
       {!online ? (
         <EmptyState icon={WifiOff} title={REPORT_COPY.offline} />
       ) : project.isError || reports.isError ? (

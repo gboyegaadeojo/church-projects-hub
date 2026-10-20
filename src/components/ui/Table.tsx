@@ -6,6 +6,8 @@ import { Icon } from "./Icon";
 
 // Tables (section 15): sortable headers where relevant, pagination for long lists,
 // row actions always in the last column. Wide tables scroll inside their card, never the page.
+// On phones each row stacks into a small card with every value labelled, so nothing hides off-screen.
+// Explicit roles keep the table semantics for screen readers while the phone layout changes display.
 
 export type SortDirection = "ascending" | "descending";
 export type SortState = { key: string; direction: SortDirection };
@@ -65,18 +67,19 @@ export function Table<Row>({
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-x-auto rounded-card border border-line bg-card">
-        <table className="w-full border-collapse text-left text-secondary">
-          <caption className={cn("px-4 pt-3 text-left text-body font-medium text-ink", captionHidden && "sr-only")}>
+        <table role="table" className="w-full border-collapse text-left text-secondary max-md:block">
+          <caption className={cn("px-4 pt-3 text-left text-body font-medium text-ink max-md:block max-md:pb-3", captionHidden && "sr-only")}>
             {caption}
           </caption>
-          <thead>
-            <tr className="border-b border-line">
+          <thead role="rowgroup" className="max-md:sr-only">
+            <tr role="row" className="border-b border-line">
               {columns.map((column) => {
                 const active = sort?.key === column.key ? sort.direction : undefined;
                 return (
                   <th
                     key={column.key}
                     scope="col"
+                    role="columnheader"
                     aria-sort={column.sortable ? (active ?? "none") : undefined}
                     className={cn("px-4 py-2 text-label text-ink-2", column.numeric && "text-right")}
                   >
@@ -104,32 +107,46 @@ export function Table<Row>({
                 );
               })}
               {rowActions && (
-                <th scope="col" className="w-0 px-4 py-2">
+                <th scope="col" role="columnheader" className="w-0 px-4 py-2">
                   <span className="sr-only">Actions</span>
                 </th>
               )}
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup" className="max-md:block">
             {rows.length === 0 ? (
-              <tr>
-                <td colSpan={columnCount}>{empty}</td>
+              <tr role="row" className="max-md:block">
+                <td role="cell" colSpan={columnCount} className="max-md:block">
+                  {empty}
+                </td>
               </tr>
             ) : (
               rows.map((row) => (
                 <tr
                   key={getRowKey(row)}
-                  className="border-b border-line transition-colors duration-(--duration-micro) ease-out last:border-b-0 state-hover:bg-hover"
+                  role="row"
+                  className="border-b border-line transition-colors duration-(--duration-micro) ease-out last:border-b-0 state-hover:bg-hover max-md:flex max-md:flex-col max-md:gap-2 max-md:px-4 max-md:py-4"
                 >
                   {columns.map((column) => (
                     <td
                       key={column.key}
-                      className={cn("px-4 py-3 text-ink", column.numeric && "text-right tabular-nums")}
+                      role="cell"
+                      data-label={column.header}
+                      className={cn(
+                        "px-4 py-3 text-ink",
+                        column.numeric && "text-right tabular-nums",
+                        // Phones: the column name sits above its value.
+                        "max-md:block max-md:p-0 max-md:text-left max-md:before:block max-md:before:text-label max-md:before:text-ink-2 max-md:before:content-[attr(data-label)]",
+                      )}
                     >
                       {column.cell(row)}
                     </td>
                   ))}
-                  {rowActions && <td className="px-4 py-1 text-right">{rowActions(row)}</td>}
+                  {rowActions && (
+                    <td role="cell" className="px-4 py-1 text-right max-md:block max-md:p-0 max-md:pt-1 max-md:text-left">
+                      {rowActions(row)}
+                    </td>
+                  )}
                 </tr>
               ))
             )}

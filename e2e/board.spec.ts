@@ -126,7 +126,7 @@ test.describe("TASK-2 list view and TASK-10 bulk edit", () => {
     const project = BOARD_PROJECTS.desktop;
     const page = await pageAs(persona("mover", "desktop"));
     await page.goto(`/projects/${project.key}?view=list`);
-    await expect(page.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("navigation", { name: "Project" }).getByRole("link", { name: "List" })).toHaveAttribute("aria-current", "page");
     const table = page.getByRole("table", { name: "Tasks" });
     await table.getByRole("button", { name: "Title" }).click();
     await expect(table.getByRole("columnheader", { name: "Title" })).toHaveAttribute("aria-sort", "ascending");
