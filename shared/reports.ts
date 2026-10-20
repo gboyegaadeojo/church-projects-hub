@@ -76,3 +76,25 @@ export function percentiles(values: number[]): { median: number | null; p85: num
   const median = sorted.length % 2 ? sorted[Math.floor(mid)]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
   return { median, p85: rank(0.85) };
 }
+
+// ---- Church-wide reports (section 16, App Admin): overview, workload across projects, access and adoption
+
+export const CHURCH_REPORT_NAMES = ["overview", "workload", "adoption"] as const;
+export type ChurchReportName = (typeof CHURCH_REPORT_NAMES)[number];
+
+export const churchReports = z.object({
+  range: z.object({ weeks: z.number().int(), from: z.string(), to: z.string() }),
+  overview: z.array(
+    z.object({ id: z.number().int(), key: z.string(), name: z.string(), archived: z.boolean(), open: z.number().int(), overdue: z.number().int(), completedThisMonth: z.number().int() }),
+  ),
+  workload: z.array(z.object({ person: z.object({ id: z.number().int(), name: z.string() }), open: z.number().int(), overdue: z.number().int(), projects: z.number().int() })),
+  adoption: z.object({
+    /** People who signed in or changed a task or comment, per week. */
+    activeByWeek: z.array(z.object({ weekStart: z.string(), people: z.number().int() })),
+    pendingRequests: z.number().int(),
+    /** Mean hours from request to decision, for requests decided in the range. */
+    avgDecisionHours: z.number().nullable(),
+    decided: z.number().int(),
+  }),
+});
+export type ChurchReports = z.infer<typeof churchReports>;

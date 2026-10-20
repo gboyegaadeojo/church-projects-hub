@@ -32,3 +32,18 @@ test("RPT-1 a member sees the reports, switches a chart to a table, and drills d
   await page.getByRole("button", { name: "Show all tasks" }).click();
   await expect(page).not.toHaveURL(/category=/);
 });
+
+test("Section 16 App Admins see church-wide reports; members don't get the link", async ({ pageAs }, testInfo) => {
+  const v = viewportOf(testInfo);
+  const page = await pageAs(persona("admin"));
+  await page.goto("/admin/reports");
+  await expect(page.getByRole("heading", { level: 1, name: "Church-wide reports" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "All projects" }).getByRole("link", { name: "Media" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Access and adoption" })).toContainText("Waiting requests");
+  await expectNoViolations(page);
+  await page.screenshot({ path: `test-results/church-${v}.png`, fullPage: true });
+
+  const member = await pageAs(persona("mover", v));
+  await member.goto("/admin/reports");
+  await expect(member.getByText("Only app admins can see church-wide reports.")).toBeVisible();
+});
