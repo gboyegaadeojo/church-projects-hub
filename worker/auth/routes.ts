@@ -167,8 +167,11 @@ export function authRoutes(google: GoogleClient) {
         (await c.env.DB.prepare("SELECT 1 FROM project_members WHERE user_id = ?1 AND role = 'admin' LIMIT 1")
           .bind(user.id)
           .first()) !== null);
+    // Each sign-in creates a session row (uses sessions_user_id_idx).
+    const signIns = await c.env.DB.prepare("SELECT count(*) AS n FROM sessions WHERE user_id = ?1").bind(user.id).first<{ n: number }>();
     const body: MeResponse = {
       canReviewAccess,
+      signInCount: signIns?.n ?? 1,
       user: {
         id: user.id,
         email: user.email,

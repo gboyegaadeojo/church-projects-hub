@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { inviteRoutes } from "./access/invites";
 import { accessRequestRoutes } from "./access/requests";
 import type { GoogleClient } from "./auth/google";
+import { clientErrorRoutes, handleError } from "./errors";
 import { sameOriginWrites } from "./auth/middleware";
 import { authRoutes } from "./auth/routes";
 import { profileRoutes } from "./profile/routes";
@@ -25,9 +26,12 @@ export function createApp(deps: AppDeps) {
 
   // Health check: confirms the Worker is up and can reach D1.
   app.get("/health", async (c) => {
-    const row = await c.env.DB.prepare("SELECT 1 AS ok").first<{ ok: number }>();
-    return c.json({ status: "ok", database: row?.ok === 1 ? "ok" : "unavailable" });
+    const row = await c.env.DB.prepare("SELECT 1 AS ok")
+      .first<{ ok: number }>()
+      .catch(() => null);
+    return row?.ok === 1 ? c.json({ status: "ok", database: "ok" }) : c.json({ status: "degraded", database: "unavailable" }, 503);
   });
+  app.route("/", clientErrorRoutes());
 
   app.route("/auth", authRoutes(deps.google));
   // Each route in these carries its own guards (requireSession, requirePermission), so mounting
@@ -46,12 +50,8 @@ export function createApp(deps: AppDeps) {
   // Unknown API routes return JSON, never the SPA shell.
   app.notFound((c) => c.json({ error: "Not found" }, 404));
 
-  // Never expose stack traces or internal messages to users (NFR-18, 11.13).
-  app.onError((err, c) => {
-    const requestId = crypto.randomUUID();
-    console.error(JSON.stringify({ level: "error", requestId, message: err.message, stack: err.stack }));
-    return c.json({ error: "Something went wrong.", requestId }, 500);
-  });
+  // Never expose stack traces or internal messages to users (NFR-18, 11.13); D1 outages answer 503.
+  app.onError(handleError);
 
   return app;
 }

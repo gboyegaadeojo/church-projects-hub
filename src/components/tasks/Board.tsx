@@ -156,7 +156,9 @@ export function Board({ states, tasks, labels, people, today, canMove, onOpen, o
         }}
       >
         <div
-          className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 md:mx-0 md:snap-none md:px-0"
+          // relative: absolutely positioned descendants (screen-reader text) stay inside this scroller instead of
+          // widening the page (section 12: only the board scrolls sideways).
+          className="relative -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 md:mx-0 md:snap-none md:px-0"
           role="region"
           aria-label="Board"
         >
@@ -210,7 +212,7 @@ function Column({ state, ids, byId, labels, people, today, states, canMove, done
     <section
       id={`board-column-${state.id}`}
       aria-labelledby={headingId}
-      className="flex w-[calc(100vw-2rem)] shrink-0 snap-start flex-col rounded-card bg-hover/60 md:w-72"
+      className="relative flex w-[calc(100vw-2rem)] shrink-0 snap-start flex-col rounded-card bg-hover/60 md:w-72"
     >
       <h2 id={headingId} className="flex items-center justify-between gap-2 px-3 pt-3 pb-2 text-secondary font-medium text-ink">
         <span className="truncate">{state.name}</span>

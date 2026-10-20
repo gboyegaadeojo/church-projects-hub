@@ -22,6 +22,7 @@ import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { isSafeHref, type RichTextDoc, type RichTextKind } from "../../../shared/richtext";
 import type { Person } from "../../../shared/tasks";
 import { cn } from "../../lib/cn";
+import { fuzzyMatch } from "../../lib/fuzzy";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { Field } from "../ui/Field";
@@ -58,17 +59,7 @@ const TOOLS: Tool[] = [
   { key: "rule", label: "Divider", icon: Minus, kinds: ["description"], run: (e) => e.chain().focus().setHorizontalRule().run(), active: () => false },
 ];
 
-/** Fuzzy match: the letters of the query appear in order in the name (section 11.5). */
-export function fuzzyMatch(name: string, query: string): boolean {
-  const n = name.toLowerCase();
-  let i = 0;
-  for (const ch of query.toLowerCase()) {
-    i = n.indexOf(ch, i);
-    if (i < 0) return false;
-    i += 1;
-  }
-  return true;
-}
+export { fuzzyMatch };
 
 type SuggestState = { items: Person[]; index: number; rect: DOMRect | null; command: (p: { id: string; label: string }) => void };
 

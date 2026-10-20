@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Kanban, List, Lock, Plus, SearchX, Settings2, SlidersHorizontal } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import type { MeResponse } from "../../shared/auth";
 import { filterFromSearch, filterToSearch, isFilterActive, matchesFilter, type TaskFilter } from "../../shared/filters";
@@ -21,6 +21,7 @@ import { EmptyState, ErrorState } from "../components/ui/States";
 import { toast } from "../components/ui/Toast";
 import { api, ApiError } from "../lib/api";
 import { cn } from "../lib/cn";
+import { useOnline } from "../lib/online";
 import { peopleById, useBoard, useBulkEdit, useMoveTask } from "../lib/tasks";
 import { ProjectBadges } from "./ProjectsPage";
 
@@ -125,7 +126,9 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [filtersOpen, setFiltersOpen] = useState(false);
   const showSkeleton = useDelayedFlag(board.isPending);
-  const canEdit = canEditTasks(me, project);
+  // Section 11.10: no edits offline in v1; reconnecting brings them back without a reload.
+  const online = useOnline();
+  const canEdit = canEditTasks(me, project) && online;
   const today = todayIn(me.user.timezone);
 
   const setFilter = (f: TaskFilter) => setParams((p) => filterToSearch(f, p), { replace: true });
@@ -144,6 +147,20 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
     });
 
   const data = board.data;
+
+  // The command palette's "New task" lands here with ?new=1 (NAV-2).
+  useEffect(() => {
+    if (params.get("new") !== "1" || !data) return;
+    if (canEdit) setCreating(true);
+    setParams(
+      (p) => {
+        const next = new URLSearchParams(p);
+        next.delete("new");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [params, data, canEdit, setParams]);
   const labels = useMemo(() => new Map((data?.labels ?? []).map((l) => [l.id, l])), [data?.labels]);
   const people = useMemo(() => (data ? peopleById(data) : new Map()), [data]);
   const assignable = useMemo(() => (data?.members ?? []).filter((m) => m.role !== "viewer"), [data?.members]);

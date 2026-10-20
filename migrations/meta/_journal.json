@@ -36,6 +36,13 @@
       "when": 1792468307403,
       "tag": "0004_attachment_purge",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792469626658,
+      "tag": "0005_app_errors",
+      "breakpoints": true
     }
   ]
 }

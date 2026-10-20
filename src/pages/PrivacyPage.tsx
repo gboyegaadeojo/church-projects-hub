@@ -67,7 +67,8 @@ export function PrivacyPage() {
             needs. We don't sell your data or show ads.
           </p>
           <p>
-            We use a sign-in cookie, and your browser stores your theme choice. We don't use tracking or advertising cookies.
+            We use a sign-in cookie, and your browser stores your theme choice and recently viewed pages so the app works offline. We
+            don't use tracking or advertising cookies.
           </p>
         </Section>
 

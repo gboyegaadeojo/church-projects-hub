@@ -21,7 +21,10 @@ import { TABLET_QUERY, useMediaQuery } from "../../lib/media";
 import { useSaveTheme } from "../../lib/profile";
 import { PROJECT_COLOUR_CLASSES, PROJECT_ICON_COMPONENTS, useMyProjects } from "../../lib/projects";
 import { useSignOut } from "../../lib/session";
+import { CommandPalette, openCommandPalette } from "../CommandPalette";
+import { ErrorBoundary } from "../ErrorBoundary";
 import { SessionGate } from "../SessionGate";
+import { InstallPrompt, OfflineBanner } from "../StatusBanners";
 import { Avatar } from "../ui/Avatar";
 import { Button, IconButton } from "../ui/Button";
 import { Dialog, SheetContent } from "../ui/Dialog";
@@ -63,7 +66,12 @@ export function adminLinks(me: MeResponse): { to: string; label: string; icon: L
   ];
 }
 
-function Shell({ me }: { me: MeResponse }) {
+/** The shell around one page that isn't a nested route (e.g. /request-access for active members). */
+export function ShellFrame({ me, children }: { me: MeResponse; children: ReactNode }) {
+  return <Shell me={me}>{children}</Shell>;
+}
+
+function Shell({ me, children }: { me: MeResponse; children?: ReactNode }) {
   const isTablet = useMediaQuery(TABLET_QUERY);
   const [expanded, setExpanded] = useState(readExpanded);
   const collapsed = isTablet && !expanded;
@@ -106,9 +114,15 @@ function Shell({ me }: { me: MeResponse }) {
         tabIndex={-1}
         className="min-w-0 flex-1 pb-[calc(var(--spacing-bottom-nav)+env(safe-area-inset-bottom))] outline-none md:pb-0"
       >
-        <Outlet context={me} />
+        <OfflineBanner />
+        {/* Section 11.13: a crashed page stays inside the shell; navigation keeps working. Keyed so it resets. */}
+        <ErrorBoundary key={pathname} section={pathname.split("/")[1] || "home"}>
+          {children ?? <Outlet context={me} />}
+        </ErrorBoundary>
       </main>
       <BottomNav me={me} />
+      <CommandPalette me={me} />
+      <InstallPrompt me={me} />
     </div>
   );
 }
@@ -145,6 +159,33 @@ function SidebarLink({
     </NavLink>
   );
   return <li>{collapsed ? <Tooltip content={label} side="right">{link}</Tooltip> : link}</li>;
+}
+
+/** Opens the command palette (NAV-2); the shortcut is shown so people learn it. */
+function PaletteButton({ collapsed }: { collapsed: boolean }) {
+  const mac = typeof navigator !== "undefined" && /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent);
+  const shortcut = mac ? "⌘K" : "Ctrl K";
+  const button = (
+    <button
+      type="button"
+      onClick={openCommandPalette}
+      aria-label={collapsed ? `Jump to (${shortcut})` : undefined}
+      aria-keyshortcuts={mac ? "Meta+K" : "Control+K"}
+      className={cn(
+        "mb-2 flex min-h-touch w-full items-center gap-3 rounded-control border border-line text-secondary text-ink-2 state-hover:bg-hover",
+        collapsed ? "justify-center" : "px-3",
+      )}
+    >
+      <Icon icon={Search} />
+      {!collapsed && (
+        <>
+          <span className="flex-1 text-left">Jump to…</span>
+          <kbd className="rounded-chip border border-line px-1.5 text-label">{shortcut}</kbd>
+        </>
+      )}
+    </button>
+  );
+  return collapsed ? <Tooltip content={`Jump to (${shortcut})`} side="right">{button}</Tooltip> : button;
 }
 
 export function ProjectGlyph({ project, size = "md" }: { project: Pick<ProjectSummary, "colour" | "icon">; size?: "md" | "sm" }) {
@@ -185,6 +226,7 @@ function Sidebar({ me, collapsed, onToggle }: { me: MeResponse; collapsed: boole
       </div>
 
       <nav aria-label="Main" className="flex-1 overflow-y-auto p-3">
+        <PaletteButton collapsed={collapsed} />
         <ul className="flex flex-col gap-1">
           <SidebarLink to="/work" label="My Work" icon={House} collapsed={collapsed} />
           <SidebarLink to="/search" label="Search" icon={Search} collapsed={collapsed} />
