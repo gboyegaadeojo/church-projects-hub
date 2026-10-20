@@ -102,7 +102,7 @@ export function ProjectMembersPage() {
               {editable(m) ? (
                 <span className="flex items-end gap-2">
                   <span className="w-44">
-                    <Field label={`Role for ${m.name}`}>
+                    <Field label={`Role for ${m.name}`} filter>
                       <Select options={roleOptions} value={m.role} onValueChange={(r) => pickRole(m, r as MemberRow["role"])} />
                     </Field>
                   </span>

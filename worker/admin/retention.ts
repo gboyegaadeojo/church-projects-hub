@@ -50,6 +50,7 @@ export function purgeProjectStatements(env: Pick<Env, "DB">, projectId: number, 
     run("UPDATE tasks SET epic_id = NULL WHERE project_id = ?1"),
     run("DELETE FROM tasks WHERE project_id = ?1"),
     ...["labels", "components", "milestones", "workflow_states", "saved_filters", "invites", "access_requests", "project_members"].map((t) => run(`DELETE FROM ${t} WHERE project_id = ?1`)),
+    run("DELETE FROM report_snapshots WHERE project_id = ?1"),
     // The row stays, emptied, so its key isn't reused by a new project that old links would then open.
     db.prepare("UPDATE projects SET name = 'Deleted project', description = '', hidden = 1, deleted_at = ?2, updated_at = ?2 WHERE id = ?1").bind(projectId, now),
   ];

@@ -41,11 +41,13 @@ type FieldProps = {
   hint?: string;
   error?: string;
   required?: boolean;
+  /** A filter, or a control that always holds a value (a select): not marked "(optional)". */
+  filter?: boolean;
   className?: string;
   children: ReactNode;
 };
 
-export function Field({ label, hint, error, required = false, className, children }: FieldProps) {
+export function Field({ label, hint, error, required = false, filter = false, className, children }: FieldProps) {
   const controlId = useId();
   const hintId = `${controlId}-hint`;
   const errorId = `${controlId}-error`;
@@ -53,7 +55,7 @@ export function Field({ label, hint, error, required = false, className, childre
     <div className={cn("flex flex-col gap-2", className)}>
       <label htmlFor={controlId} className="text-secondary font-medium text-ink">
         {label}
-        {!required && <span className="font-normal text-ink-2"> (optional)</span>}
+        {!required && !filter && <span className="font-normal text-ink-2"> (optional)</span>}
       </label>
       {hint && (
         <p id={hintId} className="-mt-1 text-caption text-ink-2">

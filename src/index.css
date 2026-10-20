@@ -61,6 +61,10 @@
   --project-red: #dc2626;
   --project-pink: #db2777;
   --project-purple: #7c3aed;
+  /* Chart series (section 16), validated with the dataviz checks: CVD ΔE ≥ 9 all pairs. Fixed order. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
 
   /* Error / destructive */
   --danger: #c62828;
@@ -145,6 +149,9 @@
   --project-red: #f87171;
   --project-pink: #f472b6;
   --project-purple: #a78bfa;
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
 
   --danger: #c9372c;
   --danger-hover: #b32e24;
@@ -212,6 +219,9 @@
   --color-accent-ink: var(--accent-ink);
 
   --color-project-blue: var(--project-blue);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
   --color-project-teal: var(--project-teal);
   --color-project-green: var(--project-green);
   --color-project-amber: var(--project-amber);
