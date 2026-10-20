@@ -46,6 +46,8 @@ export const meResponse = z.object({
   csrfToken: z.string(),
   /** App Admin, or Project Admin of at least one project: show the access queue link. */
   canReviewAccess: z.boolean(),
+  /** How many times this person has signed in; the add-to-home-screen prompt waits for the second (NFR-21). */
+  signInCount: z.number().int().default(1),
 });
 export type MeResponse = z.infer<typeof meResponse>;
 

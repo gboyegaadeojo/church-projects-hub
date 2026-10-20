@@ -434,6 +434,21 @@ export const savedFilters = sqliteTable(
   (t) => [index("saved_filters_project_id_idx").on(t.projectId)],
 );
 
+// The "small error table" (section 5): one row per server error or crashed section (11.13), counted by the
+// error-spike alert (NFR-15). No personal data: a section name, a request id and a hashed IP only (NFR-5).
+export const appErrors = sqliteTable(
+  "app_errors",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    source: text("source", { enum: ["server", "client"] }).notNull(),
+    section: text("section"),
+    requestId: text("request_id").notNull(),
+    ipHash: text("ip_hash"),
+    at: integer("at").notNull().default(nowMs),
+  },
+  (t) => [index("app_errors_at_idx").on(t.at)],
+);
+
 // Append-only (ADM-3). Rows are never updated, so `at` stands in for created_at/updated_at
 // and actor_id for created_by. actor_id is null for system events.
 export const auditLog = sqliteTable(

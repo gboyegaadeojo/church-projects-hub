@@ -19,6 +19,7 @@ import { memo, useMemo, useRef, useState } from "react";
 import type { Label, Person, TaskCard, WorkflowState } from "../../../shared/tasks";
 import { cn } from "../../lib/cn";
 import { columnCards } from "../../lib/tasks";
+import { OfflineDisabled } from "../StatusBanners";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "../ui/Menu";
@@ -36,6 +37,8 @@ export type BoardProps = {
   people: Map<number, Person>;
   today: string;
   canMove: boolean;
+  /** Could move but offline: Move buttons show disabled with the reason (section 11.10). */
+  offline?: boolean;
   onOpen: (task: TaskCard) => void;
   onMove: (input: { task: TaskCard; stateId: number; afterId: number | null; beforeId: number | null }) => void;
 };
@@ -43,7 +46,7 @@ export type BoardProps = {
 type Columns = Record<number, number[]>;
 const COLUMN_PREFIX = "column-";
 
-export function Board({ states, tasks, labels, people, today, canMove, onOpen, onMove }: BoardProps) {
+export function Board({ states, tasks, labels, people, today, canMove, offline = false, onOpen, onMove }: BoardProps) {
   const byId = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
   const derived = useMemo<Columns>(
     () => Object.fromEntries(states.map((s) => [s.id, columnCards(tasks, s.id).map((t) => t.id)])),
@@ -156,7 +159,9 @@ export function Board({ states, tasks, labels, people, today, canMove, onOpen, o
         }}
       >
         <div
-          className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 md:mx-0 md:snap-none md:px-0"
+          // relative: absolutely positioned descendants (screen-reader text) stay inside this scroller instead of
+          // widening the page (section 12: only the board scrolls sideways).
+          className="relative -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 md:mx-0 md:snap-none md:px-0"
           role="region"
           aria-label="Board"
         >
@@ -171,6 +176,7 @@ export function Board({ states, tasks, labels, people, today, canMove, onOpen, o
               today={today}
               states={states}
               canMove={canMove}
+              offline={offline}
               done={doneStates.has(state.id)}
               activeId={activeId}
               onOpen={open}
@@ -197,20 +203,21 @@ type ColumnProps = {
   today: string;
   states: WorkflowState[];
   canMove: boolean;
+  offline: boolean;
   done: boolean;
   activeId: number | null;
   onOpen: (task: TaskCard) => void;
   onMoveTo: (task: TaskCard, stateId: number) => void;
 };
 
-function Column({ state, ids, byId, labels, people, today, states, canMove, done, activeId, onOpen, onMoveTo }: ColumnProps) {
+function Column({ state, ids, byId, labels, people, today, states, canMove, offline, done, activeId, onOpen, onMoveTo }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COLUMN_PREFIX}${state.id}`, disabled: !canMove });
   const headingId = `board-column-${state.id}-title`;
   return (
     <section
       id={`board-column-${state.id}`}
       aria-labelledby={headingId}
-      className="flex w-[calc(100vw-2rem)] shrink-0 snap-start flex-col rounded-card bg-hover/60 md:w-72"
+      className="relative flex w-[calc(100vw-2rem)] shrink-0 snap-start flex-col rounded-card bg-hover/60 md:w-72"
     >
       <h2 id={headingId} className="flex items-center justify-between gap-2 px-3 pt-3 pb-2 text-secondary font-medium text-ink">
         <span className="truncate">{state.name}</span>
@@ -240,6 +247,7 @@ function Column({ state, ids, byId, labels, people, today, states, canMove, done
                 today={today}
                 states={states}
                 canMove={canMove}
+                offline={offline}
                 done={done}
                 dragging={activeId === id}
                 onOpen={onOpen}
@@ -260,13 +268,14 @@ type CardProps = {
   today: string;
   states: WorkflowState[];
   canMove: boolean;
+  offline: boolean;
   done: boolean;
   dragging: boolean;
   onOpen: (task: TaskCard) => void;
   onMoveTo: (task: TaskCard, stateId: number) => void;
 };
 
-const SortableCard = memo(function SortableCard({ task, labels, people, today, states, canMove, done, dragging, onOpen, onMoveTo }: CardProps) {
+const SortableCard = memo(function SortableCard({ task, labels, people, today, states, canMove, offline, done, dragging, onOpen, onMoveTo }: CardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id, disabled: !canMove });
   // The keyboard alternative is the Move button, so the card itself isn't a dnd-kit keyboard target.
   const { role: _role, tabIndex: _tabIndex, ...dragAttributes } = attributes;
@@ -280,9 +289,9 @@ const SortableCard = memo(function SortableCard({ task, labels, people, today, s
       {...listeners}
     >
       <CardBody task={task} labels={labels} people={people} today={today} done={done} onOpen={() => onOpen(task)} />
-      {canMove && (
+      {(canMove || offline) && (
         <div className="absolute top-1 right-1">
-          <MoveMenu task={task} states={states} onMoveTo={onMoveTo} />
+          {canMove ? <MoveMenu task={task} states={states} onMoveTo={onMoveTo} /> : <OfflineDisabled label={`Move ${task.key}`} icon={ArrowRightLeft} iconOnly />}
         </div>
       )}
     </li>

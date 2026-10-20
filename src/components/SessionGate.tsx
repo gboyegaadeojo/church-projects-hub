@@ -34,6 +34,14 @@ export function SessionGate({
     );
   }
   const state = session.data;
+  if (state?.kind === "offline") {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-3 px-4 text-center">
+        <h1 className="text-title text-ink">You're offline</h1>
+        <p className="text-body text-ink-2">This page hasn't been saved on this device yet. Reconnect to open it.</p>
+      </main>
+    );
+  }
   if (!state || state.kind === "signed-out") return <Navigate to="/" replace />;
   if (state.kind === "ended") return <Navigate to="/?signin=ended" replace />;
   if (state.kind === "suspended") return <Navigate to="/suspended" replace />;

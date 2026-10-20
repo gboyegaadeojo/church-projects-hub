@@ -5,6 +5,8 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import { AppProviders } from "./components/ui/AppProviders";
 import "./index.css";
 import { AppShell } from "./components/shell/AppShell";
+import { MaintenancePage } from "./components/StatusBanners";
+import { useMaintenance } from "./lib/maintenance";
 import { AdminProjectsPage } from "./pages/AdminProjectsPage";
 import { AdminRequestsPage } from "./pages/AdminRequestsPage";
 import { ProjectPage } from "./pages/ProjectPage";
@@ -19,6 +21,49 @@ import { WorkPage } from "./pages/WorkPage";
 
 const queryClient = new QueryClient();
 
+// Service worker (NFR-20): production only, so development always runs fresh code.
+if (import.meta.env.PROD) void import("virtual:pwa-register").then(({ registerSW }) => registerSW({ immediate: true }));
+
+/** NFR-18: the maintenance page replaces the app while the database is unreachable. */
+function App() {
+  const maintenance = useMaintenance();
+  if (maintenance) return <MaintenancePage />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        {/* Pending people see it alone; active members inside the app shell. */}
+        <Route path="/request-access" element={<RequestAccessPage />} />
+        {/* Active members: inside the app shell (section 12). */}
+        <Route element={<AppShell />}>
+          <Route path="/work" element={<WorkPage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:key" element={<ProjectPage />} />
+          <Route path="/admin/requests" element={<AdminRequestsPage />} />
+          <Route path="/admin/projects" element={<AdminProjectsPage />} />
+        </Route>
+        <Route path="/invite/:token" element={<InvitePage />} />
+        {/* Security-state screens (section 11.7) */}
+        <Route path="/suspended" element={<SuspendedPage />} />
+        <Route path="/invite-expired" element={<InviteExpiredPage />} />
+        <Route path="/invite-mismatch" element={<InviteMismatchPage />} />
+        {DevComponentsPage && (
+          <Route
+            path="/dev/components"
+            element={
+              <Suspense>
+                <DevComponentsPage />
+              </Suspense>
+            }
+          />
+        )}
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
 // Component gallery for development only; the import is dropped from production builds.
 const DevComponentsPage = import.meta.env.DEV ? lazy(() => import("./pages/dev/DevComponentsPage")) : null;
 
@@ -26,37 +71,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AppProviders>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/request-access" element={<RequestAccessPage />} />
-            {/* Active members: inside the app shell (section 12). */}
-            <Route element={<AppShell />}>
-              <Route path="/work" element={<WorkPage />} />
-              <Route path="/search" element={<SearchPage />} />
-              <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/projects/:key" element={<ProjectPage />} />
-              <Route path="/admin/requests" element={<AdminRequestsPage />} />
-              <Route path="/admin/projects" element={<AdminProjectsPage />} />
-            </Route>
-            <Route path="/invite/:token" element={<InvitePage />} />
-            {/* Security-state screens (section 11.7) */}
-            <Route path="/suspended" element={<SuspendedPage />} />
-            <Route path="/invite-expired" element={<InviteExpiredPage />} />
-            <Route path="/invite-mismatch" element={<InviteMismatchPage />} />
-            {DevComponentsPage && (
-              <Route
-                path="/dev/components"
-                element={
-                  <Suspense>
-                    <DevComponentsPage />
-                  </Suspense>
-                }
-              />
-            )}
-          </Routes>
-        </BrowserRouter>
+        <App />
       </AppProviders>
     </QueryClientProvider>
   </StrictMode>,

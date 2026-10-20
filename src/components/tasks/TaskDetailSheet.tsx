@@ -36,6 +36,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/Menu";
 import { Skeleton } from "../ui/Skeleton";
 import { EmptyState, ErrorState } from "../ui/States";
 import { toast } from "../ui/Toast";
+import { useOnline } from "../../lib/online";
+import { ErrorBoundary } from "../ErrorBoundary";
 import { AttachmentSection } from "./Attachments";
 import { DueBadge, formatDate, LabelChip } from "./bits";
 import { isEmptyDoc, RichTextView } from "./RichTextView";
@@ -96,7 +98,10 @@ export function TaskDetailSheet({ taskKey, board, project, me, canEdit, onClose 
             />
           )
         ) : (
-          <TaskBody task={query.data} board={board} project={project} me={me} canEdit={canEdit} onDeleted={onClose} />
+          // Section 11.13: a crash here stays inside the sheet; the board behind keeps working.
+          <ErrorBoundary section="task-detail" className="flex flex-col items-center gap-4 rounded-card border border-danger-line bg-danger-soft px-4 py-10 text-center">
+            <TaskBody task={query.data} board={board} project={project} me={me} canEdit={canEdit} onDeleted={onClose} />
+          </ErrorBoundary>
         )}
       </SheetContent>
     </Dialog>
@@ -105,6 +110,7 @@ export function TaskDetailSheet({ taskKey, board, project, me, canEdit, onClose 
 
 function TaskBody({ task, board, project, me, canEdit, onDeleted }: { task: TaskDetail; board: BoardResponse; project: ProjectSummary; me: MeResponse; canEdit: boolean; onDeleted: () => void }) {
   const update = useUpdateTask(me.csrfToken);
+  const online = useOnline();
   const [saved, setSaved] = useState(false);
   const [conflict, setConflict] = useState<{ current: TaskDetail; attempted: Omit<UpdateTaskBody, "version"> } | null>(null);
   const savedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -178,7 +184,7 @@ function TaskBody({ task, board, project, me, canEdit, onDeleted }: { task: Task
             me={me}
             people={people}
             mentionable={board.members}
-            canComment={!project.archived}
+            canComment={!project.archived && online}
             isAdmin={me.user.appRole === "admin" || project.role === "admin"}
           />
           <ActivitySection task={task} board={board} people={people} timezone={me.user.timezone} />

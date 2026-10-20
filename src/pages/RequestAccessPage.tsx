@@ -14,6 +14,7 @@ import {
 } from "../../shared/access";
 import { AUTH_COPY, type MeResponse } from "../../shared/auth";
 import { SessionGate } from "../components/SessionGate";
+import { ShellFrame } from "../components/shell/AppShell";
 import { Badge, type BadgeTone } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Field } from "../components/ui/Field";
@@ -31,15 +32,24 @@ const FAILED = "That didn't go through. Check your connection and try again.";
 const MINE_KEY = ["access-requests", "mine"] as const;
 const REQUESTABLE_KEY = ["projects", "requestable"] as const;
 
+/** Pending people see this page on its own; active members get it inside the app shell (carried over from 2c). */
 export function RequestAccessPage() {
   return (
     <SessionGate allow={(me) => me.user.status === "pending" || me.user.status === "active"}>
-      {(me) => <RequestAccess me={me} />}
+      {(me) =>
+        me.user.status === "active" ? (
+          <ShellFrame me={me}>
+            <RequestAccess me={me} inShell />
+          </ShellFrame>
+        ) : (
+          <RequestAccess me={me} />
+        )
+      }
     </SessionGate>
   );
 }
 
-function RequestAccess({ me }: { me: MeResponse }) {
+function RequestAccess({ me, inShell = false }: { me: MeResponse; inShell?: boolean }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const signOut = useSignOut();
@@ -67,6 +77,32 @@ function RequestAccess({ me }: { me: MeResponse }) {
   const requests = mine.data ?? [];
   const showForm = choosing || (mine.isSuccess && requests.length === 0);
 
+  const content = mine.isError || requestable.isError ? (
+    <ErrorState
+      title="We couldn't load your requests."
+      description="Check your connection and try again."
+      onRetry={() => {
+        void mine.refetch();
+        void requestable.refetch();
+      }}
+    />
+  ) : showForm ? (
+    <RequestForm
+      me={me}
+      projects={requestable.data}
+      onCancel={requests.length > 0 ? () => setChoosing(false) : undefined}
+      onSubmitted={() => setChoosing(false)}
+    />
+  ) : (
+    mine.isSuccess && (
+      <StatusList me={me} requests={requests} canRequestMore={(requestable.data?.length ?? 0) > 0} onRequestMore={() => setChoosing(true)} />
+    )
+  );
+
+  // Inside the shell the account, My Work and sign-out are already in the navigation. The form and the status
+  // list carry the page's one h1.
+  if (inShell) return <div className="mx-auto flex w-full max-w-2xl flex-col gap-group px-4 py-8 md:px-8">{content}</div>;
+
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-6 px-4 py-12">
       <div className="flex items-center gap-4">
@@ -79,32 +115,7 @@ function RequestAccess({ me }: { me: MeResponse }) {
         </div>
       </div>
 
-      {mine.isError || requestable.isError ? (
-        <ErrorState
-          title="We couldn't load your requests."
-          description="Check your connection and try again."
-          onRetry={() => {
-            void mine.refetch();
-            void requestable.refetch();
-          }}
-        />
-      ) : showForm ? (
-        <RequestForm
-          me={me}
-          projects={requestable.data}
-          onCancel={requests.length > 0 ? () => setChoosing(false) : undefined}
-          onSubmitted={() => setChoosing(false)}
-        />
-      ) : (
-        mine.isSuccess && (
-          <StatusList
-            me={me}
-            requests={requests}
-            canRequestMore={(requestable.data?.length ?? 0) > 0}
-            onRequestMore={() => setChoosing(true)}
-          />
-        )
-      )}
+      {content}
 
       <div className="flex flex-wrap items-center gap-4">
         {me.user.status === "active" && (
