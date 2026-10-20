@@ -18,8 +18,11 @@ test.describe("TASK-2 board", () => {
     const page = await pageAs(persona("mover", v));
     await page.goto(`/projects/${project.key}`);
     await expect(page.getByRole("heading", { level: 1, name: project.name })).toBeVisible();
+    // The header count matches the cards in the column (a retry may run after other tests moved cards).
     const toDo = column(page, "To Do");
-    await expect(toDo.getByRole("heading", { level: 2 })).toContainText(String(BOARD_TASKS.length));
+    await expect(toDo.getByRole("listitem").first()).toBeVisible();
+    const cards = await toDo.getByRole("listitem").count();
+    await expect(toDo.getByRole("heading", { level: 2 })).toContainText(cards === 1 ? "1 task" : `${cards} tasks`);
     const first = card(page, BOARD_TASKS[0].title);
     await expect(first).toContainText(`${project.key}-1`);
     await expect(first.getByRole("img", { name: "Priority: High" })).toBeVisible();
@@ -107,6 +110,11 @@ test.describe("TASK-2 board", () => {
     await expectNoViolations(page, "[role=dialog]");
     await dialog.getByRole("button", { name: "Create task" }).click();
     await expect(page.getByText(`${project.key}-4 created.`).first()).toBeVisible();
+    // The new task opens straight away; closing it shows the card on the board.
+    const opened = page.getByRole("dialog", { name: `${project.key}-4` });
+    await expect(opened).toBeVisible();
+    if (v === "mobile") await opened.getByRole("button", { name: "Back to board" }).click();
+    else await page.keyboard.press("Escape");
     await expect(column(page, "Backlog").getByRole("button", { name: "Coil the XLR cables", exact: true })).toBeAttached();
   });
 });

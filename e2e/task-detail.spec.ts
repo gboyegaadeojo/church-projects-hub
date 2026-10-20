@@ -1,11 +1,11 @@
 import { expect, type Page } from "@playwright/test";
 import { TASK_COPY } from "../shared/tasks";
 import { expectNoViolations } from "./support/axe";
-import { BOARD_PROJECTS, BOARD_TASKS, persona } from "./support/fixtures";
+import { DETAIL_PROJECTS, BOARD_TASKS, persona } from "./support/fixtures";
 import { test, viewportOf } from "./support/pageAs";
 
 // Stage 3c: task detail (section 11.3), inline editing, subtasks (TASK-3), comments (TASK-4), history (TASK-6),
-// conflicts (NFR-10). Runs after board.spec.ts's changes on the same board, in order.
+// conflicts (NFR-10). Uses its own project per viewport; the tests build on each other, so they run in order.
 test.describe.configure({ mode: "serial" });
 
 const sheet = (page: Page, key: string) => page.getByRole("dialog", { name: key });
@@ -29,7 +29,7 @@ async function changeElsewhere(page: Page, taskKey: string, body: Record<string,
 test.describe("Section 11.3 task detail", () => {
   test("opens from the board, edits inline with Saved ✓, and closes back to the board", async ({ pageAs }, testInfo) => {
     const v = viewportOf(testInfo);
-    const project = BOARD_PROJECTS[v];
+    const project = DETAIL_PROJECTS[v];
     const key = `${project.key}-1`;
     const page = await pageAs(persona("mover", v));
     await page.goto(`/projects/${project.key}`);
@@ -57,7 +57,7 @@ test.describe("Section 11.3 task detail", () => {
 
   test("checklist items and comments (TASK-3, TASK-4)", async ({ pageAs }, testInfo) => {
     const v = viewportOf(testInfo);
-    const project = BOARD_PROJECTS[v];
+    const project = DETAIL_PROJECTS[v];
     const key = `${project.key}-2`;
     const page = await pageAs(persona("mover", v));
     await page.goto(`/projects/${project.key}?task=${key}`);
@@ -76,7 +76,7 @@ test.describe("Section 11.3 task detail", () => {
 
   test("NFR-10 a conflicting change shows the conflict message and the latest version", async ({ pageAs }, testInfo) => {
     const v = viewportOf(testInfo);
-    const project = BOARD_PROJECTS[v];
+    const project = DETAIL_PROJECTS[v];
     const key = `${project.key}-3`;
     const page = await pageAs(persona("mover", v));
     await page.goto(`/projects/${project.key}?task=${key}`);
