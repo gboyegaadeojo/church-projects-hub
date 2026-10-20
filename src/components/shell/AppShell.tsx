@@ -1,4 +1,5 @@
 import {
+  ChartColumn,
   CircleUser,
   Database,
   FolderKanban,
@@ -72,6 +73,7 @@ export function adminLinks(me: MeResponse): { to: string; label: string; icon: L
     ...(me.canReviewAccess ? [{ to: "/admin/requests", label: "Access requests", icon: Inbox }] : []),
     ...(me.user.appRole === "admin" ? [{ to: "/admin/projects", label: "Manage projects", icon: Settings2 }] : []),
     ...(me.user.appRole === "admin" ? [{ to: "/admin/users", label: "Users", icon: Users }] : []),
+    ...(me.user.appRole === "admin" ? [{ to: "/admin/reports", label: "Church reports", icon: ChartColumn }] : []),
     ...(me.user.appRole === "admin" ? [{ to: "/admin/audit", label: "Audit log", icon: ScrollText }] : []),
     ...(me.user.appRole === "admin" ? [{ to: "/admin/usage", label: "Usage", icon: Gauge }] : []),
     ...(me.user.appRole === "admin" ? [{ to: "/admin/deletions", label: "Data deletion", icon: UserX }] : []),

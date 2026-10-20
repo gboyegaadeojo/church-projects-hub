@@ -1,10 +1,10 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
-import { churchDate, percentiles, type ProjectReports, weekStart } from "../shared/reports";
+import { type ChurchReports, churchDate, percentiles, type ProjectReports, weekStart } from "../shared/reports";
 import type { TaskDetail } from "../shared/tasks";
 import { updateReportSnapshots } from "../worker/reports/data";
 import { call, type Client } from "./helpers/auth";
-import { actorAs, createProject } from "./helpers/fixtures";
+import { actorAs, addMember, createProject } from "./helpers/fixtures";
 
 // Section 16 / RPT-1 to RPT-4 against the real API, D1 and hourly job.
 
@@ -174,5 +174,34 @@ describe("RPT-4 CSV export", () => {
     expect((await res.text()).trim().split("\r\n")).toEqual(["column,category,tasks", "To Do,todo,1", "Doing,in_progress,0", "Done,done,0"]);
     expect((await call(s.admin, "GET", `/api/projects/${s.p.id}/reports/nope.csv`)).status).toBe(404);
     expect((await (await call(s.admin, "GET", `/api/projects/${s.p.id}/reports/throughput.csv?weeks=4`)).text()).trim().split("\r\n")).toHaveLength(5);
+  });
+});
+
+describe("Section 16 church-wide reports (App Admin)", () => {
+  it("one row per team project, workload across projects, and access and adoption; others get 403", async () => {
+    const s = await setup();
+    const day = (offset: number) => new Date(Date.now() + offset * DAY).toISOString().slice(0, 10);
+    await task(s, { title: "Late", dueDate: day(-2), assigneeId: s.contributor.userId });
+    const finished = await task(s, { title: "Finished" });
+    await move(s, finished.id, s.states.done);
+    const other = await setup();
+    await call(other.admin, "POST", `/api/projects/${other.p.id}/tasks`, { title: "Elsewhere", assigneeId: other.contributor.userId });
+    await addMember(other.p.id, s.contributor.userId, "contributor");
+    await call(other.admin, "POST", `/api/projects/${other.p.id}/tasks`, { title: "Second project", assigneeId: s.contributor.userId });
+
+    const appAdmin = await actorAs("appAdmin", s.p.id);
+    const res = await call(appAdmin, "GET", "/api/reports/church?weeks=4");
+    expect(res.status).toBe(200);
+    const r = (await res.json()) as ChurchReports;
+    expect(r.overview.find((p) => p.id === s.p.id)).toMatchObject({ open: 1, overdue: 1, completedThisMonth: 1 });
+    expect(r.workload.find((w) => w.person.id === s.contributor.userId)).toMatchObject({ open: 2, overdue: 1, projects: 2 });
+    expect(r.adoption.activeByWeek).toHaveLength(4);
+    expect(r.adoption.activeByWeek.at(-1)!.people).toBeGreaterThanOrEqual(2);
+    expect(r.overview.some((p) => p.key === "HUB")).toBe(false);
+
+    expect((await call(s.admin, "GET", "/api/reports/church")).status).toBe(403);
+    const csv = await call(appAdmin, "GET", "/api/reports/church/overview.csv");
+    expect((await csv.text()).split("\r\n")[0]).toBe("project,key,archived,open,overdue,completed_this_month");
+    expect((await call(s.admin, "GET", "/api/reports/church/workload.csv")).status).toBe(403);
   });
 });

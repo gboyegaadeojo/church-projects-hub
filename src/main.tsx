@@ -14,6 +14,7 @@ import { AdminAuditPage } from "./pages/AdminAuditPage";
 import { AdminDeletionsPage } from "./pages/AdminDeletionsPage";
 import { AdminUsagePage } from "./pages/AdminUsagePage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
+import { ChurchReportsPage } from "./pages/ChurchReportsPage";
 import { ProjectMembersPage } from "./pages/ProjectMembersPage";
 import { ProjectPage } from "./pages/ProjectPage";
 import { ProjectReportsPage } from "./pages/ProjectReportsPage";
@@ -64,6 +65,7 @@ function App() {
           <Route path="/admin/requests" element={<AdminRequestsPage />} />
           <Route path="/admin/projects" element={<AdminProjectsPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="/admin/reports" element={<ChurchReportsPage />} />
           <Route path="/admin/audit" element={<AdminAuditPage />} />
           <Route path="/admin/usage" element={<AdminUsagePage />} />
           <Route path="/admin/deletions" element={<AdminDeletionsPage />} />

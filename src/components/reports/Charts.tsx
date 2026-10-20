@@ -189,16 +189,19 @@ export function LineChart({ labels, series, formatLabel }: { labels: string[]; s
           </g>
         ))}
       </svg>
-      <figcaption>
-        <ul className="flex flex-wrap gap-x-5 text-secondary">
-          {series.map((s, i) => (
-            <li key={s.name} className="flex items-center gap-2 text-ink">
-              <span aria-hidden="true" className={cn("h-0.5 w-4 rounded-full", SERIES[i % 3])} />
-              {s.name}
-            </li>
-          ))}
-        </ul>
-      </figcaption>
+      {/* One series needs no legend: the card's title names it. */}
+      {series.length > 1 && (
+        <figcaption>
+          <ul className="flex flex-wrap gap-x-5 text-secondary">
+            {series.map((s, i) => (
+              <li key={s.name} className="flex items-center gap-2 text-ink">
+                <span aria-hidden="true" className={cn("h-0.5 w-4 rounded-full", SERIES[i % 3])} />
+                {s.name}
+              </li>
+            ))}
+          </ul>
+        </figcaption>
+      )}
     </figure>
   );
 }

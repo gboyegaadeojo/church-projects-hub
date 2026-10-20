@@ -1,12 +1,16 @@
 import { type Context, Hono } from "hono";
 import { filterFromSearch } from "../../shared/filters";
-import { type ProjectReports, REPORT_NAMES, REPORT_RANGES, type ReportName } from "../../shared/reports";
+import { CHURCH_REPORT_NAMES, type ChurchReportName, type ChurchReports, type ProjectReports, REPORT_NAMES, REPORT_RANGES, type ReportName } from "../../shared/reports";
 import { PRIORITIES } from "../../shared/tasks";
 import { csvField } from "../admin/audit";
 import { forbidden, idParam, requirePermission } from "../auth/authorize";
 import { requireSession } from "../auth/middleware";
 import type { AppEnv } from "../types";
+import { loadChurchReports } from "./church";
 import { loadProjectReports } from "./data";
+
+/** UTF-8 byte-order mark: Excel then shows accented names correctly. */
+const BOM = String.fromCharCode(0xfeff);
 
 // Project reports (section 16, RPT-1 to RPT-4): every member can see them ("View reports"), except Workload,
 // which is for Project Admins and App Admins. Range 4, 12 or 26 weeks; filters assignee, label and priority,
@@ -56,6 +60,31 @@ export function reportCsv(r: ProjectReports, name: ReportName): string[][] | nul
   }
 }
 
+export function churchCsv(r: ChurchReports, name: ChurchReportName): string[][] {
+  switch (name) {
+    case "overview":
+      return [["project", "key", "archived", "open", "overdue", "completed_this_month"], ...r.overview.map((p) => [p.name, p.key, p.archived ? "yes" : "no", String(p.open), String(p.overdue), String(p.completedThisMonth)])];
+    case "workload":
+      return [["person", "open", "overdue", "projects"], ...r.workload.map((w) => [w.person.name, String(w.open), String(w.overdue), String(w.projects)])];
+    case "adoption":
+      return [
+        ["week_starting", "active_people"],
+        ...r.adoption.activeByWeek.map((w) => [w.weekStart, String(w.people)]),
+        [],
+        ["pending_requests", String(r.adoption.pendingRequests)],
+        ["requests_decided_in_range", String(r.adoption.decided)],
+        ["average_hours_to_decision", r.adoption.avgDecisionHours === null ? "" : String(r.adoption.avgDecisionHours)],
+      ];
+  }
+}
+
+function csvResponse(rows: string[][], filename: string) {
+  // A UTF-8 byte-order mark first, so Excel shows accented names correctly.
+  return new Response(`${BOM}${rows.map((r) => r.map(csvField).join(",")).join("\r\n")}\r\n`, {
+    headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${filename}"`, "Cache-Control": "no-store" },
+  });
+}
+
 export function reportRoutes() {
   const routes = new Hono<AppEnv>();
   const guard = [requireSession, requirePermission("report.view", { projectId })] as const;
@@ -71,13 +100,31 @@ export function reportRoutes() {
     const rows = reportCsv(await load(c), name);
     if (!rows) return forbidden(c, 403);
     const key = (await c.env.DB.prepare("SELECT key FROM projects WHERE id = ?1").bind(c.get("project").id).first<string>("key")) ?? "project";
-    return new Response(`﻿${rows.map((r) => r.map(csvField).join(",")).join("\r\n")}\r\n`, {
-      headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${key}-${name}-${new Date().toISOString().slice(0, 10)}.csv"`,
-        "Cache-Control": "no-store",
-      },
-    });
+    return csvResponse(rows, `${key}-${name}-${new Date().toISOString().slice(0, 10)}.csv`);
+  });
+
+  // ---- Church-wide (section 16 "Who sees it": App Admin).
+  async function church(c: Context<AppEnv>) {
+    const { user } = c.get("auth");
+    if (user.appRole !== "admin" || user.status !== "active") return null;
+    const weeks = Number(c.req.query("weeks"));
+    return loadChurchReports(c.env, { weeks: (REPORT_RANGES as readonly number[]).includes(weeks) ? weeks : 12, timezone: user.timezone });
+  }
+
+  routes.get("/reports/church", requireSession, async (c) => {
+    const r = await church(c);
+    if (!r) return forbidden(c, 403);
+    c.header("Cache-Control", "no-store");
+    return c.json(r);
+  });
+
+  routes.get("/reports/church/:file", requireSession, async (c) => {
+    const file = c.req.param("file");
+    const name = file.replace(/\.csv$/, "") as ChurchReportName;
+    if (!file.endsWith(".csv") || !(CHURCH_REPORT_NAMES as readonly string[]).includes(name)) return forbidden(c, 404);
+    const r = await church(c);
+    if (!r) return forbidden(c, 403);
+    return csvResponse(churchCsv(r, name), `church-${name}-${new Date().toISOString().slice(0, 10)}.csv`);
   });
 
   return routes;

@@ -9,6 +9,9 @@ import type { AppEnv } from "../types";
 // range, exportable to CSV. App Admins only ("Read audit log", "Export audit log to CSV"). The export streams
 // in chunks so a large log stays inside the Worker's CPU and memory limits (NFR-22), capped at 5,000 rows.
 
+/** UTF-8 byte-order mark: Excel then shows accented names correctly. */
+const BOM = String.fromCharCode(0xfeff);
+
 type Row = { id: number; at: number; action: string; actor_id: number | null; actor_name: string | null; target_type: string; target_id: string; detail_json: string };
 
 /** The filters shared by the page and the export. Everything is bound; nothing from the query becomes SQL. */
@@ -87,7 +90,7 @@ export function adminAuditRoutes() {
     let before = Number.MAX_SAFE_INTEGER;
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
-        controller.enqueue(encoder.encode("﻿time_utc,action,actor_id,actor_name,target_type,target_id,detail\r\n"));
+        controller.enqueue(encoder.encode(BOM + "time_utc,action,actor_id,actor_name,target_type,target_id,detail\r\n"));
       },
       async pull(controller) {
         const limit = Math.min(CHUNK, AUDIT_EXPORT_CAP - sent);
