@@ -48,11 +48,12 @@ export function workRoutes() {
     if (user.status !== "active") return forbidden(c, 403);
     const admin = user.appRole === "admin" ? 1 : 0;
     const [tasks, mentions] = await c.env.DB.batch([
-      // Open work: not in a Done column, in a project that isn't archived. Uses tasks (assignee_id, due_date).
+      // Open work: assigned to me or shared with me as secondary assignee (v4.6), not in a Done column, in a project
+      // that isn't archived. Each side of the OR uses its own (…, due_date) index.
       c.env.DB.prepare(
         `SELECT ${TASK_COLUMNS} FROM tasks t
          JOIN projects p ON p.id = t.project_id JOIN workflow_states s ON s.id = t.state_id
-         WHERE t.assignee_id = ?1 AND t.deleted_at IS NULL AND s.category != 'done' AND p.archived_at IS NULL AND ${VISIBLE}
+         WHERE (t.assignee_id = ?1 OR t.secondary_assignee_id = ?1) AND t.deleted_at IS NULL AND s.category != 'done' AND p.archived_at IS NULL AND ${VISIBLE}
          ORDER BY t.due_date IS NULL, t.due_date, t.updated_at DESC LIMIT 200`,
       ).bind(user.id, admin),
       c.env.DB.prepare(

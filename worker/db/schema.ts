@@ -272,6 +272,8 @@ export const tasks = sqliteTable(
     priority: text("priority", { enum: PRIORITIES }).notNull().default("medium"),
     scope: text("scope", { enum: SCOPES }).notNull().default("in_scope"),
     assigneeId: integer("assignee_id").references(() => users.id),
+    // v4.6: a second person sharing the task; never the same person as the assignee.
+    secondaryAssigneeId: integer("secondary_assignee_id").references(() => users.id),
     reporterId: integer("reporter_id")
       .notNull()
       .references(() => users.id),
@@ -294,6 +296,7 @@ export const tasks = sqliteTable(
     uniqueIndex("tasks_project_id_number_idx").on(t.projectId, t.number),
     index("tasks_project_id_state_id_rank_idx").on(t.projectId, t.stateId, t.rank),
     index("tasks_assignee_id_due_date_idx").on(t.assigneeId, t.dueDate),
+    index("tasks_secondary_assignee_id_due_date_idx").on(t.secondaryAssigneeId, t.dueDate),
     index("tasks_epic_id_idx").on(t.epicId),
   ],
 );

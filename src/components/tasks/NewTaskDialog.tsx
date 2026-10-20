@@ -49,6 +49,7 @@ export function NewTaskDialog({
   const [priority, setPriority] = useState<string>("medium");
   const [stateId, setStateId] = useState<string>("");
   const [assignee, setAssignee] = useState<string>(NONE);
+  const [secondary, setSecondary] = useState<string>(NONE);
   const [due, setDue] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState(false);
@@ -59,6 +60,7 @@ export function NewTaskDialog({
     setPriority("medium");
     setStateId(String(defaultStateId ?? states[0]?.id ?? ""));
     setAssignee(NONE);
+    setSecondary(NONE);
     setDue("");
     setErrors({});
     setFailed(false);
@@ -72,6 +74,8 @@ export function NewTaskDialog({
       priority,
       stateId: stateId ? Number(stateId) : undefined,
       assigneeId: assignee === NONE ? null : Number(assignee),
+      // Never the same person twice (v4.6).
+      secondaryAssigneeId: secondary === NONE || secondary === assignee ? null : Number(secondary),
       dueDate: due || null,
     };
     const parsed = createTaskBody.safeParse(body);
@@ -92,6 +96,7 @@ export function NewTaskDialog({
       if (err instanceof ApiError && err.status === 400) {
         const field = (err.body as { field?: string } | null)?.field;
         if (field === "assigneeId") setErrors({ assigneeId: "That person can't be assigned here. Choose someone else." });
+        else if (field === "secondaryAssigneeId") setErrors({ secondaryAssigneeId: "That person can't be assigned here. Choose someone else." });
         else setFailed(true);
       } else setFailed(true);
     }
@@ -144,10 +149,20 @@ export function NewTaskDialog({
                 options={[{ value: NONE, label: "Unassigned" }, ...assignable.map((m) => ({ value: String(m.id), label: m.name }))]}
               />
             </Field>
+            <Field label="Secondary assignee" error={errors.secondaryAssigneeId}>
+              <Select
+                value={secondary === assignee ? NONE : secondary}
+                onValueChange={setSecondary}
+                options={[
+                  { value: NONE, label: "None" },
+                  ...assignable.filter((m) => String(m.id) !== assignee).map((m) => ({ value: String(m.id), label: m.name })),
+                ]}
+              />
+            </Field>
+            <Field label="Due date" error={errors.dueDate}>
+              <DateInput value={due} onChange={(e) => setDue(e.target.value)} />
+            </Field>
           </div>
-          <Field label="Due date" error={errors.dueDate}>
-            <DateInput value={due} onChange={(e) => setDue(e.target.value)} />
-          </Field>
           <p className="text-caption text-ink-2">{TASK_COPY.dataSafety}</p>
           {failed && (
             <p role="alert" className="rounded-control bg-danger-soft p-3 text-secondary text-danger-ink">

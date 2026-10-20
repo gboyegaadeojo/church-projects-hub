@@ -43,19 +43,21 @@ type FieldProps = {
   required?: boolean;
   /** A filter, or a control that always holds a value (a select): not marked "(optional)". */
   filter?: boolean;
+  /** Label beside the control instead of above it (property panels). Never marked "(optional)". */
+  inline?: boolean;
   className?: string;
   children: ReactNode;
 };
 
-export function Field({ label, hint, error, required = false, filter = false, className, children }: FieldProps) {
+export function Field({ label, hint, error, required = false, filter = false, inline = false, className, children }: FieldProps) {
   const controlId = useId();
   const hintId = `${controlId}-hint`;
   const errorId = `${controlId}-error`;
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      <label htmlFor={controlId} className="text-secondary font-medium text-ink">
+    <div className={cn(inline ? "grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-2 gap-y-1" : "flex flex-col gap-2", className)}>
+      <label htmlFor={controlId} className={inline ? "text-secondary text-ink-2" : "text-secondary font-medium text-ink"}>
         {label}
-        {!required && !filter && <span className="font-normal text-ink-2"> (optional)</span>}
+        {!required && !filter && !inline && <span className="font-normal text-ink-2"> (optional)</span>}
       </label>
       {hint && (
         <p id={hintId} className="-mt-1 text-caption text-ink-2">
@@ -67,7 +69,13 @@ export function Field({ label, hint, error, required = false, filter = false, cl
       >
         {children}
       </FieldContext.Provider>
-      <FieldError id={errorId} error={error} />
+      {inline ? (
+        <div className="col-start-2">
+          <FieldError id={errorId} error={error} />
+        </div>
+      ) : (
+        <FieldError id={errorId} error={error} />
+      )}
     </div>
   );
 }

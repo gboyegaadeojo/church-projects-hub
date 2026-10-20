@@ -10,7 +10,7 @@ Oct 14, 2026 · @G
 
 | Version | Date | Summary |
 | --- | --- | --- |
-| 4.6 | 20 Oct 2026 | Design refresh at @G's request (feedback after Stage 8a: "look like monday.com, more colour, fonts too big, not premium"): a compact type scale (body 14 px) in Figtree; 18 px icons; controls 32 px for a mouse and 44 px on touch screens and phones; tighter radii; a brighter light theme and a navy dark theme; solid vivid pills for status and priority, a colour per workflow column, tinted label chips and coloured initials avatars; the theme switch becomes three small icons (sun, moon, screen) (sections 9, 12). |
+| 4.6 | 20 Oct 2026 | Design refresh at @G's request (feedback after Stage 8a: "look like monday.com, more colour, fonts too big, not premium"): a compact type scale (body 14 px) in Figtree; 18 px icons; controls 32 px for a mouse and 44 px on touch screens and phones; tighter radii; a brighter light theme and a navy dark theme; solid vivid pills for status and priority, a colour per workflow column, tinted label chips and coloured initials avatars; the theme switch becomes three small icons (sun, moon, screen) (sections 9, 12). Task detail becomes a wide modal in the middle of the screen with a Details card (11.3, 12). Tasks get an optional secondary assignee: a different person from the assignee, who watches the task, gets the "assigned" notification and due reminders, sees it in My Work and matches the Assignee filter; workload reports still count the assignee only (TASK-1, sections 6, 8, 11.2). |
 | 4.5 | 20 Oct 2026 | Email provider changed from Brevo to Resend at @G's request, on the Resend free plan (100 emails/day, 3,000/month): instant emails switch to the digest at 80 a day (80%), Resend domain verification replaces Brevo's DNS records, `RESEND_API_KEY` replaces `BREVO_API_KEY`, and the free-tier email budget is recalculated (sections 5, 8, 18, 21). |
 | 4.4 | 14 Oct 2026 | Stage 2c decisions: the My Work welcome follows the time of day in the user's timezone ("Good morning", "Good afternoon" from noon, "Good evening" from 5 pm) (section 11.1); the Hub Feedback project uses the key HUB, which is reserved for it (PROJ-7); Hub Feedback is created when an App Admin loads the app, not only at sign-in, because the first App Admin is promoted by script after signing in (section 18); a text wordmark stands in for the church logo until the logo file is supplied (sections 11.6, 11.15). |
 | 4.3 | 14 Oct 2026 | Stage 1 decisions: "Confirmed action failed" copy added (section 14); type-to-confirm matching ignores letter case and leading or trailing spaces (section 11.14); side sheets round only their two inner corners, bottom sheets only their top corners (section 9); theme preference (Light, Dark, System) moves to the user's profile in Stage 2, with the browser setting kept as the fallback for signed-out pages and first paint. Stage 2a decisions: sign-in rate limit raised to 30 attempts per minute per IP, counted when sign-in starts (church Wi-Fi shares one IP) (NFR-4, RATE-1); "Sign-in didn't work" copy added (section 14); "sign-in rate limit hit" audit event written at most once per IP per minute (section 6). Stage 2b decisions: destructive actions carry an `X-Confirm-Action` header set only by the confirmation dialog, and the API returns 428 without it (sections 11.14, 17); invites are tied to the invited email, case-insensitive, with new mismatch copy (AUTH-9, section 14); RATE-2 counts one request per project, per calendar day in the user's timezone, and an over-limit submission is rejected whole. |
@@ -164,7 +164,7 @@ Each requirement has an ID traceable to a GitHub issue and a test. Priority: **M
 
 | ID | Requirement | Priority |
 | --- | --- | --- |
-| TASK-1 | Task fields: key (MEDIA-42), title, rich-text description, type (Task, Bug, Idea, Epic), status, priority (Urgent, High, Medium, Low), assignee, reporter, due date, labels, component, parent epic. | M |
+| TASK-1 | Task fields: key (MEDIA-42), title, rich-text description, type (Task, Bug, Idea, Epic), status, priority (Urgent, High, Medium, Low), assignee, secondary assignee (optional, never the same person as the assignee), reporter, due date, labels, component, parent epic. | M |
 | TASK-2 | Board view with drag and drop between columns, and list view with sort and filter. | M |
 | TASK-3 | Subtasks as a checklist inside a task, with progress shown on the card. | M |
 | TASK-4 | Comments with @mentions and markdown. Edits show "edited". | M |
@@ -361,7 +361,7 @@ All tables carry `created_at`, `updated_at`, `created_by`. Tasks, comments, and 
 | access\_requests | id, user\_id, project\_id, note, status, decided\_by, decided\_at, decision\_reason | status = pending, approved, denied, withdrawn. One open request per user per project. |
 | invites | id, project\_id, role, email, invited\_by, token (unique), expires\_at, used\_at | Token = random 256-bit. Single-use. Expires after 7 days. |
 | workflow\_states | id, project\_id, name, category, position | category = todo, in\_progress, done. Reports use category so renamed columns don't break charts. |
-| tasks | id, project\_id, number, title, description\_json, description\_text, type, state\_id, priority, scope, assignee\_id, reporter\_id, due\_date, epic\_id, milestone\_id, rank, version | `description_json` = Tiptap document; `description_text` = plain-text copy for search and emails. `due_date` = calendar date (YYYY-MM-DD), no time. `rank` = fractional string. `version` = optimistic concurrency. |
+| tasks | id, project\_id, number, title, description\_json, description\_text, type, state\_id, priority, scope, assignee\_id, secondary\_assignee\_id, reporter\_id, due\_date, epic\_id, milestone\_id, rank, version | `description_json` = Tiptap document; `description_text` = plain-text copy for search and emails. `due_date` = calendar date (YYYY-MM-DD), no time. `rank` = fractional string. `version` = optimistic concurrency. |
 | tasks\_fts | FTS5 virtual table: task\_id, project\_id, key, title, body | Kept in sync on task and comment writes; `body` = description plus comment text. Searched with `MATCH` joined to the user's project list. |
 | subtasks | id, task\_id, title, done, position | Lightweight checklist items. |
 | labels / task\_labels | id, project\_id, name, colour / task\_id, label\_id | Per project. |
@@ -440,7 +440,7 @@ Resend free plan: 100 emails/day, 3,000/month. Urgent events go instantly; every
 
 | Event | Recipients | Default mode |
 | --- | --- | --- |
-| Task assigned to you | New assignee | Instant |
+| Task assigned to you | New assignee or secondary assignee | Instant |
 | @mention | Mentioned person | Instant |
 | New access request | Project admins (App Admins if none) | Instant |
 | Access request approved or denied | Requester | Instant |
@@ -645,9 +645,9 @@ The user's personal starting point — the first screen after an approved sign-i
 
 ### 11.3 Task details
 
-- On ≥ 768 px: sheet overlaying the board. Closing restores focus to the card.
+- On ≥ 768 px: a wide modal in the middle of the screen, over the board (v4.6). Closing restores focus to the card. The header names the project and the task key and holds Watch, Copy link, Delete and Close.
 - On < 768 px: full-screen view. Back button and swipe-down return to the board.
-- Layout: title → left panel (description, subtasks, comments, activity) → right panel / below (status, assignee, due date, priority, labels, scope, epic, milestone).
+- Layout: title → left panel (description, subtasks, files, comments, activity) → a Details card on the right, under the title on phones (status, assignee, secondary assignee, due date, priority, labels, epic, milestone, component, scope, type; reporter, created, updated). Activity shows the newest six entries until "Show all".
 - Inline editing — no "Edit mode." Auto-save with *"Saved ✓"* confirmation.
 - Conflict state: *"This task was updated by someone else. Review the changes before saving yours."*
 - Empty description: *"Add a description."* — tap to start editing.
@@ -794,7 +794,7 @@ Breakpoints: mobile 360–767 px, tablet 768–1023 px, desktop ≥ 1024 px.
 | Area | Desktop | Tablet | Mobile |
 | --- | --- | --- | --- |
 | Primary nav | Persistent sidebar | Collapsible sidebar or tabs | Bottom navigation bar |
-| Task detail | Sheet overlay | Sheet overlay | Full-screen |
+| Task detail | Centred modal | Centred modal | Full-screen |
 | Board columns | All columns, horizontal scroll | All columns, horizontal scroll | One column, swipe to switch |
 | Command palette | Full-width centered overlay | Full-width centered overlay | Full-screen |
 

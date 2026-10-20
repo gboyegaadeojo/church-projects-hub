@@ -144,7 +144,9 @@ function taskFilterSql(f: TaskFilter, q: Params): string {
   if (f.assignees.length) {
     const ids = f.assignees.filter((a): a is number => a !== "none");
     const none = f.assignees.includes("none");
-    parts.push(`(${[ids.length ? `t.assignee_id IN (SELECT value FROM json_each(${q.p(JSON.stringify(ids))}))` : "", none ? "t.assignee_id IS NULL" : ""].filter(Boolean).join(" OR ")})`);
+    const people = ids.length ? q.p(JSON.stringify(ids)) : null;
+    // As on the board: a person matches as assignee or secondary assignee (v4.6).
+    parts.push(`(${[people ? `t.assignee_id IN (SELECT value FROM json_each(${people})) OR t.secondary_assignee_id IN (SELECT value FROM json_each(${people}))` : "", none ? "t.assignee_id IS NULL" : ""].filter(Boolean).join(" OR ")})`);
   }
   if (f.labels.length) parts.push(`EXISTS (SELECT 1 FROM task_labels tl WHERE tl.task_id = t.id AND tl.label_id IN (SELECT value FROM json_each(${q.p(JSON.stringify(f.labels))})))`);
   if (f.priorities.length) parts.push(`t.priority IN (SELECT value FROM json_each(${q.p(JSON.stringify(f.priorities))}))`);

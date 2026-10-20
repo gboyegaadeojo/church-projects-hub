@@ -126,6 +126,7 @@ export function taskRoutes() {
       db.prepare(
         `SELECT id, name, avatar_url FROM users WHERE id IN (
            SELECT assignee_id FROM tasks WHERE project_id = ?1 AND deleted_at IS NULL
+           UNION SELECT secondary_assignee_id FROM tasks WHERE project_id = ?1 AND deleted_at IS NULL
            UNION SELECT reporter_id FROM tasks WHERE project_id = ?1 AND deleted_at IS NULL)`,
       ).bind(project.id),
     ]);
@@ -169,9 +170,12 @@ export function taskRoutes() {
       stateId = first.id;
     }
     if (body.type === "epic" && body.epicId !== null) return badReference(c, "epicId");
+    // v4.6: the secondary assignee is a different person from the assignee.
+    if (body.secondaryAssigneeId !== null && body.secondaryAssigneeId === body.assigneeId) return badReference(c, "secondaryAssigneeId");
     const bad = await invalidReference(c.env, project, {
       stateId,
       assigneeId: body.assigneeId,
+      secondaryAssigneeId: body.secondaryAssigneeId,
       labelIds: body.labelIds,
       componentId: body.componentId,
       milestoneId: body.milestoneId,
@@ -187,8 +191,9 @@ export function taskRoutes() {
       db
         .prepare(
           `INSERT INTO tasks (project_id, number, title, description_json, description_text, type, state_id, priority, scope,
-             assignee_id, reporter_id, due_date, epic_id, component_id, milestone_id, rank, created_at, updated_at, created_by)
-           SELECT ?1, next_task_number - 1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?16, ?10
+             assignee_id, reporter_id, due_date, epic_id, component_id, milestone_id, rank, created_at, updated_at, created_by,
+             secondary_assignee_id)
+           SELECT ?1, next_task_number - 1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?16, ?10, ?17
            FROM projects WHERE id = ?1 RETURNING id`,
         )
         .bind(
@@ -208,15 +213,16 @@ export function taskRoutes() {
           body.milestoneId,
           rank,
           now,
+          body.secondaryAssigneeId,
         ),
       db.prepare(`INSERT INTO task_labels (task_id, label_id) SELECT ${NEW_TASK_ID}, value FROM json_each(?2)`).bind(
         project.id,
         JSON.stringify(body.labelIds),
       ),
-      // TASK-8: the reporter and assignee watch automatically.
+      // TASK-8: the reporter and both assignees watch automatically.
       db.prepare(`INSERT OR IGNORE INTO watchers (task_id, user_id) SELECT ${NEW_TASK_ID}, value FROM json_each(?2)`).bind(
         project.id,
-        JSON.stringify(body.assigneeId ? [user.id, body.assigneeId] : [user.id]),
+        JSON.stringify([user.id, body.assigneeId, body.secondaryAssigneeId].filter((id) => id !== null)),
       ),
       db.prepare(
         `INSERT INTO task_events (task_id, actor_id, field, old_value, new_value, at) SELECT ${NEW_TASK_ID}, ?2, 'created', NULL, ?3, ?4`,
@@ -234,10 +240,17 @@ export function taskRoutes() {
       ...noticesStatements(
         c.env,
         [
-          { type: "task.assigned", recipients: body.assigneeId ? [body.assigneeId] : [], actorId: user.id, task: { newInProject: project.id }, projectId: project.id, payload: {} },
+          {
+            type: "task.assigned",
+            recipients: [body.assigneeId, body.secondaryAssigneeId].filter((id): id is number => id !== null),
+            actorId: user.id,
+            task: { newInProject: project.id },
+            projectId: project.id,
+            payload: {},
+          },
           {
             type: "task.mentioned",
-            recipients: description.mentions.filter((id) => id !== body.assigneeId),
+            recipients: description.mentions.filter((id) => id !== body.assigneeId && id !== body.secondaryAssigneeId),
             actorId: user.id,
             task: { newInProject: project.id },
             projectId: project.id,
@@ -308,10 +321,19 @@ export function taskRoutes() {
     const refFields = [
       ["stateId", "state_id", "state", task.state_id],
       ["assigneeId", "assignee_id", "assignee", task.assignee_id],
+      ["secondaryAssigneeId", "secondary_assignee_id", "secondary_assignee", task.secondary_assignee_id],
       ["componentId", "component_id", "component", task.component_id],
       ["epicId", "epic_id", "epic", task.epic_id],
       ["milestoneId", "milestone_id", "milestone", task.milestone_id],
     ] as const;
+    // v4.6: the two assignees are different people. Making the secondary assignee the assignee moves them up and
+    // clears the secondary slot; naming the assignee as secondary is refused.
+    if (body.secondaryAssigneeId !== undefined && body.secondaryAssigneeId !== null) {
+      const nextAssignee = body.assigneeId === undefined ? task.assignee_id : body.assigneeId;
+      if (body.secondaryAssigneeId === nextAssignee) return badReference(c, "secondaryAssigneeId");
+    } else if (body.secondaryAssigneeId === undefined && body.assigneeId != null && body.assigneeId === task.secondary_assignee_id) {
+      body.secondaryAssigneeId = null;
+    }
     for (const [field, column, eventField, current] of refFields) {
       const next = body[field];
       if (next === undefined || next === current) continue;
@@ -363,8 +385,8 @@ export function taskRoutes() {
         db.prepare("INSERT INTO task_labels (task_id, label_id) SELECT ?1, value FROM json_each(?2)").bind(task.id, JSON.stringify(nextLabels)),
       );
     }
-    if (refs.assigneeId) {
-      statements.push(db.prepare("INSERT OR IGNORE INTO watchers (task_id, user_id) VALUES (?1, ?2)").bind(task.id, refs.assigneeId));
+    for (const watcher of [refs.assigneeId, refs.secondaryAssigneeId]) {
+      if (watcher) statements.push(db.prepare("INSERT OR IGNORE INTO watchers (task_id, user_id) VALUES (?1, ?2)").bind(task.id, watcher));
     }
     if (descriptionChanged) {
       const before = mentionsIn(JSON.parse(task.description_json));
@@ -379,7 +401,8 @@ export function taskRoutes() {
 
     // NOTIF-1: assigned, status change on the reporter's task, new @mentions in the description.
     const notices: Notice[] = [];
-    if (refs.assigneeId) notices.push({ type: "task.assigned", recipients: [refs.assigneeId], actorId: user.id, task: { id: task.id }, projectId: project.id, payload: {} });
+    const newlyAssigned = [refs.assigneeId, refs.secondaryAssigneeId].filter((id): id is number => !!id);
+    if (newlyAssigned.length) notices.push({ type: "task.assigned", recipients: newlyAssigned, actorId: user.id, task: { id: task.id }, projectId: project.id, payload: {} });
     if (refs.stateId !== undefined) {
       notices.push(
         statusChangeNotice(project, {
@@ -529,6 +552,9 @@ export function taskRoutes() {
     for (const t of rows) {
       if (body.assigneeId !== undefined && body.assigneeId !== t.assignee_id) {
         events.push({ task: t.id, field: "assignee", old: str(t.assignee_id), new: str(body.assigneeId) });
+        if (body.assigneeId !== null && body.assigneeId === t.secondary_assignee_id) {
+          events.push({ task: t.id, field: "secondary_assignee", old: str(t.secondary_assignee_id), new: null });
+        }
       }
       if (body.stateId !== undefined && body.stateId !== t.state_id) {
         events.push({ task: t.id, field: "state", old: str(t.state_id), new: str(body.stateId) });
@@ -553,7 +579,11 @@ export function taskRoutes() {
       values.push(value);
       sets.push(`${column} = ?${values.length + 2}`);
     };
-    if (body.assigneeId !== undefined) set("assignee_id", body.assigneeId);
+    if (body.assigneeId !== undefined) {
+      set("assignee_id", body.assigneeId);
+      // v4.6: the new assignee can't also be the secondary assignee.
+      if (body.assigneeId !== null) sets.push(`secondary_assignee_id = CASE WHEN secondary_assignee_id = ?${values.length + 2} THEN NULL ELSE secondary_assignee_id END`);
+    }
     if (body.stateId !== undefined) set("state_id", body.stateId);
     if (body.dueDate !== undefined) set("due_date", body.dueDate);
     const statements = [

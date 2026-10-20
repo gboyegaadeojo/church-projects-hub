@@ -21,9 +21,21 @@ export function isFilterActive(f: TaskFilter): boolean {
   return f.assignees.length + f.labels.length + f.priorities.length + f.scopes.length > 0;
 }
 
-/** Within a group any value matches (OR); across groups all must match (AND). */
-export function matchesFilter(task: Pick<TaskCard, "assigneeId" | "labelIds" | "priority" | "scope">, f: TaskFilter): boolean {
-  if (f.assignees.length && !f.assignees.includes(task.assigneeId ?? "none")) return false;
+/**
+ * Within a group any value matches (OR); across groups all must match (AND). A person matches tasks where they are
+ * the assignee or the secondary assignee (v4.6); "none" matches tasks with no assignee.
+ */
+export function matchesFilter(
+  task: Pick<TaskCard, "assigneeId" | "labelIds" | "priority" | "scope"> & Partial<Pick<TaskCard, "secondaryAssigneeId">>,
+  f: TaskFilter,
+): boolean {
+  if (
+    f.assignees.length &&
+    !f.assignees.includes(task.assigneeId ?? "none") &&
+    !(task.secondaryAssigneeId != null && f.assignees.includes(task.secondaryAssigneeId))
+  ) {
+    return false;
+  }
   if (f.labels.length && !task.labelIds.some((l) => f.labels.includes(l))) return false;
   if (f.priorities.length && !f.priorities.includes(task.priority)) return false;
   if (f.scopes.length && !f.scopes.includes(task.scope)) return false;

@@ -6,7 +6,7 @@ import type { ProjectContext } from "../auth/permissions";
 // Reading tasks: board cards, the access check for one task, task detail, and reference checks.
 
 export const CARD_COLUMNS = `
-  t.id, t.project_id, t.number, t.title, t.type, t.state_id, t.priority, t.scope, t.assignee_id, t.reporter_id,
+  t.id, t.project_id, t.number, t.title, t.type, t.state_id, t.priority, t.scope, t.assignee_id, t.secondary_assignee_id, t.reporter_id,
   t.due_date, t.component_id, t.epic_id, t.milestone_id, t.rank, t.version, t.created_at, t.updated_at,
   p.key AS project_key,
   (SELECT group_concat(label_id) FROM task_labels WHERE task_id = t.id) AS label_ids,
@@ -23,6 +23,7 @@ export type CardRow = {
   priority: TaskCard["priority"];
   scope: TaskCard["scope"];
   assignee_id: number | null;
+  secondary_assignee_id: number | null;
   reporter_id: number;
   due_date: string | null;
   component_id: number | null;
@@ -53,6 +54,7 @@ export function toCard(row: CardRow): TaskCard {
     priority: row.priority,
     scope: row.scope,
     assigneeId: row.assignee_id,
+    secondaryAssigneeId: row.secondary_assignee_id,
     reporterId: row.reporter_id,
     dueDate: row.due_date,
     labelIds: labelIdsOf(row),
@@ -125,12 +127,13 @@ export async function loadTaskDetail(env: Env, taskId: number, viewerId: number 
     // D1 limits how many SELECTs one compound query may join, so the people are gathered in small groups.
     env.DB.prepare(
       `SELECT id, name, avatar_url FROM users
-       WHERE id IN (SELECT reporter_id FROM tasks WHERE id = ?1 UNION SELECT assignee_id FROM tasks WHERE id = ?1)
+       WHERE id IN (SELECT reporter_id FROM tasks WHERE id = ?1 UNION SELECT assignee_id FROM tasks WHERE id = ?1
+                    UNION SELECT secondary_assignee_id FROM tasks WHERE id = ?1)
           OR id IN (SELECT author_id FROM comments WHERE task_id = ?1 AND deleted_at IS NULL
                     UNION SELECT uploaded_by FROM attachments WHERE task_id = ?1 AND deleted_at IS NULL)
           OR id IN (SELECT actor_id FROM task_events WHERE task_id = ?1 UNION SELECT user_id FROM watchers WHERE task_id = ?1)
-          OR id IN (SELECT CAST(old_value AS INTEGER) FROM task_events WHERE task_id = ?1 AND field = 'assignee'
-                    UNION SELECT CAST(new_value AS INTEGER) FROM task_events WHERE task_id = ?1 AND field = 'assignee')`,
+          OR id IN (SELECT CAST(old_value AS INTEGER) FROM task_events WHERE task_id = ?1 AND field IN ('assignee', 'secondary_assignee')
+                    UNION SELECT CAST(new_value AS INTEGER) FROM task_events WHERE task_id = ?1 AND field IN ('assignee', 'secondary_assignee'))`,
     ).bind(taskId),
   ];
   if (viewerId !== null) {
@@ -176,6 +179,7 @@ export async function loadTaskDetail(env: Env, taskId: number, viewerId: number 
 export type RefCheck = {
   stateId?: number;
   assigneeId?: number | null;
+  secondaryAssigneeId?: number | null;
   labelIds?: number[];
   componentId?: number | null;
   milestoneId?: number | null;
@@ -196,6 +200,9 @@ export async function invalidReference(env: Env, project: ProjectContext, refs: 
        (?3 IS NULL OR EXISTS (SELECT 1 FROM users u WHERE u.id = ?3 AND u.status = 'active' AND u.deleted_at IS NULL AND (
           EXISTS (SELECT 1 FROM project_members m WHERE m.project_id = ?1 AND m.user_id = u.id AND m.role IN ('admin', 'contributor'))
           OR (u.app_role = 'admin' AND ?8 = 1)))) AS assigneeId,
+       (?10 IS NULL OR EXISTS (SELECT 1 FROM users u WHERE u.id = ?10 AND u.status = 'active' AND u.deleted_at IS NULL AND (
+          EXISTS (SELECT 1 FROM project_members m WHERE m.project_id = ?1 AND m.user_id = u.id AND m.role IN ('admin', 'contributor'))
+          OR (u.app_role = 'admin' AND ?8 = 1)))) AS secondaryAssigneeId,
        ((SELECT count(*) FROM labels WHERE project_id = ?1 AND id IN (SELECT value FROM json_each(?4))) = json_array_length(?4)) AS labelIds,
        (?5 IS NULL OR EXISTS (SELECT 1 FROM components WHERE id = ?5 AND project_id = ?1)) AS componentId,
        (?6 IS NULL OR EXISTS (SELECT 1 FROM milestones WHERE id = ?6 AND project_id = ?1)) AS milestoneId,
@@ -211,9 +218,10 @@ export async function invalidReference(env: Env, project: ProjectContext, refs: 
       refs.epicId ?? null,
       project.isSystem ? 1 : 0,
       refs.selfId ?? 0,
+      refs.secondaryAssigneeId ?? null,
     )
-    .first<Record<"stateId" | "assigneeId" | "labelIds" | "componentId" | "milestoneId" | "epicId", number>>();
-  for (const field of ["stateId", "assigneeId", "labelIds", "componentId", "milestoneId", "epicId"] as const) {
+    .first<Record<"stateId" | "assigneeId" | "secondaryAssigneeId" | "labelIds" | "componentId" | "milestoneId" | "epicId", number>>();
+  for (const field of ["stateId", "assigneeId", "secondaryAssigneeId", "labelIds", "componentId", "milestoneId", "epicId"] as const) {
     if (row?.[field] !== 1) return field;
   }
   return null;

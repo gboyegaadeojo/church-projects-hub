@@ -512,3 +512,62 @@ describe("Hub Feedback assignees (PROJ-7)", () => {
     expect((await call(actors.contributor, "GET", `/api/projects/${hub.id}/board`)).status).toBe(403);
   });
 });
+
+describe("v4.6 Secondary assignee", () => {
+  it("is set on create and edit, watches the task, is notified, and shows in My Work and the board filter data", async () => {
+    const p = await projectWithColumns();
+    const admin = await actorAs("projectAdmin", p.id);
+    const lead = await actorAs("contributor", p.id);
+    const helper = await actorAs("contributor", p.id);
+    const task = await newTask(admin, p, { assigneeId: lead.userId, secondaryAssigneeId: helper.userId, dueDate: "2027-01-10" });
+    expect(task).toMatchObject({ assigneeId: lead.userId, secondaryAssigneeId: helper.userId });
+    expect(task.watcherIds.sort()).toEqual([admin.userId, lead.userId, helper.userId].sort());
+    const assigned = await env.DB.prepare("SELECT user_id FROM notifications WHERE type = 'task.assigned' AND task_id = ? ORDER BY user_id")
+      .bind(task.id)
+      .all<{ user_id: number }>();
+    expect(assigned.results.map((r) => r.user_id)).toEqual([lead.userId, helper.userId].sort((a, b) => a - b));
+    // The board card carries it, and the person is in the board's people.
+    const data = await board(admin, p);
+    expect(data.tasks[0]).toMatchObject({ secondaryAssigneeId: helper.userId });
+    // NAV-3: My Work lists tasks shared as secondary assignee.
+    const work = (await (await call(helper, "GET", "/api/me/work")).json()) as { tasks: { key: string }[] };
+    expect(work.tasks.map((t) => t.key)).toContain(task.key);
+    // Cleared on edit, with history.
+    const res = await call(admin, "PATCH", `/api/tasks/${task.id}`, { version: task.version, secondaryAssigneeId: null });
+    const cleared = ((await res.json()) as { task: TaskDetail }).task;
+    expect(cleared.secondaryAssigneeId).toBeNull();
+    expect(cleared.events.map((e) => e.field)).toContain("secondary_assignee");
+  });
+
+  it("is never the same person as the assignee: refused when named, moved up when made assignee", async () => {
+    const p = await projectWithColumns();
+    const admin = await actorAs("projectAdmin", p.id);
+    const lead = await actorAs("contributor", p.id);
+    const helper = await actorAs("contributor", p.id);
+    const res = await call(admin, "POST", `/api/projects/${p.id}/tasks`, { title: "Same person twice", assigneeId: lead.userId, secondaryAssigneeId: lead.userId });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ field: "secondaryAssigneeId" });
+    const task = await newTask(admin, p, { assigneeId: lead.userId, secondaryAssigneeId: helper.userId });
+    expect((await call(admin, "PATCH", `/api/tasks/${task.id}`, { version: task.version, secondaryAssigneeId: lead.userId })).status).toBe(400);
+    // Making the secondary assignee the assignee clears the secondary slot.
+    const promoted = ((await (await call(admin, "PATCH", `/api/tasks/${task.id}`, { version: task.version, assigneeId: helper.userId })).json()) as {
+      task: TaskDetail;
+    }).task;
+    expect(promoted).toMatchObject({ assigneeId: helper.userId, secondaryAssigneeId: null });
+    // Viewers and people outside the project can't be secondary assignees.
+    const viewer = await actorAs("viewer", p.id);
+    expect((await call(admin, "PATCH", `/api/tasks/${task.id}`, { version: promoted.version, secondaryAssigneeId: viewer.userId })).status).toBe(400);
+  });
+
+  it("bulk reassigning to the secondary assignee clears the secondary slot, with history", async () => {
+    const p = await projectWithColumns();
+    const admin = await actorAs("projectAdmin", p.id);
+    const lead = await actorAs("contributor", p.id);
+    const helper = await actorAs("contributor", p.id);
+    const task = await newTask(admin, p, { assigneeId: lead.userId, secondaryAssigneeId: helper.userId });
+    await call(admin, "POST", `/api/projects/${p.id}/tasks/bulk`, { taskIds: [task.id], assigneeId: helper.userId });
+    const detail = ((await (await call(admin, "GET", `/api/tasks/${task.id}`)).json()) as { task: TaskDetail }).task;
+    expect(detail).toMatchObject({ assigneeId: helper.userId, secondaryAssigneeId: null });
+    expect(detail.events.map((e) => e.field)).toEqual(expect.arrayContaining(["assignee", "secondary_assignee"]));
+  });
+});
