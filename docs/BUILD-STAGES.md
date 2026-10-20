@@ -108,9 +108,9 @@ Carried over from Stage 2c:
 
 Requirements: section 8, 11.8, 11.9; NOTIF-1 to NOTIF-6, FDBK-1 to FDBK-5, RATE-3, NFR-9, NFR-19.
 
-Before starting: authenticate ifcwpg.com in Brevo (section 8 table) and put `BREVO_API_KEY` in `.dev.vars`.
+Before starting: verify ifcwpg.com in Resend (section 8 table) and put `RESEND_API_KEY` in `.dev.vars`.
 
-> Read CLAUDE.md and docs/REQUIREMENTS.md sections 8, 11.8 and 11.9. Build, one pull request each: (a) notifications table, bell with refresh rules and the unread-count header; (b) email_outbox written in the same transaction, the EmailSender interface with a Brevo implementation, the cron outbox sender with retries, dedupe keys and cap protection; (c) 7 am digests in each user's timezone, notification preferences and one-click unsubscribe; (d) What's New and the Report a Bug / Request a Feature forms landing in Hub Feedback, with RATE-3. Plan first.
+> Read CLAUDE.md and docs/REQUIREMENTS.md sections 8, 11.8 and 11.9. Build, one pull request each: (a) notifications table, bell with refresh rules and the unread-count header; (b) email_outbox written in the same transaction, the EmailSender interface with a Resend implementation, the cron outbox sender with retries, dedupe keys and cap protection; (c) 7 am digests in each user's timezone, notification preferences and one-click unsubscribe; (d) What's New and the Report a Bug / Request a Feature forms landing in Hub Feedback, with RATE-3. Plan first.
 
 ---
 

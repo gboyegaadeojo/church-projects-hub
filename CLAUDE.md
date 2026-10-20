@@ -4,7 +4,7 @@ A private, Jira-style work tracker for Immanuel Fellowship Church volunteer team
 
 ## Source of truth
 
-- `docs/REQUIREMENTS.md` (v4.4) is the single source of truth. Read the sections named in the current stage before writing code.
+- `docs/REQUIREMENTS.md` (v4.5) is the single source of truth. Read the sections named in the current stage before writing code.
 - Never resolve a conflict between requirements silently. Stop, describe the conflict, and ask @G.
 - `docs/BUILD-STAGES.md` lists the build stages. Work on one stage at a time and only on what that stage names.
 
@@ -16,7 +16,7 @@ A private, Jira-style work tracker for Immanuel Fellowship Church volunteer team
 - Cloudflare D1 (SQLite) with Drizzle ORM; R2 for attachments (served through the Worker, no signed URLs).
 - Zod schemas in `shared/`, used by both client and server.
 - Tailwind CSS v4 with design tokens in `src/index.css`; Radix UI primitives; dnd-kit; Tiptap (stored as JSON).
-- Email through Brevo behind an `EmailSender` interface.
+- Email through Resend behind an `EmailSender` interface.
 - Tests: Vitest inside the Workers runtime (`@cloudflare/vitest-plugin`), Playwright for end-to-end.
 
 ## Commands

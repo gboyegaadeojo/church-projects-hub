@@ -63,7 +63,7 @@ export function PrivacyPage() {
             </li>
           </ul>
           <p>
-            The hub runs on Cloudflare. Emails about your work are sent through Brevo, which receives only what each email
+            The hub runs on Cloudflare. Emails about your work are sent through Resend, which receives only what each email
             needs. We don't sell your data or show ads.
           </p>
           <p>

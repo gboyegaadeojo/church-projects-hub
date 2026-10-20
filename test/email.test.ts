@@ -2,14 +2,14 @@ import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { CONFIRM_HEADER, NUDGE_AFTER_MS } from "../shared/access";
 import type { TaskDetail } from "../shared/tasks";
-import type { EmailSender, OutgoingEmail } from "../worker/email/sender";
+import { type EmailSender, type OutgoingEmail, ResendSender } from "../worker/email/sender";
 import { renderEmail } from "../worker/email/templates";
 import { accessReminderStatement, DAILY_SWITCH_TO_DIGEST, PER_PERSON_DAILY, RETRY_AFTER_MIN, sendDueEmails } from "../worker/jobs/outbox";
 import { call, type Client, signedInClient } from "./helpers/auth";
 import { actorAs, createProject, setUser } from "./helpers/fixtures";
 
 // Section 8 email: outbox rows written with the action, the cron sender, retries, dedupe and cap protection.
-// Outbox rows are real D1 rows written by the real routes; only the provider (Brevo) is replaced, by a recorder.
+// Outbox rows are real D1 rows written by the real routes; only the provider (Resend) is replaced, by a recorder.
 
 const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
@@ -195,12 +195,12 @@ describe("Section 8 sending mechanics", () => {
   it("failures retry after 5, 30 and 120 minutes, then park as failed; the error never holds the address", async () => {
     const id = await queue(person.userId, "task.assigned");
     const recorder = new Recorder();
-    recorder.failWith = new Error("Brevo 503");
+    recorder.failWith = new Error("Resend 503");
     let now = Date.now();
     for (const wait of RETRY_AFTER_MIN) {
       await sendDueEmails(env, recorder, now);
       const [row] = await outboxFor("id = ?", id);
-      expect(row).toMatchObject({ status: "pending", send_after: now + wait * MIN, last_error: "Brevo 503" });
+      expect(row).toMatchObject({ status: "pending", send_after: now + wait * MIN, last_error: "Resend 503" });
       // Not due again before the wait is over.
       await sendDueEmails(env, recorder, now + wait * MIN - 1);
       expect((await outboxFor("id = ?", id))[0]!.attempts).toBe(row!.attempts);
@@ -237,7 +237,7 @@ describe("Section 8 cap protection", () => {
     expect((await outboxFor("id = ?", access))[0]).toMatchObject({ status: "sent" });
   });
 
-  it(`at ${DAILY_SWITCH_TO_DIGEST} emails sent today (80% of 300), instant emails switch to digest except access-request emails`, async () => {
+  it(`at ${DAILY_SWITCH_TO_DIGEST} emails sent today (80% of 100), instant emails switch to digest except access-request emails`, async () => {
     const other = await signedInClient();
     const now = Date.now();
     await env.DB.prepare(
@@ -295,5 +295,36 @@ describe("Section 8 email design", () => {
     expect(r.html).toContain("Sun, Nov 1, 2026");
     expect(r.html).toContain("Unsubscribe from these emails");
     expect(r.text).toContain("Open task: https://hub.test/projects/MEDIA?task=MEDIA-1");
+  });
+});
+
+describe("Section 5: the Resend sender", () => {
+  it("posts to Resend with the bearer key, the church sender and one-click unsubscribe headers; errors never carry the address or key", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    const realFetch = globalThis.fetch;
+    let status = 200;
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return new Response("{}", { status });
+    }) as typeof fetch;
+    try {
+      const sender = new ResendSender("re_test_key", "media@ifcwpg.com");
+      await sender.send({ to: "someone@example.org", subject: "Hi", html: "<p>Hi</p>", text: "Hi", unsubscribeUrl: "https://hub.test/api/unsubscribe?u=1" });
+      expect(calls[0]!.url).toBe("https://api.resend.com/emails");
+      expect((calls[0]!.init.headers as Record<string, string>).Authorization).toBe("Bearer re_test_key");
+      const body = JSON.parse(calls[0]!.init.body as string);
+      expect(body).toMatchObject({
+        from: "Church Projects Hub <media@ifcwpg.com>",
+        to: ["someone@example.org"],
+        reply_to: "media@ifcwpg.com",
+        headers: { "List-Unsubscribe": "<https://hub.test/api/unsubscribe?u=1>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+      });
+
+      status = 429;
+      const error = await sender.send({ to: "someone@example.org", subject: "Hi", html: "", text: "" }).catch((e: Error) => e);
+      expect((error as Error).message).toBe("Resend 429");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 });

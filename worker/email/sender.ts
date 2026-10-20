@@ -1,6 +1,6 @@
 import { hmac } from "../lib/crypto";
 
-// Sending email (section 5: Brevo behind an EmailSender interface, so the provider can change by config alone —
+// Sending email (section 5: Resend behind an EmailSender interface, so the provider can change by config alone —
 // section 8 "Cap protection"). The cron job calls send(); a thrown error means "try again later".
 
 export type OutgoingEmail = {
@@ -16,8 +16,8 @@ export interface EmailSender {
   send(email: OutgoingEmail): Promise<void>;
 }
 
-/** Brevo transactional email API (v3). */
-export class BrevoSender implements EmailSender {
+/** Resend email API (https://resend.com/docs/api-reference/emails/send-email). */
+export class ResendSender implements EmailSender {
   constructor(
     private readonly apiKey: string,
     private readonly from: string,
@@ -29,30 +29,30 @@ export class BrevoSender implements EmailSender {
       headers["List-Unsubscribe"] = `<${email.unsubscribeUrl}>`;
       headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
     }
-    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { "api-key": this.apiKey, "Content-Type": "application/json", accept: "application/json" },
+      headers: { Authorization: `Bearer ${this.apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        sender: { name: "Church Projects Hub", email: this.from },
-        replyTo: { email: this.from },
-        to: [{ email: email.to }],
+        from: `Church Projects Hub <${this.from}>`,
+        to: [email.to],
+        reply_to: this.from,
         subject: email.subject,
-        htmlContent: email.html,
-        textContent: email.text,
+        html: email.html,
+        text: email.text,
         headers,
       }),
     });
     if (!res.ok) {
-      // Never include the address or the API key in the error that gets stored (NFR-5).
-      throw new Error(`Brevo ${res.status}`);
+      // Never include the address or the API key in the error that gets stored (NFR-5). A 429 retries like any failure.
+      throw new Error(`Resend ${res.status}`);
     }
   }
 }
 
-/** The configured sender, or null when there's no Brevo key yet (emails wait in the outbox until there is). */
-export function emailSenderFor(env: Pick<Env, "BREVO_API_KEY" | "EMAIL_FROM">): EmailSender | null {
-  const key = (env as { BREVO_API_KEY?: string }).BREVO_API_KEY;
-  return key ? new BrevoSender(key, env.EMAIL_FROM) : null;
+/** The configured sender, or null when there's no Resend key yet (emails wait in the outbox until there is). */
+export function emailSenderFor(env: Pick<Env, "RESEND_API_KEY" | "EMAIL_FROM">): EmailSender | null {
+  const key = (env as { RESEND_API_KEY?: string }).RESEND_API_KEY;
+  return key ? new ResendSender(key, env.EMAIL_FROM) : null;
 }
 
 /** Signed token for one-click unsubscribe from one event type (NOTIF-6). No login needed to use it. */
