@@ -8,7 +8,20 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HOUR, INVITES, hashInviteToken, PERSONAS, PROJECTS, REQUESTS, sessionIdFor } from "./fixtures.ts";
+import {
+  BOARD_LABEL,
+  BOARD_PROJECTS,
+  BOARD_TASKS,
+  COLUMNS,
+  HOUR,
+  INVITES,
+  hashInviteToken,
+  PERSONAS,
+  PROJECTS,
+  REQUESTS,
+  sessionIdFor,
+  VIEWPORTS,
+} from "./fixtures.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 // Keep in step with CPH_STATE_DIR in playwright.config.ts.
@@ -56,6 +69,12 @@ for (const p of PROJECTS) {
     `INSERT INTO projects (id, key, name, description, colour, icon, hidden, created_at, updated_at)
      VALUES (${p.id}, ${q(p.key)}, ${q(p.name)}, ${q(p.description)}, 'blue', 'folder', ${hidden}, ${now}, ${now});`,
   );
+  COLUMNS.forEach((c, position) =>
+    sql.push(
+      `INSERT INTO workflow_states (project_id, name, category, position, created_at, updated_at)
+       VALUES (${p.id}, ${q(c.name)}, ${q(c.category)}, ${position}, ${now}, ${now});`,
+    ),
+  );
 }
 for (const p of PERSONAS) {
   sql.push(
@@ -70,6 +89,30 @@ for (const p of PERSONAS) {
        VALUES (${m.projectId}, ${p.id}, ${q(m.role)}, ${now}, ${now});`,
     );
   }
+}
+// Board projects: a label and three tasks in To Do (reported by the board's contributor).
+for (const v of VIEWPORTS) {
+  const project = BOARD_PROJECTS[v];
+  const reporter = PERSONAS.find((p) => p.key === `mover-${v}`)!;
+  const toDo = `(SELECT id FROM workflow_states WHERE project_id = ${project.id} AND position = 1)`;
+  sql.push(
+    `INSERT INTO labels (project_id, name, colour, created_at, updated_at) VALUES (${project.id}, ${q(BOARD_LABEL)}, 'teal', ${now}, ${now});`,
+    `UPDATE projects SET next_task_number = ${BOARD_TASKS.length + 1} WHERE id = ${project.id};`,
+  );
+  BOARD_TASKS.forEach((t, i) => {
+    sql.push(
+      `INSERT INTO tasks (project_id, number, title, state_id, priority, reporter_id, rank, created_at, updated_at, created_by)
+       VALUES (${project.id}, ${i + 1}, ${q(t.title)}, ${toDo}, ${q(t.priority)}, ${reporter.id}, ${q(`a${i}`)}, ${now}, ${now}, ${reporter.id});`,
+      `INSERT INTO tasks_fts (rowid, project_id, key, title, body)
+       SELECT id, project_id, ${q(`${project.key}-${i + 1}`)}, title, '' FROM tasks WHERE project_id = ${project.id} AND number = ${i + 1};`,
+    );
+    if (t.label) {
+      sql.push(
+        `INSERT INTO task_labels (task_id, label_id)
+         SELECT t.id, l.id FROM tasks t, labels l WHERE t.project_id = ${project.id} AND t.number = ${i + 1} AND l.project_id = ${project.id};`,
+      );
+    }
+  });
 }
 for (const r of REQUESTS) {
   const user = PERSONAS.find((p) => p.key === r.personaKey);

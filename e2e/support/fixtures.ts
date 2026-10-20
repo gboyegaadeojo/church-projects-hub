@@ -18,7 +18,29 @@ export const PROJECTS = [
   { id: 3, key: "HOSP", name: "Hospitality", description: "Meals and events after services." },
   // Invite-only (PROJ-6): never offered on the request screen.
   { id: 4, key: "LEAD", name: "Leadership", description: "Planning for the leadership team.", hidden: true },
+  // One board per viewport for the task tests, which move cards (hidden so they stay off the request screen).
+  { id: 5, key: "BRDDESK", name: "Board desktop", description: "Board tests on desktop.", hidden: true },
+  { id: 6, key: "BRDMOB", name: "Board mobile", description: "Board tests on mobile.", hidden: true },
 ] as const;
+
+export const BOARD_PROJECTS = { desktop: PROJECTS[4], mobile: PROJECTS[5] } as const;
+
+/** The default columns (shared/projects.ts DEFAULT_WORKFLOW), seeded for every project. */
+export const COLUMNS = [
+  { name: "Backlog", category: "todo" },
+  { name: "To Do", category: "todo" },
+  { name: "In Progress", category: "in_progress" },
+  { name: "In Review", category: "in_progress" },
+  { name: "Done", category: "done" },
+] as const;
+
+/** Tasks on each board project, all in To Do, in this order. */
+export const BOARD_TASKS = [
+  { title: "Replace mic batteries", priority: "high", label: true },
+  { title: "Test the stream encoder", priority: "medium", label: false },
+  { title: "Print slide notes", priority: "low", label: false },
+] as const;
+export const BOARD_LABEL = "Audio";
 
 type Membership = { projectId: number; role: "admin" | "contributor" | "viewer" };
 
@@ -52,8 +74,8 @@ const SHARED: Omit<Persona, "id">[] = [
 ];
 
 const PER_VIEWPORT = ["submitter", "nudger", "approvee", "denyee", "invitee"] as const;
-/** Active Media contributors whose settings change (theme on the profile). */
-const PER_VIEWPORT_ACTIVE = ["themer"] as const;
+/** Active contributors whose settings or tasks change: theme on the profile (Media), and board moves. */
+const PER_VIEWPORT_ACTIVE = ["themer", "mover"] as const;
 type PerViewportKey = (typeof PER_VIEWPORT)[number] | (typeof PER_VIEWPORT_ACTIVE)[number];
 
 function titleCase(s: string) {
@@ -79,7 +101,7 @@ export const PERSONAS: Persona[] = [
       email: `${k}.${v}@example.org`,
       status: "active" as const,
       appRole: "member" as const,
-      memberships: [{ projectId: 1, role: "contributor" as const }],
+      memberships: [{ projectId: k === "mover" ? BOARD_PROJECTS[v].id : 1, role: "contributor" as const }],
     })),
   ),
 ].map((p, i) => ({ ...p, id: i + 1 }));

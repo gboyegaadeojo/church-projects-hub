@@ -1,22 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
-import { EyeOff, FolderPlus, Lock, SearchX, Settings2 } from "lucide-react";
-import { Link, useParams } from "react-router";
+import { EyeOff, FolderPlus, Lock } from "lucide-react";
+import { Link } from "react-router";
 import { ACCESS_COPY, PROJECT_ROLE_LABELS } from "../../shared/access";
-import { projectResponse, type ProjectSummary } from "../../shared/projects";
+import type { ProjectSummary } from "../../shared/projects";
 import { ProjectGlyph, useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
 import { Badge } from "../components/ui/Badge";
 import { buttonClasses } from "../components/ui/Button";
-import { Icon } from "../components/ui/Icon";
 import { Skeleton, useDelayedFlag } from "../components/ui/Skeleton";
 import { EmptyState, ErrorState } from "../components/ui/States";
-import { api, ApiError } from "../lib/api";
 import { useMyProjects } from "../lib/projects";
 
-// The projects a person can see (section 2), and a project's own page. The board and project overview
-// (PROJ-5) arrive in Stage 3; for now the page shows what the project is.
+// The projects a person can see (section 2). A project's own page (board and list) is ProjectPage.tsx.
 
-function ProjectBadges({ project }: { project: ProjectSummary }) {
+export function ProjectBadges({ project }: { project: ProjectSummary }) {
   return (
     <span className="flex flex-wrap gap-2">
       {project.role && <Badge>{PROJECT_ROLE_LABELS[project.role]}</Badge>}
@@ -97,82 +93,6 @@ export function ProjectsPage() {
           Request access to more projects
         </Link>
       </p>
-    </PageLayout>
-  );
-}
-
-export function ProjectPage() {
-  const me = useMe();
-  const { key = "" } = useParams();
-  const project = useQuery({
-    queryKey: ["projects", "by-key", key.toUpperCase()],
-    queryFn: async () => projectResponse.parse(await api(`/api/projects/by-key/${encodeURIComponent(key)}`)).project,
-    retry: (count, err) => !(err instanceof ApiError && (err.status === 403 || err.status === 404)) && count < 2,
-  });
-  const showSkeleton = useDelayedFlag(project.isPending);
-
-  if (project.isPending) {
-    return (
-      <PageLayout title="Project">
-        <div aria-busy="true" aria-label="Loading project">
-          {showSkeleton && <Skeleton className="h-24 w-full rounded-card" />}
-        </div>
-      </PageLayout>
-    );
-  }
-  if (project.isError) {
-    const status = project.error instanceof ApiError ? project.error.status : 0;
-    return (
-      <PageLayout title="Project">
-        {status === 404 ? (
-          <EmptyState icon={SearchX} title="We couldn't find that project. Check the link, or pick one from your projects." action={<Link to="/projects" className={buttonClasses()}>Go to projects</Link>} />
-        ) : status === 403 ? (
-          <EmptyState
-            icon={Lock}
-            title="You don't have access to this project. Ask its admin, or request access."
-            action={
-              <Link to="/request-access" className={buttonClasses()}>
-                Request access
-              </Link>
-            }
-          />
-        ) : (
-          <ErrorState
-            title="We couldn't load this project."
-            description="Check your connection and try again."
-            onRetry={() => void project.refetch()}
-            retrying={project.isFetching}
-          />
-        )}
-      </PageLayout>
-    );
-  }
-
-  const p = project.data;
-  return (
-    <PageLayout
-      title={p.name}
-      intro={
-        <span className="flex flex-col gap-3">
-          <span className="flex items-center gap-2 text-secondary">
-            <ProjectGlyph project={p} size="sm" />
-            <span className="tabular-nums">{p.key}</span>
-          </span>
-          {p.description && <span>{p.description}</span>}
-          <ProjectBadges project={p} />
-        </span>
-      }
-      actions={
-        me.user.appRole === "admin" &&
-        !p.isSystem && (
-          <Link to="/admin/projects" className={buttonClasses("secondary")}>
-            <Icon icon={Settings2} />
-            Edit project
-          </Link>
-        )
-      }
-    >
-      <EmptyState icon={FolderPlus} title="Tasks and the board for this project are coming in the next update." />
     </PageLayout>
   );
 }

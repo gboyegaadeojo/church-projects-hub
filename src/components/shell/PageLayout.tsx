@@ -8,6 +8,7 @@ export function PageLayout({
   intro,
   children,
   className,
+  wide = false,
 }: {
   title: string;
   actions?: ReactNode;
@@ -15,9 +16,11 @@ export function PageLayout({
   intro?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Full width, for the board (its columns scroll sideways). */
+  wide?: boolean;
 }) {
   return (
-    <div className={cn("mx-auto flex w-full max-w-page flex-col gap-group px-4 py-8 md:px-8", className)}>
+    <div className={cn("mx-auto flex w-full flex-col gap-group px-4 py-8 md:px-8", !wide && "max-w-page", className)}>
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-title text-ink">{title}</h1>

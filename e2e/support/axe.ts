@@ -11,6 +11,11 @@ const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best
  * one of those open only the popup itself is scanned.
  */
 export async function expectNoViolations(page: Page, within?: string) {
+  // Wait for opening animations (dialogs fade and slide in) so contrast isn't measured mid-fade.
+  // Endless ones, like skeleton shimmer, are ignored.
+  await page.waitForFunction(() =>
+    document.getAnimations().every((a) => a.playState !== "running" || a.effect?.getComputedTiming().iterations === Infinity),
+  );
   let builder = new AxeBuilder({ page }).withTags(WCAG_TAGS);
   if (within) builder = builder.include(within);
   const results = await builder.analyze();
