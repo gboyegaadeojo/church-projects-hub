@@ -1,5 +1,5 @@
 import { expect } from "@playwright/test";
-import { NOTIFICATION_COPY } from "../shared/notifications";
+import { NOTIFICATION_COPY, UNSUBSCRIBE_COPY } from "../shared/notifications";
 import { expectNoViolations } from "./support/axe";
 import { DETAIL_PROJECTS, persona } from "./support/fixtures";
 import { test, viewportOf } from "./support/pageAs";
@@ -59,4 +59,29 @@ test("NOTIF-4 empty state", async ({ pageAs }) => {
   await page.goto("/work");
   await page.getByRole("button", { name: /^Notifications/ }).first().click();
   await expect(page.getByRole("dialog", { name: "Notifications" }).getByText(NOTIFICATION_COPY.empty)).toBeVisible();
+});
+
+test("NOTIF-5 email settings save and stay saved", async ({ pageAs }, testInfo) => {
+  const page = await pageAs(persona("themer", viewportOf(testInfo)));
+  await page.goto("/settings/notifications");
+  await expect(page.getByRole("heading", { level: 1, name: "Email settings" })).toBeVisible();
+  const comments = page.getByRole("combobox", { name: "A comment on a task I own or watch" });
+  await expect(comments).toHaveText("In the 7 am digest");
+  await expectNoViolations(page);
+  await comments.click();
+  await page.getByRole("option", { name: "Off" }).click();
+  await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("combobox", { name: "A comment on a task I own or watch" })).toHaveText("Off");
+  await expect(page.getByText("Usually in the 7 am digest")).toBeVisible();
+  // Access-request emails are only offered to people who decide requests.
+  await expect(page.getByRole("combobox", { name: "Someone asks to join a project I run" })).toHaveCount(0);
+});
+
+test("NOTIF-6 an unsubscribe link that isn't valid says so, without signing in", async ({ page }) => {
+  await page.goto("/unsubscribe?u=1&e=task.assigned&t=not-a-real-token");
+  await expect(page.getByRole("heading", { level: 1, name: /Unsubscribe from/ })).toBeVisible();
+  await expectNoViolations(page);
+  await page.getByRole("button", { name: "Unsubscribe" }).click();
+  await expect(page.getByRole("alert")).toHaveText(UNSUBSCRIBE_COPY.invalid);
 });

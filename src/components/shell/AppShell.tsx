@@ -6,6 +6,7 @@ import {
   Inbox,
   type LucideIcon,
   LogOut,
+  Mail,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -312,7 +313,7 @@ function ProfilePopover({ me, collapsed }: { me: MeResponse; collapsed: boolean 
   );
 }
 
-/** Name, theme, request more projects (AUTH-5), privacy and sign out. Used in the popover and the mobile sheet. */
+/** Name, theme, request more projects (AUTH-5), email settings (NOTIF-5), privacy and sign out. Used in the popover and the mobile sheet. */
 function ProfilePanel({ me, onDone }: { me: MeResponse; onDone: () => void }) {
   const saveTheme = useSaveTheme(me);
   const signOut = useSignOut();
@@ -333,6 +334,10 @@ function ProfilePanel({ me, onDone }: { me: MeResponse; onDone: () => void }) {
         <Link to="/request-access" className={linkClass} onClick={onDone}>
           <Icon icon={FolderPlus} />
           Request access to more projects
+        </Link>
+        <Link to="/settings/notifications" className={linkClass} onClick={onDone}>
+          <Icon icon={Mail} />
+          Email settings
         </Link>
         <Link to="/privacy" className={linkClass} onClick={onDone}>
           <Icon icon={Shield} />

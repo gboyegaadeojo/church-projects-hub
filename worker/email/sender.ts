@@ -60,7 +60,16 @@ export function unsubscribeToken(secret: string, userId: number, eventType: stri
   return hmac(secret, `unsubscribe:${userId}:${eventType}`);
 }
 
-export async function unsubscribeUrl(env: Pick<Env, "SESSION_SECRET" | "APP_BASE_URL">, userId: number, eventType: string): Promise<string> {
+/**
+ * NOTIF-6: the footer link opens a page that confirms with one button (so mail scanners that follow links
+ * unsubscribe nobody); the List-Unsubscribe header points at the API, which RFC 8058 mail apps POST to directly.
+ */
+export async function unsubscribeUrls(
+  env: Pick<Env, "SESSION_SECRET" | "APP_BASE_URL">,
+  userId: number,
+  eventType: string,
+): Promise<{ unsubscribe: string; oneClick: string }> {
   const t = await unsubscribeToken(env.SESSION_SECRET, userId, eventType);
-  return `${env.APP_BASE_URL}/api/unsubscribe?u=${userId}&e=${encodeURIComponent(eventType)}&t=${t}`;
+  const query = `u=${userId}&e=${encodeURIComponent(eventType)}&t=${t}`;
+  return { unsubscribe: `${env.APP_BASE_URL}/unsubscribe?${query}`, oneClick: `${env.APP_BASE_URL}/api/unsubscribe?${query}` };
 }

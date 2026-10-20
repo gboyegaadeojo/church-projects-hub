@@ -13,11 +13,13 @@ import { ProjectPage } from "./pages/ProjectPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { HomePage } from "./pages/HomePage";
 import { InvitePage } from "./pages/InvitePage";
+import { NotificationSettingsPage } from "./pages/NotificationSettingsPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { RequestAccessPage } from "./pages/RequestAccessPage";
 import { SearchPage } from "./pages/SearchPage";
 import { InviteExpiredPage, InviteMismatchPage, SuspendedPage } from "./pages/SecurityScreens";
+import { UnsubscribePage } from "./pages/UnsubscribePage";
 import { WorkPage } from "./pages/WorkPage";
 
 const queryClient = new QueryClient();
@@ -41,12 +43,14 @@ function App() {
           <Route path="/work" element={<WorkPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:key" element={<ProjectPage />} />
           <Route path="/admin/requests" element={<AdminRequestsPage />} />
           <Route path="/admin/projects" element={<AdminProjectsPage />} />
         </Route>
         <Route path="/invite/:token" element={<InvitePage />} />
+        <Route path="/unsubscribe" element={<UnsubscribePage />} />
         {/* Security-state screens (section 11.7) */}
         <Route path="/suspended" element={<SuspendedPage />} />
         <Route path="/invite-expired" element={<InviteExpiredPage />} />

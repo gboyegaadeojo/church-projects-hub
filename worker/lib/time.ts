@@ -40,6 +40,21 @@ function offsetAt(at: number, timeZone: string): number {
   return Date.UTC(w.y, w.m - 1, w.d, w.h, w.min, w.s) - (at - (at % 1000));
 }
 
+/** Whether `timeZone` is a zone name this runtime knows. */
+export function isTimeZone(timeZone: string): boolean {
+  try {
+    formatter(timeZone);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The hour (0–23) on the wall clock in `timeZone` at instant `at`; unknown zones read as the default. */
+export function localHour(at: number, timeZone: string): number {
+  return wallClock(at, isTimeZone(timeZone) ? timeZone : DEFAULT_TIMEZONE).h;
+}
+
 /** Epoch ms of local midnight that starts the calendar day containing `now` in `timeZone`. */
 export function startOfDay(now: number, timeZone: string): number {
   let zone = timeZone;

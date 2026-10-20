@@ -1,5 +1,5 @@
-import { renderEmail, type EmailTemplate } from "../email/templates";
-import { type EmailSender, unsubscribeUrl } from "../email/sender";
+import { type DigestItem, renderDigest, renderEmail, type EmailTemplate } from "../email/templates";
+import { type EmailSender, unsubscribeUrls } from "../email/sender";
 
 // Sends due instant emails (section 8 "Sending mechanics"), every 5 minutes from the cron dispatcher.
 // - Failures retry after 5, 30 and 120 minutes, then park as failed (visible to admins in Stage 6).
@@ -12,7 +12,7 @@ export const RETRY_AFTER_MIN = [5, 30, 120] as const;
 export const PER_PERSON_DAILY = 6;
 export const DAILY_SWITCH_TO_DIGEST = 240;
 const BATCH = 20;
-const ALWAYS_INSTANT = new Set<string>(["access.requested", "access.decided", "access.nudge", "access.reminder", "invite"]);
+const ALWAYS_INSTANT = new Set<string>(["access.requested", "access.decided", "access.nudge", "access.reminder", "invite", "digest"]);
 
 type Row = {
   id: number;
@@ -61,10 +61,12 @@ export async function sendDueEmails(
     total += c.n;
   }
 
-  const links = (userId: number | null, template: string) =>
+  const settings = `${env.APP_BASE_URL}/settings/notifications`;
+  // Invites go to someone who isn't a user yet, so they have no settings to unsubscribe from.
+  const links = async (userId: number | null, template: string) =>
     userId === null || template === "invite"
-      ? Promise.resolve({ base: env.APP_BASE_URL, settings: `${env.APP_BASE_URL}/settings/notifications`, unsubscribe: null })
-      : unsubscribeUrl(env, userId, template).then((u) => ({ base: env.APP_BASE_URL, settings: `${env.APP_BASE_URL}/settings/notifications`, unsubscribe: u }));
+      ? { base: env.APP_BASE_URL, settings, unsubscribe: null, oneClick: null }
+      : { base: env.APP_BASE_URL, settings, ...(await unsubscribeUrls(env, userId, template)) };
 
   for (const row of rows) {
     const to = row.to_email ?? row.email;
@@ -81,8 +83,10 @@ export async function sendDueEmails(
     }
     try {
       const l = await links(row.user_id, row.template);
-      const rendered = renderEmail(row.template as EmailTemplate, JSON.parse(row.payload_json), l);
-      await sender.send({ to, ...rendered, unsubscribeUrl: l.unsubscribe });
+      const payload = JSON.parse(row.payload_json);
+      const rendered =
+        row.template === "digest" ? renderDigest((payload as { items: DigestItem[] }).items, l) : renderEmail(row.template as EmailTemplate, payload, l);
+      await sender.send({ to, ...rendered, unsubscribeUrl: l.oneClick });
       // Invites carry a one-time link; once sent it isn't kept.
       await env.DB.prepare(
         `UPDATE email_outbox SET status = 'sent', sent_at = ?2, attempts = attempts + 1, last_error = NULL,

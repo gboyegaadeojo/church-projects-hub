@@ -7,7 +7,7 @@ import { type NotificationPayload, type NotificationType } from "../../shared/no
 
 export type EmailTemplate = NotificationType | "invite" | "digest";
 export type Rendered = { subject: string; html: string; text: string };
-export type Links = { base: string; settings: string; unsubscribe: string | null };
+export type Links = { base: string; settings: string; unsubscribe: string | null; oneClick?: string | null };
 
 type Payload = NotificationPayload & { actorName?: string | null; link?: string; role?: string; expiresAt?: number; count?: number };
 
