@@ -21,6 +21,8 @@ export const ACTIONS = [
   "audit.export", // Export audit log to CSV
   "session.revoke", // Revoke another user's session
   "data.requestDeletion", // Request own data deletion
+  // Not a matrix row: section 2 has App Admins "manage users" (directory, suspend, restore, app roles; ADM-2).
+  "user.manage",
   // Not a matrix row: inviting follows "Approve access requests" (section 2: Project Admins invite people).
   "invite.create",
 ] as const;

@@ -1,8 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { EyeOff, FolderPlus, Lock, Pencil, Plus, Settings2 } from "lucide-react";
+import { Archive, ArchiveRestore, EyeOff, FolderPlus, Lock, Pencil, Plus, Settings2 } from "lucide-react";
 import { RadioGroup as RadixRadioGroup } from "radix-ui";
 import { type FormEvent, type ReactNode, useId, useState } from "react";
 import type { z } from "zod";
+import { ADMIN_CONFIRM } from "../../shared/admin";
 import type { MeResponse } from "../../shared/auth";
 import {
   createProjectBody,
@@ -24,6 +25,7 @@ import { PageLayout } from "../components/shell/PageLayout";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Switch } from "../components/ui/choices";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { Dialog, DialogContent } from "../components/ui/Dialog";
 import { Field, FieldError } from "../components/ui/Field";
 import { Icon } from "../components/ui/Icon";
@@ -35,8 +37,8 @@ import { api, ApiError } from "../lib/api";
 import { cn } from "../lib/cn";
 import { PROJECT_COLOUR_CLASSES, PROJECT_ICON_COMPONENTS, PROJECT_ICON_LABELS, PROJECTS_KEY, useMyProjects } from "../lib/projects";
 
-// Manage projects (PROJ-1, PROJ-6): App Admins create projects and edit them, including the Hidden
-// (invite-only) flag. Archive and restore (PROJ-4) come with the admin area in Stage 6.
+// Manage projects (PROJ-1, PROJ-4, PROJ-6): App Admins create projects, edit them (including the
+// Hidden, invite-only flag), and archive or restore them.
 
 const FAILED = "That didn't go through. Check your connection and try again.";
 
@@ -61,6 +63,19 @@ function ProjectTable({ me }: { me: MeResponse }) {
   // App Admins' own list holds every project (GET /api/projects).
   const projects = useMyProjects();
   const [editing, setEditing] = useState<ProjectSummary | null>(null);
+  const [archiving, setArchiving] = useState<ProjectSummary | null>(null);
+  const queryClient = useQueryClient();
+
+  // PROJ-4: archive is high impact (type the key); restoring isn't destructive, so it needs no dialog.
+  async function restore(p: ProjectSummary) {
+    try {
+      await api(`/api/projects/${p.id}/restore`, { method: "POST", csrfToken: me.csrfToken });
+      await queryClient.invalidateQueries({ queryKey: PROJECTS_KEY });
+      toast({ variant: "success", title: "Project restored." });
+    } catch {
+      toast({ variant: "error", title: FAILED });
+    }
+  }
 
   if (projects.isError) {
     return (
@@ -89,7 +104,16 @@ function ProjectTable({ me }: { me: MeResponse }) {
         </span>
       ),
     },
-    { key: "key", header: "Key", cell: (p) => <span className="tabular-nums">{p.key}</span> },
+    {
+      key: "key",
+      header: "Key",
+      cell: (p) => (
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="tabular-nums">{p.key}</span>
+          {p.archived && <Badge tone="warning">Archived</Badge>}
+        </span>
+      ),
+    },
     {
       key: "visibility",
       header: "Who can find it",
@@ -120,12 +144,41 @@ function ProjectTable({ me }: { me: MeResponse }) {
           p.isSystem ? (
             <span className="text-caption text-ink-2">Built in</span>
           ) : (
-            <Button variant="secondary" icon={Pencil} onClick={() => setEditing(p)} aria-label={`Edit ${p.name}`}>
-              Edit
-            </Button>
+            <span className="flex flex-wrap justify-end gap-2">
+              {!p.archived && (
+                <Button variant="secondary" icon={Pencil} onClick={() => setEditing(p)} aria-label={`Edit ${p.name}`}>
+                  Edit
+                </Button>
+              )}
+              {p.archived ? (
+                <Button variant="secondary" icon={ArchiveRestore} onClick={() => void restore(p)} aria-label={`Restore ${p.name}`}>
+                  Restore
+                </Button>
+              ) : (
+                <Button variant="ghost" icon={Archive} onClick={() => setArchiving(p)} aria-label={`Archive ${p.name}`}>
+                  Archive
+                </Button>
+              )}
+            </span>
           )
         }
         empty={<EmptyState icon={FolderPlus} title="No projects yet. Create the first one." />}
+      />
+      <ConfirmDialog
+        open={archiving !== null}
+        onOpenChange={(open) => !open && setArchiving(null)}
+        title={`Archive ${archiving?.name ?? "this project"}?`}
+        description="It becomes read-only for everyone: no new tasks, edits or comments until it's restored."
+        confirmLabel="Archive project"
+        confirmIcon={Archive}
+        confirmAction={ADMIN_CONFIRM.archiveProject}
+        confirmText={archiving?.key}
+        successMessage="Project archived."
+        onConfirm={async (headers) => {
+          await api(`/api/projects/${archiving!.id}/archive`, { method: "POST", csrfToken: me.csrfToken, headers });
+          await queryClient.invalidateQueries({ queryKey: PROJECTS_KEY });
+          setArchiving(null);
+        }}
       />
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
         {editing && (

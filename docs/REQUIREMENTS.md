@@ -267,7 +267,7 @@ Each requirement has an ID traceable to a GitHub issue and a test. Priority: **M
 | NFR-13 | Accessibility | WCAG 2.2 AA: 4.5:1 text contrast, full keyboard use including drag-and-drop alternatives, visible focus, screen reader labels, respects `prefers-reduced-motion`. |
 | NFR-14 | Compatibility | Latest 2 versions of Safari (iOS + macOS), Chrome, Edge, Firefox. Works from 360 px wide. Installable as a PWA. |
 | NFR-15 | Observability | Structured error logging with request IDs. App Admins get an email if errors exceed 20 in an hour. |
-| NFR-16 | Cost | Worker requests and D1 stay inside free-tier limits with at least 5x headroom at 50 users and 3x at 150 users, Hub and checklist app combined (budget in section 5). Email stays under the 300/day cap through cap protection; switch provider at about 100 active users. Usage panel warns at 80%. |
+| NFR-16 | Cost | Worker requests and D1 stay inside free-tier limits with at least 5x headroom at 50 users and 3x at 150 users, Hub and checklist app combined (budget in section 5). Email stays under the 100/day Resend free cap through cap protection; switch provider at about 40 active users. Usage panel warns at 80%. |
 | NFR-17 | Maintainability | One TypeScript codebase, one repo. Documented setup in under 15 minutes for a new volunteer developer. |
 | NFR-18 | Reliability | If D1 is unavailable: show a maintenance page — "The hub is temporarily unavailable. We're aware and working on it." No stack traces. |
 | NFR-19 | Reliability | If Resend is unavailable, in-app notifications still work. Email delivery resumes automatically on recovery. |

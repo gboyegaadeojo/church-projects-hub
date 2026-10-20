@@ -9,6 +9,7 @@ import { MaintenancePage } from "./components/StatusBanners";
 import { useMaintenance } from "./lib/maintenance";
 import { AdminProjectsPage } from "./pages/AdminProjectsPage";
 import { AdminRequestsPage } from "./pages/AdminRequestsPage";
+import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { ProjectPage } from "./pages/ProjectPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { BugReportPage, FeatureRequestPage, MyFeedbackPage } from "./pages/FeedbackPages";
@@ -54,6 +55,7 @@ function App() {
           <Route path="/projects/:key" element={<ProjectPage />} />
           <Route path="/admin/requests" element={<AdminRequestsPage />} />
           <Route path="/admin/projects" element={<AdminProjectsPage />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
         </Route>
         <Route path="/invite/:token" element={<InvitePage />} />
         <Route path="/unsubscribe" element={<UnsubscribePage />} />

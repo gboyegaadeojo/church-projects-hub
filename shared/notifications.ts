@@ -20,6 +20,8 @@ export const NOTIFICATION_EVENTS = {
   "access.nudge": { label: "Someone is still waiting to join a project I run", bell: true, email: "instant" },
   // Section 7: requests still pending after 3 days, once, to every App Admin.
   "access.reminder": { label: "Access requests waiting more than 3 days", bell: false, email: "instant" },
+  // Section 8: an App Admin signed this person out everywhere. Always emailed, so it isn't a setting.
+  "session.revoked": { label: "An app admin signed me out", bell: false, email: "instant" },
   "feedback.status_changed": { label: "My bug report or idea changes status", bell: true, email: "digest" },
   "project.weekly_summary": { label: "Weekly summary of projects I run", bell: false, email: "off" },
 } as const satisfies Record<string, { label: string; bell: boolean; email: EmailMode }>;
@@ -101,6 +103,8 @@ export function describeNotification(n: Pick<NotificationItem, "type" | "actor" 
       return `${who} is still waiting to join ${n.payload.projectName ?? "a project"}`;
     case "access.reminder":
       return "Access requests are waiting more than 3 days";
+    case "session.revoked":
+      return "An app admin signed you out on all your devices";
     case "feedback.status_changed":
       return `Your feedback ${task} moved to ${n.payload.stateName ?? "a new status"}`;
     case "project.weekly_summary":
@@ -121,7 +125,7 @@ export function notificationHref(n: Pick<NotificationItem, "type" | "payload">):
 // ---- Email settings (NOTIF-5) and one-click unsubscribe (NOTIF-6)
 
 /** Events a person can set. The weekly summary isn't built yet, so it isn't offered. */
-export const SETTABLE_EVENTS = NOTIFICATION_TYPES.filter((t) => t !== "project.weekly_summary");
+export const SETTABLE_EVENTS = NOTIFICATION_TYPES.filter((t) => t !== "project.weekly_summary" && t !== "session.revoked");
 /** Shown only to people who decide access requests; the 3-day reminder only to App Admins. */
 export const DECIDER_EVENTS: readonly NotificationType[] = ["access.requested", "access.nudge"];
 export const APP_ADMIN_EVENTS: readonly NotificationType[] = ["access.reminder"];

@@ -12,6 +12,7 @@ import {
   Search,
   Settings2,
   Shield,
+  Users,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from "react-router";
@@ -66,6 +67,7 @@ export function adminLinks(me: MeResponse): { to: string; label: string; icon: L
   return [
     ...(me.canReviewAccess ? [{ to: "/admin/requests", label: "Access requests", icon: Inbox }] : []),
     ...(me.user.appRole === "admin" ? [{ to: "/admin/projects", label: "Manage projects", icon: Settings2 }] : []),
+    ...(me.user.appRole === "admin" ? [{ to: "/admin/users", label: "Users", icon: Users }] : []),
   ];
 }
 
