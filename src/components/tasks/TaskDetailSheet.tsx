@@ -36,6 +36,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/Menu";
 import { Skeleton } from "../ui/Skeleton";
 import { EmptyState, ErrorState } from "../ui/States";
 import { toast } from "../ui/Toast";
+import { AttachmentSection } from "./Attachments";
 import { DueBadge, formatDate, LabelChip } from "./bits";
 import { isEmptyDoc, RichTextView } from "./RichTextView";
 
@@ -165,6 +166,13 @@ function TaskBody({ task, board, project, me, canEdit, onDeleted }: { task: Task
         <div className="flex min-w-0 flex-col gap-group">
           <DescriptionSection task={task} people={board.members} canEdit={canEdit} onSave={(doc) => save({ description: doc as never })} />
           <SubtaskSection task={task} canEdit={canEdit} csrfToken={me.csrfToken} />
+          <AttachmentSection
+            task={task}
+            canEdit={canEdit}
+            meId={me.user.id}
+            isAdmin={me.user.appRole === "admin" || project.role === "admin"}
+            csrfToken={me.csrfToken}
+          />
           <CommentSection
             task={task}
             me={me}
@@ -714,6 +722,10 @@ function describeEvent(e: TaskEvent, board: BoardResponse, people: Map<number, {
       return `unticked “${e.newValue}”`;
     case "subtask_removed":
       return `removed “${e.oldValue}” from the checklist`;
+    case "attachment_added":
+      return `attached ${e.newValue}`;
+    case "attachment_removed":
+      return `deleted the file ${e.oldValue}`;
     default:
       return "changed the task";
   }

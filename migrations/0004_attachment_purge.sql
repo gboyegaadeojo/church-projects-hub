@@ -1,0 +1,1 @@
+ALTER TABLE `attachments` ADD `purged_at` integer;

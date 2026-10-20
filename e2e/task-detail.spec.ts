@@ -115,6 +115,27 @@ test.describe("Section 11.3 task detail", () => {
     await expect(detail.getByText(`@${me.name}`).last()).toBeVisible();
   });
 
+  test("TASK-5 attaching files: upload, list, open and the unsupported-type message", async ({ pageAs }, testInfo) => {
+    const v = viewportOf(testInfo);
+    const project = DETAIL_PROJECTS[v];
+    const key = `${project.key}-2`;
+    const page = await pageAs(persona("mover", v));
+    await page.goto(`/projects/${project.key}?task=${key}`);
+    const detail = sheet(page, key);
+    await expect(detail.getByText("Don't upload children's details or confidential pastoral information.")).toBeVisible();
+    const picker = detail.locator("input[type=file]");
+    await picker.setInputFiles({ name: "run-sheet.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7\n%e2e\n") });
+    const link = detail.getByRole("link", { name: /run-sheet\.pdf/ });
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute("href", /^\/api\/attachments\/\d+$/);
+    const res = await page.request.get((await link.getAttribute("href"))!);
+    expect(res.headers()["content-type"]).toBe("application/pdf");
+
+    await picker.setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("hello") });
+    await expect(detail.getByText("Only images and PDFs are supported.")).toBeVisible();
+    await expectNoViolations(page, "[role=dialog]");
+  });
+
   test("NFR-10 a conflicting change shows the conflict message and the latest version", async ({ pageAs }, testInfo) => {
     const v = viewportOf(testInfo);
     const project = DETAIL_PROJECTS[v];

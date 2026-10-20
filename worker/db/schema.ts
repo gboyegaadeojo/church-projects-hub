@@ -377,6 +377,8 @@ export const attachments = sqliteTable(
       .notNull()
       .references(() => users.id),
     deletedAt: integer("deleted_at"),
+    // When the R2 object was removed. A deleted row without it is retried by the daily clean-up.
+    purgedAt: integer("purged_at"),
     ...timestamps,
   },
   (t) => [index("attachments_task_id_idx").on(t.taskId)],

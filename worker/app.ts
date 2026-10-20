@@ -6,6 +6,7 @@ import { sameOriginWrites } from "./auth/middleware";
 import { authRoutes } from "./auth/routes";
 import { profileRoutes } from "./profile/routes";
 import { projectRoutes } from "./projects/routes";
+import { attachmentRoutes } from "./tasks/attachments";
 import { filterRoutes } from "./tasks/filters";
 import { itemRoutes } from "./tasks/items";
 import { orgRoutes } from "./tasks/org";
@@ -38,6 +39,7 @@ export function createApp(deps: AppDeps) {
   app.route("/", itemRoutes());
   app.route("/", orgRoutes());
   app.route("/", filterRoutes());
+  app.route("/", attachmentRoutes());
 
   // Unknown API routes return JSON, never the SPA shell.
   app.notFound((c) => c.json({ error: "Not found" }, 404));
