@@ -1,4 +1,4 @@
-import { type DigestItem, renderDigest, renderEmail, type EmailTemplate } from "../email/templates";
+import { type DigestItem, renderDigest, renderEmail, type EmailTemplate, SYSTEM_TEMPLATES } from "../email/templates";
 import { type EmailSender, unsubscribeUrls } from "../email/sender";
 
 // Sends due instant emails (section 8 "Sending mechanics"), every 5 minutes from the cron dispatcher.
@@ -12,7 +12,7 @@ export const RETRY_AFTER_MIN = [5, 30, 120] as const;
 export const PER_PERSON_DAILY = 6;
 export const DAILY_SWITCH_TO_DIGEST = 80;
 const BATCH = 20;
-const ALWAYS_INSTANT = new Set<string>(["access.requested", "access.decided", "access.nudge", "access.reminder", "invite", "digest", "session.revoked"]);
+const ALWAYS_INSTANT = new Set<string>(["access.requested", "access.decided", "access.nudge", "access.reminder", "invite", "digest", "session.revoked", ...SYSTEM_TEMPLATES]);
 
 type Row = {
   id: number;
@@ -64,7 +64,7 @@ export async function sendDueEmails(
   const settings = `${env.APP_BASE_URL}/settings/notifications`;
   // Invites go to someone who isn't a user yet, so they have no settings to unsubscribe from.
   const links = async (userId: number | null, template: string) =>
-    userId === null || template === "invite"
+    userId === null || template === "invite" || (SYSTEM_TEMPLATES as readonly string[]).includes(template)
       ? { base: env.APP_BASE_URL, settings, unsubscribe: null, oneClick: null }
       : { base: env.APP_BASE_URL, settings, ...(await unsubscribeUrls(env, userId, template)) };
 

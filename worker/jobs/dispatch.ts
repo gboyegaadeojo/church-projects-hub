@@ -4,6 +4,7 @@
 import { inviteExpiryStatement } from "../access/manage";
 import { emailSenderFor } from "../email/sender";
 import { dueReminderStatements, queueDigests } from "./digest";
+import { usageChecks } from "../admin/usage";
 import { cleanOrphanedAttachments } from "./orphans";
 import { accessReminderStatement, sendDueEmails } from "./outbox";
 
@@ -42,7 +43,11 @@ export async function runScheduledJobs(now: Date, env: Env): Promise<DueJobs> {
     await inviteExpiryStatement(env, ms).run();
   }
   // Section 8 rule 3: digests for everyone whose local time is 7 am, sent by the outbox step below.
-  if (due.hourly) await queueDigests(env, ms);
+  if (due.hourly) {
+    await queueDigests(env, ms);
+    // ADM-5 and NFR-15: free-tier warnings and the error-spike alert, sent by the outbox step below.
+    await usageChecks(env, ms);
+  }
   // Stage 7: incremental report_snapshots.
   // Stage 6d: retention queue (ADM-8).
   if (due.outbox) await sendDueEmails(env, emailSenderFor(env), ms);

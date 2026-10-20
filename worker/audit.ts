@@ -34,6 +34,9 @@ export const AUDIT = {
   subtaskDeleted: "subtask.deleted",
   attachmentDeleted: "attachment.deleted",
   savedFilterDeleted: "saved_filter.deleted",
+  // System (section 6).
+  freeTierWarning: "system.free_tier_warning",
+  usageLimitReached: "system.usage_limit_reached",
   // Content (section 6).
   newsPublished: "news.published",
   newsEdited: "news.edited",
@@ -55,7 +58,8 @@ export type AuditTargetType =
   | "component"
   | "milestone"
   | "saved_filter"
-  | "news";
+  | "news"
+  | "system";
 
 export type AuditEvent = {
   actorId: number | null;

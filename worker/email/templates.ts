@@ -5,11 +5,23 @@ import { type NotificationPayload, type NotificationType } from "../../shared/no
 // a footer with notification settings and one-click unsubscribe. Every value is HTML-escaped; nothing from a
 // person is ever inserted as HTML.
 
-export type EmailTemplate = NotificationType | "invite" | "digest";
+/** System emails to App Admins (ADM-5, NFR-15); not settings, so they carry no unsubscribe link. */
+export const SYSTEM_TEMPLATES = ["usage.warning", "errors.alert"] as const;
+export type EmailTemplate = NotificationType | "invite" | "digest" | (typeof SYSTEM_TEMPLATES)[number];
 export type Rendered = { subject: string; html: string; text: string };
 export type Links = { base: string; settings: string; unsubscribe: string | null; oneClick?: string | null };
 
-type Payload = NotificationPayload & { actorName?: string | null; link?: string; role?: string; expiresAt?: number; count?: number };
+type Payload = NotificationPayload & {
+  actorName?: string | null;
+  link?: string;
+  role?: string;
+  expiresAt?: number;
+  count?: number;
+  metric?: string;
+  used?: number;
+  limit?: number;
+  percent?: number;
+};
 
 export function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
@@ -83,6 +95,18 @@ export function eventContent(template: EmailTemplate, p: Payload, base: string):
         line: `${who} invited you to join ${p.projectName ?? "a project"} as ${ROLE_WORDS[p.role ?? ""] ?? "a member"}`,
         details: ["Sign in with Google using this email address to accept. The link works once and expires in 7 days."],
         button: { label: "Accept the invitation", href: p.link ?? base },
+      };
+    case "usage.warning":
+      return {
+        line: `${p.metric ?? "A free-tier limit"} is at ${p.percent ?? 80}% of today's free limit`,
+        details: [`Used today: ${(p.used ?? 0).toLocaleString("en-CA")} of ${(p.limit ?? 0).toLocaleString("en-CA")}. Limits reset at midnight UTC.`],
+        button: { label: "Open the usage panel", href: `${base}/admin/usage` },
+      };
+    case "errors.alert":
+      return {
+        line: `The hub had ${p.count ?? "many"} errors in the last hour`,
+        details: ["People may be seeing 'Something went wrong'. Check the Worker logs in Cloudflare for details."],
+        button: { label: "Open the usage panel", href: `${base}/admin/usage` },
       };
     case "digest":
       return { line: "Your daily summary", details: [], button: { label: "Open My Work", href: `${base}/work` } };
