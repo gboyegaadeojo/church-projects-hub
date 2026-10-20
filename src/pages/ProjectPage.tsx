@@ -12,6 +12,7 @@ import { Board } from "../components/tasks/Board";
 import { BulkBar } from "../components/tasks/BulkBar";
 import { FilterBar } from "../components/tasks/FilterBar";
 import { NewTaskDialog } from "../components/tasks/NewTaskDialog";
+import { TaskDetailSheet } from "../components/tasks/TaskDetailSheet";
 import { TaskList } from "../components/tasks/TaskList";
 import { Button, buttonClasses } from "../components/ui/Button";
 import { Icon } from "../components/ui/Icon";
@@ -115,6 +116,7 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
   const me = useMe();
   const [params, setParams] = useSearchParams();
   const view = params.get("view") === "list" ? "list" : "board";
+  const taskParam = params.get("task");
   const filter = useMemo(() => filterFromSearch(params), [params]);
   const board = useBoard(project.id);
   const move = useMoveTask(project.id, me.csrfToken);
@@ -295,6 +297,22 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
             />
           )}
         </>
+      )}
+      {data && taskParam && (
+        <TaskDetailSheet
+          taskKey={taskParam}
+          board={data}
+          project={project}
+          me={me}
+          canEdit={canEdit}
+          onClose={() =>
+            setParams((p) => {
+              const next = new URLSearchParams(p);
+              next.delete("task");
+              return next;
+            })
+          }
+        />
       )}
       {data && canEdit && (
         <NewTaskDialog
