@@ -10,6 +10,7 @@ import { Icon } from "../ui/Icon";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from "../ui/Menu";
 import { SortIcon, type SortState } from "../ui/Table";
 import { DueBadge, LabelChip, PriorityIndicator, TypeIcon } from "./bits";
+import { columnTones, PriorityPill, StatusPill } from "./tones";
 
 // List view (TASK-2: sort and filter) with multi-select for bulk edit (TASK-10). On phones each row can be
 // swiped right to mark it complete or left to reassign (TASK-12); the row's menu offers the same two actions.
@@ -65,6 +66,7 @@ export function TaskList(props: ListProps) {
   const statePos = useMemo(() => new Map(states.map((s) => [s.id, s.position])), [states]);
   const stateName = useMemo(() => new Map(states.map((s) => [s.id, s.name])), [states]);
   const doneStates = useMemo(() => new Set(states.filter((s) => s.category === "done").map((s) => s.id)), [states]);
+  const tones = useMemo(() => columnTones(states), [states]);
 
   const rows = useMemo(() => {
     const value = (t: TaskCard): string | number => {
@@ -168,7 +170,9 @@ export function TaskList(props: ListProps) {
                       {t.title}
                     </button>
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-ink">{stateName.get(t.stateId)}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <StatusPill name={stateName.get(t.stateId) ?? ""} tone={tones.get(t.stateId) ?? "grey"} className="min-w-24" />
+                  </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     {assignee ? (
                       <span className="inline-flex items-center gap-2">
@@ -180,7 +184,7 @@ export function TaskList(props: ListProps) {
                     )}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
-                    <PriorityIndicator priority={t.priority} withLabel />
+                    <PriorityPill priority={t.priority} className="min-w-20" />
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap">
                     <DueBadge dueDate={t.dueDate} today={today} done={doneStates.has(t.stateId)} />

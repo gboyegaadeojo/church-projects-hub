@@ -23,7 +23,8 @@ import { OfflineDisabled } from "../StatusBanners";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "../ui/Menu";
-import { DueBadge, LabelChip, PriorityIndicator, SubtaskProgress, TypeIcon } from "./bits";
+import { DueBadge, LabelChip, SubtaskProgress, TypeIcon } from "./bits";
+import { columnTones, PriorityPill, VIVID_CLASSES, type Vivid } from "./tones";
 
 // The project board (section 11.2, TASK-2). Drag and drop with dnd-kit on pointer and touch; every card also
 // has a Move button that opens a column picker, the keyboard and screen-reader alternative (NFR-13).
@@ -52,9 +53,6 @@ export const CATEGORY_DOT: Record<WorkflowState["category"], string> = {
   done: "bg-status-done",
 };
 
-function CategoryDot({ category }: { category: WorkflowState["category"] }) {
-  return <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", CATEGORY_DOT[category])} />;
-}
 const COLUMN_PREFIX = "column-";
 
 export function Board({ states, tasks, labels, people, today, canMove, offline = false, onOpen, onMove }: BoardProps) {
@@ -69,6 +67,7 @@ export function Board({ states, tasks, labels, people, today, canMove, offline =
   const columns = dragColumns ?? derived;
   const doneStates = useMemo(() => new Set(states.filter((s) => s.category === "done").map((s) => s.id)), [states]);
   const stateName = (id: number) => states.find((s) => s.id === id)?.name ?? "";
+  const tones = useMemo(() => columnTones(states), [states]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -150,7 +149,7 @@ export function Board({ states, tasks, labels, people, today, canMove, offline =
             className="inline-flex min-h-touch shrink-0 items-center gap-2 rounded-full border border-line-strong bg-card px-4 text-secondary text-ink state-hover:bg-hover"
             onClick={() => document.getElementById(`board-column-${s.id}`)?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" })}
           >
-            <CategoryDot category={s.category} />
+            <span aria-hidden="true" className={cn("size-2.5 shrink-0 rounded-full", VIVID_CLASSES[tones.get(s.id) ?? "grey"].bg)} />
             {s.name} <span className="text-ink-2 tabular-nums">{columns[s.id]?.length ?? 0}</span>
           </button>
         ))}
@@ -181,6 +180,7 @@ export function Board({ states, tasks, labels, people, today, canMove, offline =
             <Column
               key={state.id}
               state={state}
+              tone={tones.get(state.id) ?? "grey"}
               ids={columns[state.id] ?? []}
               byId={byId}
               labels={labels}
@@ -198,7 +198,7 @@ export function Board({ states, tasks, labels, people, today, canMove, offline =
         </div>
         <DragOverlay>
           {active && (
-            <CardBody task={active} labels={labels} people={people} today={today} done={doneStates.has(active.stateId)} className="shadow-modal" />
+            <CardBody task={active} labels={labels} people={people} today={today} done={doneStates.has(active.stateId)} tone={tones.get(active.stateId) ?? "grey"} className="shadow-modal" />
           )}
         </DragOverlay>
       </DndContext>
@@ -208,6 +208,7 @@ export function Board({ states, tasks, labels, people, today, canMove, offline =
 
 type ColumnProps = {
   state: WorkflowState;
+  tone: Vivid;
   ids: number[];
   byId: Map<number, TaskCard>;
   labels: Map<number, Label>;
@@ -222,20 +223,20 @@ type ColumnProps = {
   onMoveTo: (task: TaskCard, stateId: number) => void;
 };
 
-function Column({ state, ids, byId, labels, people, today, states, canMove, offline, done, activeId, onOpen, onMoveTo }: ColumnProps) {
+function Column({ state, tone, ids, byId, labels, people, today, states, canMove, offline, done, activeId, onOpen, onMoveTo }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `${COLUMN_PREFIX}${state.id}`, disabled: !canMove });
   const headingId = `board-column-${state.id}-title`;
   return (
     <section
       id={`board-column-${state.id}`}
       aria-labelledby={headingId}
-      className="relative flex w-[calc(100vw-2rem)] shrink-0 snap-start flex-col rounded-card bg-column md:w-72"
+      className="relative flex w-[calc(100vw-2rem)] shrink-0 snap-start flex-col overflow-hidden rounded-card bg-column md:w-72"
     >
-      <h2 id={headingId} className="flex items-center gap-2 px-3 pt-3 pb-2 text-secondary font-semibold text-ink">
-        <CategoryDot category={state.category} />
+      {/* The column's colour as a solid header band, like a monday.com group. */}
+      <h2 id={headingId} className={cn("flex items-center gap-2 px-3 py-2 text-secondary font-semibold text-on-vivid", VIVID_CLASSES[tone].bg)}>
         <span className="min-w-0 flex-1 truncate">{state.name}</span>
         {/* Section 11.2: open-task count in the header. */}
-        <span className="rounded-full bg-card px-2 text-label text-ink-2 tabular-nums shadow-raised">
+        <span className="rounded-pill border border-on-vivid/60 px-1.5 text-label font-semibold text-on-vivid tabular-nums">
           <span className="sr-only">{ids.length === 1 ? "1 task" : `${ids.length} tasks`}</span>
           <span aria-hidden="true">{ids.length}</span>
         </span>
@@ -255,6 +256,7 @@ function Column({ state, ids, byId, labels, people, today, states, canMove, offl
               <SortableCard
                 key={id}
                 task={task}
+                tone={tone}
                 labels={labels}
                 people={people}
                 today={today}
@@ -276,6 +278,7 @@ function Column({ state, ids, byId, labels, people, today, states, canMove, offl
 
 type CardProps = {
   task: TaskCard;
+  tone: Vivid;
   labels: Map<number, Label>;
   people: Map<number, Person>;
   today: string;
@@ -288,7 +291,7 @@ type CardProps = {
   onMoveTo: (task: TaskCard, stateId: number) => void;
 };
 
-const SortableCard = memo(function SortableCard({ task, labels, people, today, states, canMove, offline, done, dragging, onOpen, onMoveTo }: CardProps) {
+const SortableCard = memo(function SortableCard({ task, tone, labels, people, today, states, canMove, offline, done, dragging, onOpen, onMoveTo }: CardProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id, disabled: !canMove });
   // The keyboard alternative is the Move button, so the card itself isn't a dnd-kit keyboard target.
   const { role: _role, tabIndex: _tabIndex, ...dragAttributes } = attributes;
@@ -301,7 +304,7 @@ const SortableCard = memo(function SortableCard({ task, labels, people, today, s
       {...dragAttributes}
       {...listeners}
     >
-      <CardBody task={task} labels={labels} people={people} today={today} done={done} onOpen={() => onOpen(task)} />
+      <CardBody task={task} labels={labels} people={people} today={today} done={done} tone={tone} onOpen={() => onOpen(task)} />
       {(canMove || offline) && (
         <div className="absolute top-1 right-1">
           {canMove ? <MoveMenu task={task} states={states} onMoveTo={onMoveTo} /> : <OfflineDisabled label={`Move ${task.key}`} icon={ArrowRightLeft} iconOnly />}
@@ -335,16 +338,18 @@ type CardBodyProps = {
   people: Map<number, Person>;
   today: string;
   done: boolean;
+  /** The column's colour, shown as the card's left edge. */
+  tone: Vivid;
   onOpen?: () => void;
   className?: string;
 };
 
 /** Key, title, assignee avatar, due date, priority and at most 2 label chips (section 11.2). */
-export function CardBody({ task, labels, people, today, done, onOpen, className }: CardBodyProps) {
+export function CardBody({ task, labels, people, today, done, tone, onOpen, className }: CardBodyProps) {
   const assignee = task.assigneeId !== null ? people.get(task.assigneeId) : undefined;
   const cardLabels = task.labelIds.map((id) => labels.get(id)).filter((l): l is Label => !!l);
   return (
-    <article className={cn("lift flex flex-col gap-2.5 rounded-control border border-line bg-card p-3 shadow-raised", className)}>
+    <article className={cn("lift flex flex-col gap-2 rounded-control border border-l-4 border-line bg-card p-2.5 shadow-raised", VIVID_CLASSES[tone].edge, className)}>
       <h3 className="pr-9 text-secondary font-medium text-ink">
         {onOpen ? (
           // The whole card is the open target; the button stretches over it (the Move button sits above).
@@ -363,18 +368,20 @@ export function CardBody({ task, labels, people, today, done, onOpen, className 
           {cardLabels.length > 2 && <span className="text-label text-ink-2">+{cardLabels.length - 2}</span>}
         </span>
       )}
-      <span className="flex flex-wrap items-center gap-2">
-        <span className={cn("inline-flex items-center gap-1.5 text-label font-semibold text-ink-2", done && "line-through")}>
-          <TypeIcon type={task.type} />
-          <span className="tabular-nums">{task.key}</span>
+      <span className="flex items-end gap-2">
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+          <span className={cn("inline-flex items-center gap-1 text-label font-semibold text-ink-2", done && "line-through")}>
+            <TypeIcon type={task.type} />
+            <span className="tabular-nums">{task.key}</span>
+          </span>
+          <DueBadge dueDate={task.dueDate} today={today} done={done} />
+          <SubtaskProgress done={task.subtasksDone} total={task.subtasksTotal} />
         </span>
-        <DueBadge dueDate={task.dueDate} today={today} done={done} />
-        <SubtaskProgress done={task.subtasksDone} total={task.subtasksTotal} />
-        <span className="ml-auto inline-flex items-center gap-2">
-          <PriorityIndicator priority={task.priority} />
+        <span className="inline-flex shrink-0 items-center gap-1.5">
+          <PriorityPill priority={task.priority} />
           {assignee ? (
             <span className="inline-flex" title={assignee.name}>
-              <Avatar name={assignee.name} url={assignee.avatarUrl} size="sm" />
+              <Avatar name={assignee.name} url={assignee.avatarUrl} size="xs" />
               <span className="sr-only">Assigned to {assignee.name}</span>
             </span>
           ) : (

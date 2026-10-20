@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Figtree (OFL), bundled and served from our own origin: no third-party font requests. */
+@import "@fontsource-variable/figtree/wght.css";
 
 /*
   Design tokens — docs/REQUIREMENTS.md sections 9, 10, 12 and 13.
@@ -23,84 +25,100 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  /* Surfaces (section 9 roles). A cool, work-tracker neutral: navy-tinted greys, white cards. */
+  /* Surfaces (section 9 roles). Bright and airy, like monday.com: white cards on a cool lavender-grey page. */
   --surface-primary: #ffffff;
-  --surface-secondary: #f7f8f9;
+  --surface-secondary: #f6f7fb;
   --surface-elevated: #ffffff;
   /* Usage: light grey page with white cards */
   --surface-page: var(--surface-secondary);
   --surface-card: var(--surface-primary);
-  --surface-hover: #f1f2f4;
-  --surface-pressed: #dcdfe4;
-  --surface-disabled: #f1f2f4;
+  --surface-hover: #eceff8;
+  --surface-pressed: #dcdfec;
+  --surface-disabled: #eceff8;
   /* Board columns sit a step below the page so white cards stand out on them */
-  --surface-column: #f1f2f4;
+  --surface-column: #eef0f7;
 
-  /* Text: deep navy rather than black, softer on the eye at the same contrast */
-  --ink-primary: #172b4d;
-  --ink-secondary: #44546f;
-  --ink-disabled: #5e6c84;
+  /* Text: a soft charcoal rather than black */
+  --ink-primary: #323338;
+  --ink-secondary: #5f6175;
+  --ink-disabled: #5f6175;
   --ink-on-accent: #ffffff;
   --ink-on-danger: #ffffff;
+  /* Text on the solid vivid pills (status, priority) in both themes */
+  --ink-on-vivid: #ffffff;
 
   /* Borders: decorative and component boundaries (≥ 3:1) */
-  --line: #dcdfe4;
-  --line-strong: #758195;
+  --line: #d0d4e4;
+  --line-strong: #7c7f93;
 
   /* Project accent (default; a project overrides --accent on its container) */
-  --accent: #0c66e4;
-  --accent-hover: #0055cc;
-  --accent-pressed: #09326c;
-  --accent-soft: #e9f2ff;
-  --accent-ink: #0055cc;
+  --accent: #0073ea;
+  --accent-hover: #0060b9;
+  --accent-pressed: #004a90;
+  --accent-soft: #dcebfd;
+  --accent-ink: #0058b0;
 
-  /* Brand: the logo tile, the welcome banner and the active-nav marker */
-  --brand-from: #0c66e4;
-  --brand-to: #6e5dc6;
-  --hero-from: #e9f2ff;
-  --hero-to: #f3f0ff;
+  /* Brand: the logo tile, the welcome banner and the active-nav marker. Blue to violet, monday-style. */
+  --brand-from: #0073ea;
+  --brand-to: #a25ddc;
+  --hero-from: #e3efff;
+  --hero-to: #f3e9fc;
 
   /* Workflow categories (board column dots, list status pills). Graphics only, always beside the column name. */
-  --status-todo: #758195;
-  --status-progress: #0c66e4;
-  --status-done: #1f845a;
+  --status-todo: #676879;
+  --status-progress: #b84d00;
+  --status-done: #037f4c;
+
+  /*
+    Vivid colours for solid pills and column headers (status, priority, groups). Deep enough that white text
+    keeps 4.5:1 on them in both themes, so the same values serve light and dark.
+  */
+  --vivid-grey: #676879;
+  --vivid-blue: #1f6fd1;
+  --vivid-indigo: #5559df;
+  --vivid-teal: #0e7c86;
+  --vivid-green: #037f4c;
+  --vivid-orange: #b84d00;
+  --vivid-red: #c92a42;
+  --vivid-purple: #7e3bd0;
+  --vivid-pink: #b8226b;
 
   /* Project colours (PROJ-1): the dot and icon that mark a project; graphics, ≥ 3:1 on every surface */
-  --project-blue: #2563eb;
-  --project-teal: #0f766e;
-  --project-green: #15803d;
-  --project-amber: #b45309;
+  --project-blue: #1f6fd1;
+  --project-teal: #0e7c86;
+  --project-green: #037f4c;
+  --project-amber: #a35f00;
   --project-orange: #c2410c;
-  --project-red: #dc2626;
-  --project-pink: #db2777;
-  --project-purple: #7c3aed;
+  --project-red: #c92a42;
+  --project-pink: #b8226b;
+  --project-purple: #7e3bd0;
   /* Chart series (section 16), validated with the dataviz checks: CVD ΔE ≥ 9 all pairs. Fixed order. */
   --chart-1: #2a78d6;
   --chart-2: #eb6834;
   --chart-3: #1baf7a;
 
   /* Error / destructive */
-  --danger: #c62828;
-  --danger-hover: #ab1f1f;
-  --danger-pressed: #921a1a;
-  --danger-soft: #fdecec;
-  --danger-ink: #b42318;
-  --danger-line: #f3a6a0;
+  --danger: #c92a42;
+  --danger-hover: #ab1f35;
+  --danger-pressed: #8f1a2c;
+  --danger-soft: #fdebee;
+  --danger-ink: #b0233a;
+  --danger-line: #f3a6b2;
 
   /* Success */
-  --success-soft: #dcfff1;
-  --success-ink: #216e4e;
-  --success-line: #7ee2b8;
+  --success-soft: #dcf6ea;
+  --success-ink: #036b40;
+  --success-line: #7fd8b0;
 
   /* Warning */
-  --warning-soft: #fff7d6;
-  --warning-ink: #974f0c;
-  --warning-line: #f5cd47;
+  --warning-soft: #fff1dc;
+  --warning-ink: #8f4200;
+  --warning-line: #fdc77a;
 
   /* Info */
   --info-soft: var(--accent-soft);
   --info-ink: var(--accent-ink);
-  --info-line: #85b8ff;
+  --info-line: #8dbcf5;
 
   /* Task status (section 9): overdue = red, due soon = amber, done = green */
   --overdue-soft: var(--danger-soft);
@@ -114,12 +132,12 @@
   --done-line: var(--success-line);
 
   /* Focus, overlay, elevation, skeleton */
-  --focus-ring: #0c66e4;
-  --overlay: rgb(9 30 66 / 0.5);
-  --shadow-1: 0 1px 1px rgb(9 30 66 / 0.25), 0 0 1px rgb(9 30 66 / 0.31);
-  --shadow-2: 0 8px 12px rgb(9 30 66 / 0.15), 0 0 1px rgb(9 30 66 / 0.31);
-  --shadow-3: 0 20px 48px rgb(9 30 66 / 0.22), 0 0 1px rgb(9 30 66 / 0.31);
-  --skeleton: #e4e6ea;
+  --focus-ring: #0073ea;
+  --overlay: rgb(41 47 76 / 0.55);
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.08), 0 0 0 1px rgb(208 212 228 / 0.6);
+  --shadow-2: 0 6px 20px rgb(0 0 0 / 0.12), 0 0 0 1px rgb(208 212 228 / 0.6);
+  --shadow-3: 0 16px 48px rgb(0 0 0 / 0.2), 0 0 0 1px rgb(208 212 228 / 0.5);
+  --skeleton: #e6e9f2;
   --skeleton-shine: rgb(255 255 255 / 0.6);
 }
 
@@ -127,69 +145,80 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  /* Blue-slate rather than pure black: calmer for long evenings of planning */
-  --surface-primary: #1d2125;
-  --surface-secondary: #22272b;
-  --surface-elevated: #282e33;
+  /* Deep navy rather than black, as monday.com's night mode: calmer for long evenings of planning */
+  --surface-primary: #181b34;
+  --surface-secondary: #252a48;
+  --surface-elevated: #2c3152;
   /* Usage: dark page; cards and panels step up in lightness instead of relying on shadow */
   --surface-page: var(--surface-primary);
   --surface-card: var(--surface-secondary);
-  --surface-hover: #2c333a;
-  --surface-pressed: #38414a;
-  --surface-disabled: #2c333a;
-  --surface-column: #161a1d;
+  --surface-hover: #333959;
+  --surface-pressed: #3e4468;
+  --surface-disabled: #333959;
+  --surface-column: #1e2240;
 
-  --ink-primary: #dee4ea;
-  --ink-secondary: #9fadbc;
-  --ink-disabled: #8c9bab;
-  --ink-on-accent: #1d2125;
-  --ink-on-danger: #ffffff;
+  --ink-primary: #e6e9ef;
+  --ink-secondary: #adb1c8;
+  --ink-disabled: #a6aac2;
+  --ink-on-accent: #181b34;
+  --ink-on-danger: #181b34;
+  --ink-on-vivid: #ffffff;
 
-  --line: #38414a;
-  --line-strong: #738496;
+  --line: #3b4064;
+  --line-strong: #8a8fb0;
 
-  /* Accent lightened and softened for dark surfaces */
-  --accent: #579dff;
-  --accent-hover: #85b8ff;
-  --accent-pressed: #388bff;
-  --accent-soft: #1c2b41;
-  --accent-ink: #85b8ff;
+  /* Accent lightened for dark surfaces */
+  --accent: #579bfc;
+  --accent-hover: #7aaffd;
+  --accent-pressed: #3d8af7;
+  --accent-soft: #1e3260;
+  --accent-ink: #8ab8ff;
 
-  --brand-from: #388bff;
-  --brand-to: #8f7ee7;
-  --hero-from: #1c2b41;
-  --hero-to: #2b273f;
+  --brand-from: #579bfc;
+  --brand-to: #b57de8;
+  --hero-from: #1f2c58;
+  --hero-to: #2f2552;
 
-  --status-todo: #8c9bab;
-  --status-progress: #579dff;
-  --status-done: #4bce97;
+  --status-todo: #a6aac2;
+  --status-progress: #fdab3d;
+  --status-done: #00c875;
+
+  --vivid-grey: #676879;
+  --vivid-blue: #1f6fd1;
+  --vivid-indigo: #5559df;
+  --vivid-teal: #0e7c86;
+  --vivid-green: #037f4c;
+  --vivid-orange: #b84d00;
+  --vivid-red: #c92a42;
+  --vivid-purple: #7e3bd0;
+  --vivid-pink: #b8226b;
 
   /* Project colours lifted for dark surfaces */
-  --project-blue: #6b9bff;
+  --project-blue: #6ea8fe;
   --project-teal: #2dd4bf;
-  --project-green: #4ade80;
-  --project-amber: #fbbf24;
-  --project-orange: #fb923c;
-  --project-red: #f87171;
-  --project-pink: #f472b6;
-  --project-purple: #a78bfa;
+  --project-green: #33d391;
+  --project-amber: #fdc35a;
+  --project-orange: #fd9a52;
+  --project-red: #ff7b8f;
+  --project-pink: #f47ab7;
+  --project-purple: #b991f5;
   --chart-1: #3987e5;
   --chart-2: #d95926;
   --chart-3: #199e70;
 
-  --danger: #d0392e;
-  --danger-hover: #b32e24;
-  --danger-pressed: #9c271f;
-  --danger-soft: #3a1715;
-  --danger-ink: #ff8a80;
-  --danger-line: #7a2e28;
+  --danger: #ef5466;
+  --danger-hover: #f26b7b;
+  --danger-pressed: #ff8f9c;
+  --danger-soft: #3d1a2a;
+  --danger-ink: #ff95a5;
+  --danger-line: #7a2e40;
 
-  --success-soft: #10291a;
-  --success-ink: #5fd68a;
-  --success-line: #2f6b45;
+  --success-soft: #11312e;
+  --success-ink: #5fd89f;
+  --success-line: #2f6b55;
 
-  --warning-soft: #33240b;
-  --warning-ink: #ffb547;
+  --warning-soft: #3a2a1a;
+  --warning-ink: #ffbe5c;
   --warning-line: #7a5418;
 
   --info-soft: var(--accent-soft);
@@ -206,13 +235,13 @@
   --done-ink: var(--success-ink);
   --done-line: var(--success-line);
 
-  --focus-ring: #85b8ff;
-  --overlay: rgb(3 4 4 / 0.6);
+  --focus-ring: #8ab8ff;
+  --overlay: rgb(8 10 26 / 0.65);
   /* Shadows read poorly on dark; pair a deep shadow with a faint top edge */
-  --shadow-1: 0 0 0 1px rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.5);
-  --shadow-2: 0 0 0 1px rgb(255 255 255 / 0.06), 0 6px 16px rgb(0 0 0 / 0.5);
-  --shadow-3: 0 0 0 1px rgb(255 255 255 / 0.08), 0 20px 48px rgb(0 0 0 / 0.6);
-  --skeleton: #2c333a;
+  --shadow-1: 0 0 0 1px rgb(255 255 255 / 0.05), 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-2: 0 0 0 1px rgb(255 255 255 / 0.07), 0 6px 16px rgb(0 0 0 / 0.5);
+  --shadow-3: 0 0 0 1px rgb(255 255 255 / 0.09), 0 20px 48px rgb(0 0 0 / 0.6);
+  --skeleton: #333959;
   --skeleton-shine: rgb(255 255 255 / 0.06);
 }
 
@@ -241,6 +270,17 @@
   --color-ink-disabled: var(--ink-disabled);
   --color-on-accent: var(--ink-on-accent);
   --color-on-danger: var(--ink-on-danger);
+  --color-on-vivid: var(--ink-on-vivid);
+
+  --color-vivid-grey: var(--vivid-grey);
+  --color-vivid-blue: var(--vivid-blue);
+  --color-vivid-indigo: var(--vivid-indigo);
+  --color-vivid-teal: var(--vivid-teal);
+  --color-vivid-green: var(--vivid-green);
+  --color-vivid-orange: var(--vivid-orange);
+  --color-vivid-red: var(--vivid-red);
+  --color-vivid-purple: var(--vivid-purple);
+  --color-vivid-pink: var(--vivid-pink);
 
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
@@ -303,46 +343,53 @@
 
 /* ---------- Typography, spacing, radii, motion ---------- */
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+  --font-sans: "Figtree Variable", "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  --text-large-title: 34px;
-  --text-large-title--line-height: 1.2;
-  --text-large-title--font-weight: 600;
-  --text-title: 22px;
-  --text-title--line-height: 1.3;
+  /* A compact, desktop-first scale (v4.6): dense enough for a work tracker, as in monday.com and Jira. */
+  --text-large-title: 24px;
+  --text-large-title--line-height: 1.25;
+  --text-large-title--font-weight: 700;
+  --text-title: 18px;
+  --text-title--line-height: 1.35;
   --text-title--font-weight: 600;
-  --text-body: 17px;
+  --text-body: 14px;
   --text-body--line-height: 1.5;
   --text-body--font-weight: 400;
-  --text-secondary: 15px;
+  --text-secondary: 13px;
   --text-secondary--line-height: 1.45;
   --text-secondary--font-weight: 400;
-  --text-caption: 13px;
+  --text-caption: 12px;
   --text-caption--line-height: 1.4;
   --text-caption--font-weight: 400;
   --text-label: 12px;
-  --text-label--line-height: 1.35;
+  --text-label--line-height: 1.3;
   --text-label--font-weight: 500;
+  /* Initials inside the smallest avatars */
+  --text-micro: 10px;
+  --text-micro--line-height: 1;
+  --text-micro--font-weight: 600;
 
   /* Base unit 4 px: p-1 = 4, p-2 = 8, p-3 = 12, p-4 = 16, p-5 = 20, p-6 = 24, p-8 = 32, p-10 = 40, p-12 = 48 */
   --spacing: 4px;
   --spacing-component: 16px;
   --spacing-group: 24px;
   /* Minimum touch target (section 12) and icon size (section 9) */
-  --spacing-touch: 44px;
-  --spacing-icon: 20px;
-  --spacing-icon-sm: 16px;
+  /* Controls are 32 px for a mouse; 44 px on touch screens and phones (see the media query below). */
+  --spacing-touch: 32px;
+  --spacing-icon: 18px;
+  --spacing-icon-sm: 14px;
   /* App shell (section 12): sidebar on desktop, icon rail on tablet, bottom bar on mobile */
-  --spacing-sidebar: 256px;
-  --spacing-rail: 72px;
+  --spacing-sidebar: 240px;
+  --spacing-rail: 64px;
   --spacing-bottom-nav: 64px;
-  --spacing-topbar: 56px;
+  --spacing-topbar: 52px;
   --container-page: 1024px; /* readable width of page content (max-w-page) */
 
-  --radius-card: 12px;
-  --radius-control: 10px;
-  --radius-sheet: 20px;
-  --radius-chip: 6px;
+  --radius-card: 10px;
+  --radius-control: 6px;
+  --radius-sheet: 14px;
+  --radius-chip: 4px;
+  --radius-pill: 999px;
 
   /* Easing: gentle ease-out and a soft spring; no linear or ease-in for visible transitions */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -416,6 +463,13 @@
   --focus-ring-offset: 2px;
 }
 
+/* Section 12: 44 × 44 px touch targets wherever a finger is the pointer, and on every phone. */
+@media (pointer: coarse), (max-width: 767px) {
+  :root {
+    --spacing-touch: 44px;
+  }
+}
+
 /* Reduced motion (section 10): transitions become instant; state changes still show */
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -464,6 +518,8 @@
     background: var(--surface-page);
     color: var(--ink-primary);
     font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-size: var(--text-body);
     line-height: var(--text-body--line-height);
   }

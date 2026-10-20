@@ -2,7 +2,7 @@
 
 Oct 14, 2026 · @G
 
-**Version 4.5** — single engineer-ready document · **Owner:** @G, Immanuel Fellowship Church (IFC) · **Audience:** software engineers building and maintaining this product · **Status:** active baseline; pre-build decisions in section 21.
+**Version 4.6** — single engineer-ready document · **Owner:** @G, Immanuel Fellowship Church (IFC) · **Audience:** software engineers building and maintaining this product · **Status:** active baseline; pre-build decisions in section 21.
 
 > This is the single source of truth. Read it fully before writing any code. Functional requirements take precedence over design guidance where they conflict. Any conflict found during implementation must be documented and brought to @G for a decision — never resolved silently.
 
@@ -10,6 +10,7 @@ Oct 14, 2026 · @G
 
 | Version | Date | Summary |
 | --- | --- | --- |
+| 4.6 | 20 Oct 2026 | Design refresh at @G's request (feedback after Stage 8a: "look like monday.com, more colour, fonts too big, not premium"): a compact type scale (body 14 px) in Figtree; 18 px icons; controls 32 px for a mouse and 44 px on touch screens and phones; tighter radii; a brighter light theme and a navy dark theme; solid vivid pills for status and priority, a colour per workflow column, tinted label chips and coloured initials avatars; the theme switch becomes three small icons (sun, moon, screen) (sections 9, 12). |
 | 4.5 | 20 Oct 2026 | Email provider changed from Brevo to Resend at @G's request, on the Resend free plan (100 emails/day, 3,000/month): instant emails switch to the digest at 80 a day (80%), Resend domain verification replaces Brevo's DNS records, `RESEND_API_KEY` replaces `BREVO_API_KEY`, and the free-tier email budget is recalculated (sections 5, 8, 18, 21). |
 | 4.4 | 14 Oct 2026 | Stage 2c decisions: the My Work welcome follows the time of day in the user's timezone ("Good morning", "Good afternoon" from noon, "Good evening" from 5 pm) (section 11.1); the Hub Feedback project uses the key HUB, which is reserved for it (PROJ-7); Hub Feedback is created when an App Admin loads the app, not only at sign-in, because the first App Admin is promoted by script after signing in (section 18); a text wordmark stands in for the church logo until the logo file is supplied (sections 11.6, 11.15). |
 | 4.3 | 14 Oct 2026 | Stage 1 decisions: "Confirmed action failed" copy added (section 14); type-to-confirm matching ignores letter case and leading or trailing spaces (section 11.14); side sheets round only their two inner corners, bottom sheets only their top corners (section 9); theme preference (Light, Dark, System) moves to the user's profile in Stage 2, with the browser setting kept as the fallback for signed-out pages and first paint. Stage 2a decisions: sign-in rate limit raised to 30 attempts per minute per IP, counted when sign-in starts (church Wi-Fi shares one IP) (NFR-4, RATE-1); "Sign-in didn't work" copy added (section 14); "sign-in rate limit hit" audit event written at most once per IP per minute (section 6). Stage 2b decisions: destructive actions carry an `X-Confirm-Action` header set only by the confirmation dialog, and the API returns 428 without it (sections 11.14, 17); invites are tied to the invited email, case-insensitive, with new mismatch copy (AUTH-9, section 14); RATE-2 counts one request per project, per calendar day in the user's timezone, and an over-limit submission is rejected whole. |
@@ -520,14 +521,14 @@ Build a unified design system using design tokens — no scattered hardcoded val
 
 | Role | Size | Weight |
 | --- | --- | --- |
-| Large title | 34 px | 600 |
-| Title | 22 px | 600 |
-| Body | 17 px | 400 |
-| Secondary | 15 px | 400 |
-| Caption / metadata | 13 px | 400 |
+| Large title | 24 px | 700 |
+| Title | 18 px | 600 |
+| Body | 14 px | 400 |
+| Secondary | 13 px | 400 |
+| Caption / metadata | 12 px | 400 |
 | Label / badge | 12 px | 500 |
 
-Font stack: `-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif`
+Font: Figtree (variable, OFL), bundled and served from the app's own origin. Fallback stack: `-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`
 
 Use tabular numerals for dates, counts, and metric comparisons.
 
@@ -537,10 +538,10 @@ Use tabular numerals for dates, counts, and metric comparisons.
 
 | Component | Radius |
 | --- | --- |
-| Cards | 12 px |
-| Buttons and inputs | 10 px |
-| Sheets and drawers | 20 px: top corners only on bottom sheets (mobile); the two inner (left) corners only on right-hand side sheets, square against the screen edge |
-| Badges and chips | 6 px |
+| Cards | 10 px |
+| Buttons and inputs | 6 px |
+| Sheets and drawers | 14 px: top corners only on bottom sheets (mobile); the two inner (left) corners only on right-hand side sheets, square against the screen edge |
+| Badges and chips | 4 px (status and priority pills included) |
 
 **Motion durations**
 
@@ -555,7 +556,9 @@ Easing: gentle spring or ease-out. Avoid linear or ease-in for visible transitio
 
 ### Themes
 
-Support **Light**, **Dark**, and **System** (follows OS preference). Deliberately design both themes — dark is not an inversion of light. Persist the user's choice. Theme changes apply without flashes, layout shifts, or loss of current work. Status is never conveyed by color alone — always pair with a text label or icon.
+Support **Light**, **Dark**, and **System** (follows OS preference). Deliberately design both themes — dark is not an inversion of light. Persist the user's choice. Theme changes apply without flashes, layout shifts, or loss of current work. Status is never conveyed by color alone — always pair with a text label or icon. The switch is three small icon buttons (sun, moon, screen) with names and tooltips.
+
+**Colour as wayfinding (v4.6).** In the spirit of monday.com, colour helps the eye: each workflow column has its own vivid colour (from its category and order: the first to-do column grey, later ones blue; in-progress orange then purple; done green), shown as the column header band, the card's left edge and the status pill. Priority is a solid pill (Urgent red, High orange, Medium indigo, Low teal). Labels are chips tinted with their colour. Initials avatars take a colour from the person's name. Text on every solid pill is white at ≥ 4.5:1 in both themes.
 
 **Semantic color roles** (defined as tokens):
 
@@ -575,7 +578,7 @@ Support **Light**, **Dark**, and **System** (follows OS preference). Deliberatel
 
 ### Icons and emoji
 
-**Icons:** Single family (Lucide or Phosphor), 20 px, 1.5 px stroke. No mixing families. Icon-only controls must have accessible names and tooltips.
+**Icons:** Single family (Lucide or Phosphor), 18 px (14 px inside badges and chips), 1.5 px stroke. No mixing families. Icon-only controls must have accessible names and tooltips.
 
 **Emoji — permitted:** friendly welcome messages, empty states, project identity tiles, low-stakes milestone celebrations.
 
@@ -781,7 +784,7 @@ Every destructive action opens a confirmation dialog before anything changes. Th
 Breakpoints: mobile 360–767 px, tablet 768–1023 px, desktop ≥ 1024 px.
 
 - Reflow at each breakpoint. No unintended horizontal overflow (Kanban board only scrolls horizontally by design).
-- Touch targets: minimum 44 × 44 CSS px.
+- Touch targets: minimum 44 × 44 CSS px wherever the pointer is coarse (touch screens) and on every phone. With a mouse or trackpad, controls are 32 px tall (above WCAG 2.2 AA's 24 px minimum), as in other desktop work trackers.
 - Primary actions in thumb zone on mobile. Use bottom sheets or bottom navigation where appropriate.
 - Swipe gestures (TASK-12) are shortcuts only — always provide a visible tap alternative.
 - Test at: 360 px, 768 px, 1024 px, 1440 px wide, and at 200% browser zoom.

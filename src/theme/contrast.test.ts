@@ -46,6 +46,7 @@ function contrast(a: string, b: string): number {
 }
 
 const surfaces = ["surface-page", "surface-card", "surface-elevated", "surface-hover"];
+const VIVID = ["grey", "blue", "indigo", "teal", "green", "orange", "red", "purple", "pink"];
 
 // [foreground, background, minimum ratio]
 const pairs: Array<[string, string, number]> = [
@@ -92,6 +93,9 @@ const pairs: Array<[string, string, number]> = [
   ["accent", "surface-card", 3],
   ["danger", "surface-page", 3],
   ["danger", "surface-card", 3],
+  // Solid vivid pills (status, priority, column headers): white text on each. The pill's edge needs no 3:1
+  // against the surface (WCAG 1.4.11): its own text names it.
+  ...VIVID.map((v): [string, string, number] => ["ink-on-vivid", `vivid-${v}`, 4.5]),
   // Project colours (dots and icons are graphics): ≥ 3:1 on every surface, including selected rows
   ...PROJECT_COLOURS.flatMap((colour) =>
     [...surfaces, "accent-soft"].map((bg): [string, string, number] => [`project-${colour}`, bg, 3]),
