@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Kanban, List, Lock, Plus, SearchX, Settings2, SlidersHorizontal } from "lucide-react";
+import { Kanban, List, Lock, Plus, SearchX, Settings2, SlidersHorizontal, Users } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import type { MeResponse } from "../../shared/auth";
@@ -198,6 +198,11 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
       intro={header}
       actions={
         <div className="flex flex-wrap items-center gap-2">
+          {/* PROJ-5: who's on the project; its admins manage roles there. */}
+          <Link to={`/projects/${project.key}/members`} className={buttonClasses("secondary")}>
+            <Icon icon={Users} />
+            Members
+          </Link>
           {me.user.appRole === "admin" && !project.isSystem && (
             <Link to="/admin/projects" className={buttonClasses("secondary")}>
               <Icon icon={Settings2} />

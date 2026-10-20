@@ -10,6 +10,7 @@ import { useMaintenance } from "./lib/maintenance";
 import { AdminProjectsPage } from "./pages/AdminProjectsPage";
 import { AdminRequestsPage } from "./pages/AdminRequestsPage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
+import { ProjectMembersPage } from "./pages/ProjectMembersPage";
 import { ProjectPage } from "./pages/ProjectPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { BugReportPage, FeatureRequestPage, MyFeedbackPage } from "./pages/FeedbackPages";
@@ -53,6 +54,7 @@ function App() {
           <Route path="/feedback/feature" element={<FeatureRequestPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:key" element={<ProjectPage />} />
+          <Route path="/projects/:key/members" element={<ProjectMembersPage />} />
           <Route path="/admin/requests" element={<AdminRequestsPage />} />
           <Route path="/admin/projects" element={<AdminProjectsPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />
