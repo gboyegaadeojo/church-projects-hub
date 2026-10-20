@@ -92,7 +92,7 @@ export function NotificationSettingsPage() {
             <h2 id="digest-heading" className="text-body font-semibold text-ink">
               Morning digest
             </h2>
-            <Field label="Your timezone" hint="The digest arrives at 7 am in this timezone.">
+            <Field label="Your timezone" filter hint="The digest arrives at 7 am in this timezone.">
               <Select
                 options={zones.map((z) => ({ value: z, label: z.replace(/_/g, " ") }))}
                 value={settings.data.timezone}
@@ -108,7 +108,7 @@ export function NotificationSettingsPage() {
               {visible.map((e) => (
                 <li key={e.type} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                   <div className="sm:max-w-sm sm:flex-1">
-                    <Field label={NOTIFICATION_EVENTS[e.type].label}>
+                    <Field label={NOTIFICATION_EVENTS[e.type].label} filter>
                       <Select
                         options={MODE_OPTIONS}
                         value={e.mode}

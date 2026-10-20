@@ -528,7 +528,23 @@ export const userNewsSeen = sqliteTable("user_news_seen", {
   seenAt: integer("seen_at").notNull(),
 });
 
-export const DELETION_STATUSES = ["pending", "approved", "rejected", "completed"] as const;
+// Section 16: event-history aggregates built hourly and incrementally from task_events. One row per project
+// and period: "w:<Monday YYYY-MM-DD>" (created and completed that week) or "m:<YYYY-MM>" (cycle-time samples).
+// last_event_id is the newest event folded into the row, so an event is never counted twice. project_id 0
+// holds the job's cursor (no foreign key for that reason).
+export const reportSnapshots = sqliteTable(
+  "report_snapshots",
+  {
+    projectId: integer("project_id").notNull(),
+    period: text("period").notNull(),
+    metricsJson: text("metrics_json").notNull().default("{}"),
+    lastEventId: integer("last_event_id").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [primaryKey({ columns: [t.projectId, t.period] })],
+);
+
+export const DELETION_STATUSES =["pending", "approved", "rejected", "completed"] as const;
 
 // ADM-6: a person asks for their data to be deleted; an App Admin approves (anonymised at once) or rejects.
 export const dataDeletionRequests = sqliteTable(

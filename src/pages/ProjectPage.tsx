@@ -1,9 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
-import { Kanban, List, Lock, Plus, SearchX, Settings2, SlidersHorizontal, Users } from "lucide-react";
+import { ChartColumn, Kanban, List, Lock, Plus, SearchX, Settings2, SlidersHorizontal, Users } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import type { MeResponse } from "../../shared/auth";
-import { filterFromSearch, filterToSearch, isFilterActive, matchesFilter, type TaskFilter } from "../../shared/filters";
+import {
+  clearDrill,
+  describeDrill,
+  drillFromSearch,
+  filterFromSearch,
+  filterToSearch,
+  isDrillActive,
+  isFilterActive,
+  matchesDrill,
+  matchesFilter,
+  type TaskFilter,
+} from "../../shared/filters";
 import { projectResponse, type ProjectSummary } from "../../shared/projects";
 import { type BulkEditBody, TASK_COPY, type TaskCard, todayIn } from "../../shared/tasks";
 import { ProjectGlyph, useMe } from "../components/shell/AppShell";
@@ -165,7 +176,16 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
   const labels = useMemo(() => new Map((data?.labels ?? []).map((l) => [l.id, l])), [data?.labels]);
   const people = useMemo(() => (data ? peopleById(data) : new Map()), [data]);
   const assignable = useMemo(() => (data?.members ?? []).filter((m) => m.role !== "viewer"), [data?.members]);
-  const visible = useMemo(() => (data?.tasks ?? []).filter((t) => matchesFilter(t, filter)), [data?.tasks, filter]);
+  // Section 16 "View tasks": a report's drill-down narrows the board further until cleared.
+  const drill = useMemo(() => drillFromSearch(params), [params]);
+  const categoryOf = useMemo(() => {
+    const m = new Map((data?.states ?? []).map((s) => [s.id, s.category]));
+    return (id: number) => m.get(id);
+  }, [data?.states]);
+  const visible = useMemo(
+    () => (data?.tasks ?? []).filter((t) => matchesFilter(t, filter) && matchesDrill(t, drill, categoryOf, today)),
+    [data?.tasks, filter, drill, categoryOf, today],
+  );
   const doneState = data?.states.find((s) => s.category === "done");
 
   function applyBulk(ids: number[], changes: Omit<BulkEditBody, "taskIds">, message?: string) {
@@ -198,6 +218,10 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
       intro={header}
       actions={
         <div className="flex flex-wrap items-center gap-2">
+          <Link to={`/projects/${project.key}/reports`} className={buttonClasses("secondary")}>
+            <Icon icon={ChartColumn} />
+            Reports
+          </Link>
           {/* PROJ-5: who's on the project; its admins manage roles there. */}
           <Link to={`/projects/${project.key}/members`} className={buttonClasses("secondary")}>
             <Icon icon={Users} />
@@ -271,6 +295,22 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
               canManageShared={me.user.appRole === "admin" || project.role === "admin"}
             />
           </div>
+          {isDrillActive(drill) && (
+            <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-accent-soft bg-accent-soft px-4 py-2 text-secondary text-accent-ink">
+              <span>
+                From a report: showing{" "}
+                {describeDrill(drill, {
+                  milestone: data.milestones.find((m) => m.id === drill.milestone)?.name,
+                  component: data.components.find((c) => c.id === drill.component)?.name,
+                  category: { todo: "To do", in_progress: "In progress", done: "Done" }[drill.category as "todo"],
+                })}
+                .
+              </span>
+              <Button variant="ghost" onClick={() => setParams((p) => clearDrill(p), { replace: true })}>
+                Show all tasks
+              </Button>
+            </div>
+          )}
           {visible.length === 0 ? (
             <EmptyState
               icon={SearchX}

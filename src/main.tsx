@@ -16,6 +16,7 @@ import { AdminUsagePage } from "./pages/AdminUsagePage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { ProjectMembersPage } from "./pages/ProjectMembersPage";
 import { ProjectPage } from "./pages/ProjectPage";
+import { ProjectReportsPage } from "./pages/ProjectReportsPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { BugReportPage, FeatureRequestPage, MyFeedbackPage } from "./pages/FeedbackPages";
 import { HomePage } from "./pages/HomePage";
@@ -59,6 +60,7 @@ function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:key" element={<ProjectPage />} />
           <Route path="/projects/:key/members" element={<ProjectMembersPage />} />
+          <Route path="/projects/:key/reports" element={<ProjectReportsPage />} />
           <Route path="/admin/requests" element={<AdminRequestsPage />} />
           <Route path="/admin/projects" element={<AdminProjectsPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />

@@ -5,6 +5,7 @@ import { inviteExpiryStatement } from "../access/manage";
 import { emailSenderFor } from "../email/sender";
 import { dueReminderStatements, queueDigests } from "./digest";
 import { usageChecks } from "../admin/usage";
+import { updateReportSnapshots } from "../reports/data";
 import { cleanOrphanedAttachments } from "./orphans";
 import { accessReminderStatement, sendDueEmails } from "./outbox";
 
@@ -47,8 +48,9 @@ export async function runScheduledJobs(now: Date, env: Env): Promise<DueJobs> {
     await queueDigests(env, ms);
     // ADM-5 and NFR-15: free-tier warnings and the error-spike alert, sent by the outbox step below.
     await usageChecks(env, ms);
+    // Section 16: fold new task events into report_snapshots.
+    await updateReportSnapshots(env, ms);
   }
-  // Stage 7: incremental report_snapshots.
   // Stage 6d: retention queue (ADM-8).
   if (due.outbox) await sendDueEmails(env, emailSenderFor(env), ms);
   return due;

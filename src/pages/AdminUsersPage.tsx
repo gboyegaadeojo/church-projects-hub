@@ -112,12 +112,12 @@ function UserDirectory({ me }: { me: MeResponse }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="sm:flex-1">
-          <Field label="Search by name or email">
+          <Field label="Search by name or email" filter>
             <TextInput type="search" value={typed} onChange={(e) => setTyped(e.target.value)} />
           </Field>
         </div>
         <div className="sm:w-48">
-          <Field label="Show">
+          <Field label="Show" filter>
             <Select
               options={STATUS_OPTIONS}
               value={filter}

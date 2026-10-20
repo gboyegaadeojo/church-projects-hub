@@ -90,16 +90,16 @@ export function AdminAuditPage() {
       ) : (
         <div className="flex flex-col gap-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Field label="Who (name or email)">
+            <Field label="Who (name or email)" filter>
               <TextInput type="search" value={actorTyped} onChange={(e) => setActorTyped(e.target.value)} />
             </Field>
-            <Field label="Action">
+            <Field label="Action" filter>
               <Select options={[{ value: "all", label: "All actions" }, ...actions.map((a) => ({ value: a, label: a }))]} value={action} onValueChange={setAction} />
             </Field>
-            <Field label="From">
+            <Field label="From" filter>
               <DateInput value={from} onChange={(e) => setFrom(e.target.value)} />
             </Field>
-            <Field label="To">
+            <Field label="To" filter>
               <DateInput value={to} onChange={(e) => setTo(e.target.value)} />
             </Field>
           </div>

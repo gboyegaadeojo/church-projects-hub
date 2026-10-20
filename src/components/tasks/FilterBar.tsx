@@ -83,6 +83,8 @@ function FilterChip({
 }
 
 export type FilterBarProps = {
+  /** Section 16: reports filter by assignee, label and priority only, with no saved filters. */
+  reports?: boolean;
   projectId: number;
   filter: TaskFilter;
   onChange: (f: TaskFilter) => void;
@@ -96,7 +98,7 @@ export type FilterBarProps = {
   children?: ReactNode;
 };
 
-export function FilterBar({ projectId, filter, onChange, members, labels, meId, csrfToken, canShare, canManageShared, children }: FilterBarProps) {
+export function FilterBar({ projectId, filter, onChange, members, labels, meId, csrfToken, canShare, canManageShared, reports = false, children }: FilterBarProps) {
   const assigneeOptions: Option[] = [
     { value: meId, label: "Me", text: "Me" },
     ...members.filter((m) => m.id !== meId).map((m) => ({ value: m.id, label: m.name, text: m.name })),
@@ -119,27 +121,31 @@ export function FilterBar({ projectId, filter, onChange, members, labels, meId, 
         options={PRIORITIES.map((p) => ({ value: p, label: <PriorityIndicator priority={p} withLabel />, text: PRIORITY_LABELS[p] }))}
         onChange={onChange}
       />
-      <FilterChip
-        name="Scope"
-        group="scopes"
-        filter={filter}
-        options={SCOPES.map((s) => ({ value: s, label: SCOPE_LABELS[s], text: SCOPE_LABELS[s] }))}
-        onChange={onChange}
-      />
+      {!reports && (
+        <FilterChip
+          name="Scope"
+          group="scopes"
+          filter={filter}
+          options={SCOPES.map((s) => ({ value: s, label: SCOPE_LABELS[s], text: SCOPE_LABELS[s] }))}
+          onChange={onChange}
+        />
+      )}
       {isFilterActive(filter) && (
         <Button variant="ghost" icon={X} onClick={() => onChange(EMPTY_FILTER)}>
           Clear filters
         </Button>
       )}
-      <SavedFilters
-        projectId={projectId}
-        filter={filter}
-        onApply={onChange}
-        meId={meId}
-        csrfToken={csrfToken}
-        canShare={canShare}
-        canManageShared={canManageShared}
-      />
+      {!reports && (
+        <SavedFilters
+          projectId={projectId}
+          filter={filter}
+          onApply={onChange}
+          meId={meId}
+          csrfToken={csrfToken}
+          canShare={canShare}
+          canManageShared={canManageShared}
+        />
+      )}
       {children}
     </div>
   );
