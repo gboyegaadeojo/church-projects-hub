@@ -42,7 +42,7 @@ type TableProps<Row> = {
   empty?: ReactNode;
 };
 
-function SortIcon({ direction }: { direction?: SortDirection }) {
+export function SortIcon({ direction }: { direction?: SortDirection }) {
   if (direction === "ascending") return <Icon icon={ChevronUp} size="sm" />;
   if (direction === "descending") return <Icon icon={ChevronDown} size="sm" />;
   return <Icon icon={ChevronsUpDown} size="sm" className="text-ink-2" />;

@@ -34,7 +34,7 @@ import {
   toCard,
   toPerson,
 } from "./queries";
-import { rankBetween } from "./rank";
+import { rankBetween } from "../../shared/rank";
 import { refreshSearch, refreshSearchFor, removeFromSearch } from "./search";
 
 // Tasks (TASK-1 to TASK-8, TASK-10, NFR-10, NFR-12). Every route checks the section 2 matrix in the API (NFR-1).
