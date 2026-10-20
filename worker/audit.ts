@@ -15,6 +15,12 @@ export const AUDIT = {
   projectCreated: "project.created",
   projectEdited: "project.edited",
   projectHiddenChanged: "project.hidden_changed",
+  projectArchived: "project.archived",
+  projectRestored: "project.restored",
+  // Users (section 6).
+  appRoleChanged: "user.app_role_changed",
+  userSuspended: "user.suspended",
+  userRestored: "user.restored",
   // Workflow: columns, labels, components or milestones changed (section 6).
   workflowChanged: "workflow.changed",
   // Destructive actions (section 6, 11.14).

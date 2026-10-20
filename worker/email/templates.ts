@@ -64,6 +64,12 @@ export function eventContent(template: EmailTemplate, p: Payload, base: string):
             details: p.reason ? [`Reason: ${p.reason}`] : [],
             button: { label: "See your requests", href: `${base}/request-access` },
           };
+    case "session.revoked":
+      return {
+        line: "An app admin signed you out of Church Projects Hub on all your devices",
+        details: ["You can sign in again with your Google account. If you didn't expect this, contact an app administrator."],
+        button: { label: "Sign in", href: base },
+      };
     case "feedback.status_changed":
       return {
         line: `Your feedback ${task} moved to ${p.stateName ?? "a new status"}`,

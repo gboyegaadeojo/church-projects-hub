@@ -81,7 +81,7 @@ const SHARED: Omit<Persona, "id">[] = [
 
 const PER_VIEWPORT = ["submitter", "nudger", "approvee", "denyee", "invitee"] as const;
 /** Active contributors whose settings or tasks change: theme on the profile (Media), and board moves. */
-const PER_VIEWPORT_ACTIVE = ["themer", "mover"] as const;
+const PER_VIEWPORT_ACTIVE = ["themer", "mover", "suspendee"] as const;
 type PerViewportKey = (typeof PER_VIEWPORT)[number] | (typeof PER_VIEWPORT_ACTIVE)[number];
 
 function titleCase(s: string) {

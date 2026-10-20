@@ -10,8 +10,9 @@ import {
   type ProjectSummary,
   updateProjectBody,
 } from "../../shared/projects";
-import { AUDIT, auditInsert } from "../audit";
-import { forbidden, idParam, requirePermission } from "../auth/authorize";
+import { ADMIN_CONFIRM } from "../../shared/admin";
+import { AUDIT, auditInsert, auditStatement } from "../audit";
+import { forbidden, idParam, requireConfirmation, requirePermission } from "../auth/authorize";
 import { ipHash } from "../auth/ip";
 import { requireSession } from "../auth/middleware";
 import { can } from "../auth/permissions";
@@ -192,6 +193,49 @@ export function projectRoutes() {
     ]);
     return c.json({ project: await loadSummary(c, "p.id = ?3", id) });
   });
+
+  // PROJ-4: archive (read-only; high impact, type-to-confirm the key) and restore. Never hard-deleted from the UI.
+  // Hub Feedback can't be archived (PROJ-7). Writes to an archived project are refused by can() (section 2).
+  for (const [path, archive] of [
+    ["archive", true],
+    ["restore", false],
+  ] as const) {
+    routes.post(
+      `/projects/:id/${path}`,
+      requireSession,
+      requirePermission("project.manage"),
+      archive ? requireConfirmation(ADMIN_CONFIRM.archiveProject) : (_c, next) => next(),
+      async (c) => {
+        const id = idParam(c, "id");
+        if (id === null) return forbidden(c, 404);
+        const current = await c.env.DB.prepare("SELECT key, is_system, archived_at FROM projects WHERE id = ?1 AND deleted_at IS NULL")
+          .bind(id)
+          .first<{ key: string; is_system: number; archived_at: number | null }>();
+        if (!current) return forbidden(c, 404);
+        if (current.is_system) return c.json({ error: PROJECT_ERRORS.system }, 403);
+        if ((current.archived_at !== null) !== archive) {
+          const { user } = c.get("auth");
+          const now = Date.now();
+          await c.env.DB.batch([
+            c.env.DB.prepare("UPDATE projects SET archived_at = ?2, updated_at = ?3 WHERE id = ?1").bind(id, archive ? now : null, now),
+            auditStatement(
+              c.env,
+              {
+                actorId: user.id,
+                action: archive ? AUDIT.projectArchived : AUDIT.projectRestored,
+                targetType: "project",
+                targetId: id,
+                detail: { key: current.key },
+                ipHash: await ipHash(c),
+              },
+              now,
+            ),
+          ]);
+        }
+        return c.json({ project: await loadSummary(c, "p.id = ?3", id) });
+      },
+    );
+  }
 
   return routes;
 }
