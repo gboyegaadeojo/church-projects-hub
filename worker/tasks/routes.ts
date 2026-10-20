@@ -35,7 +35,7 @@ import {
   toPerson,
 } from "./queries";
 import { rankBetween } from "../../shared/rank";
-import { type Notice, noticesStatements } from "../notify";
+import { type Notice, noticesStatements, statusChangeNotice } from "../notify";
 import { refreshSearch, refreshSearchFor, removeFromSearch } from "./search";
 
 // Tasks (TASK-1 to TASK-8, TASK-10, NFR-10, NFR-12). Every route checks the section 2 matrix in the API (NFR-1).
@@ -381,14 +381,14 @@ export function taskRoutes() {
     const notices: Notice[] = [];
     if (refs.assigneeId) notices.push({ type: "task.assigned", recipients: [refs.assigneeId], actorId: user.id, task: { id: task.id }, projectId: project.id, payload: {} });
     if (refs.stateId !== undefined) {
-      notices.push({
-        type: "task.status_changed",
-        recipients: [task.reporter_id],
-        actorId: user.id,
-        task: { id: task.id },
-        projectId: project.id,
-        payload: { stateName: (await stateNameOf(c.env, refs.stateId)) ?? undefined },
-      });
+      notices.push(
+        statusChangeNotice(project, {
+          recipients: [task.reporter_id],
+          actorId: user.id,
+          task: { id: task.id },
+          payload: { stateName: (await stateNameOf(c.env, refs.stateId)) ?? undefined },
+        }),
+      );
     }
     if (descriptionChanged) {
       const before = mentionsIn(JSON.parse(task.description_json));
@@ -447,14 +447,12 @@ export function taskRoutes() {
         ...noticesStatements(
           c.env,
           [
-            {
-              type: "task.status_changed",
+            statusChangeNotice(project, {
               recipients: [task.reporter_id],
               actorId: user.id,
               task: { id: task.id },
-              projectId: project.id,
               payload: { stateName: (await stateNameOf(c.env, stateId)) ?? undefined },
-            },
+            }),
           ],
           now,
         ),
@@ -597,7 +595,7 @@ export function taskRoutes() {
     const bulkNotices: Notice[] = events.flatMap((e): Notice[] => {
       const base = { actorId: user.id, task: { id: e.task }, projectId: project.id };
       if (e.field === "assignee" && body.assigneeId) return [{ ...base, type: "task.assigned", recipients: [body.assigneeId], payload: {} }];
-      if (e.field === "state") return [{ ...base, type: "task.status_changed", recipients: [reporterOf.get(e.task)!], payload: { stateName } }];
+      if (e.field === "state") return [statusChangeNotice(project, { actorId: user.id, task: { id: e.task }, recipients: [reporterOf.get(e.task)!], payload: { stateName } })];
       return [];
     });
     statements.push(...noticesStatements(c.env, bulkNotices, now));

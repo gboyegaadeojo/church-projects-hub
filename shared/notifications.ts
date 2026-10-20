@@ -110,6 +110,8 @@ export function describeNotification(n: Pick<NotificationItem, "type" | "actor" 
 
 /** Where a notification leads. */
 export function notificationHref(n: Pick<NotificationItem, "type" | "payload">): string {
+  // FDBK-5: submitters can't open Hub Feedback; their own reports are listed on the feedback page.
+  if (n.type === "feedback.status_changed") return "/feedback";
   if (n.payload.taskKey && n.payload.projectKey) return `/projects/${n.payload.projectKey}?task=${n.payload.taskKey}`;
   if (n.type === "access.requested" || n.type === "access.nudge" || n.type === "access.reminder") return "/admin/requests";
   if (n.type === "access.decided") return n.payload.decision === "approved" && n.payload.projectKey ? `/projects/${n.payload.projectKey}` : "/request-access";

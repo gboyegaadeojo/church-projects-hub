@@ -502,6 +502,28 @@ export const notificationPrefs = sqliteTable(
   (t) => [primaryKey({ columns: [t.userId, t.eventType, t.channel] }), check("notification_prefs_mode_check", oneOf("mode", ["instant", "digest", "off"]))],
 );
 
+// What's New (FDBK-1, section 11.9): admin-written Markdown, rendered with raw HTML disabled.
+export const releasesNews = sqliteTable(
+  "releases_news",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    title: text("title").notNull(),
+    bodyMd: text("body_md").notNull(),
+    publishedAt: integer("published_at").notNull(),
+    ...timestamps,
+  },
+  (t) => [index("releases_news_published_at_idx").on(t.publishedAt)],
+);
+
+// The newest What's New entry each person has opened; anything newer shows the dot.
+export const userNewsSeen = sqliteTable("user_news_seen", {
+  userId: integer("user_id")
+    .primaryKey()
+    .references(() => users.id),
+  lastNewsId: integer("last_news_id").notNull(),
+  seenAt: integer("seen_at").notNull(),
+});
+
 // The "small error table" (section 5): one row per server error or crashed section (11.13), counted by the
 // error-spike alert (NFR-15). No personal data: a section name, a request id and a hashed IP only (NFR-5).
 export const appErrors = sqliteTable(

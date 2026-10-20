@@ -127,3 +127,11 @@ export async function requestDeciders(env: Pick<Env, "DB">, projectId: number): 
   const { results: admins } = await env.DB.prepare("SELECT id FROM users WHERE app_role = 'admin' AND status = 'active'").all<{ id: number }>();
   return admins.map((r) => r.id);
 }
+
+/**
+ * NOTIF-1's status change, or FDBK-5's on Hub Feedback: the submitter can't open that project, so the notice
+ * isn't limited to people who can see it, and it uses the feedback event (its own setting and link).
+ */
+export function statusChangeNotice(project: { id: number; isSystem: boolean }, notice: Omit<Notice, "type" | "projectId">): Notice {
+  return project.isSystem ? { ...notice, type: "feedback.status_changed" } : { ...notice, type: "task.status_changed", projectId: project.id };
+}

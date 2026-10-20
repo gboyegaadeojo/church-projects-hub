@@ -1,18 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  FolderKanban,
-  FolderPlus,
-  House,
-  Inbox,
-  type LucideIcon,
-  Moon,
-  Plus,
-  Search,
-  Settings2,
-  Sun,
-  SunMoon,
-} from "lucide-react";
+import { ArrowRight, Bug, FolderKanban, FolderPlus, House, Inbox, Lightbulb, type LucideIcon, Mail, Moon, Plus, Search, Settings2, Sparkles, Sun, SunMoon } from "lucide-react";
 import { Dialog as RadixDialog } from "radix-ui";
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
 import { matchPath, useLocation, useNavigate } from "react-router";
@@ -143,6 +130,10 @@ function Palette({ me, onClose }: { me: MeResponse; onClose: () => void }) {
       { id: "a-work", group: "Actions", label: "Go to My Work", icon: actionIcon(House), run: go("/work") },
       { id: "a-projects", group: "Actions", label: "Go to all projects", icon: actionIcon(FolderKanban), run: go("/projects") },
       { id: "a-request", group: "Actions", label: "Request access to more projects", icon: actionIcon(FolderPlus), run: go("/request-access") },
+      { id: "a-news", group: "Actions", label: "What's New", icon: actionIcon(Sparkles), run: go("/whats-new") },
+      { id: "a-bug", group: "Actions", label: "Report a bug", icon: actionIcon(Bug), run: go("/feedback/bug") },
+      { id: "a-idea", group: "Actions", label: "Request a feature", icon: actionIcon(Lightbulb), run: go("/feedback/feature") },
+      { id: "a-email", group: "Actions", label: "Email settings", icon: actionIcon(Mail), run: go("/settings/notifications") },
       ...(me.canReviewAccess ? [{ id: "a-queue", group: "Actions" as const, label: "Open access requests", icon: actionIcon(Inbox), run: go("/admin/requests") }] : []),
       ...(me.user.appRole === "admin" ? [{ id: "a-manage", group: "Actions" as const, label: "Manage projects", icon: actionIcon(Settings2), run: go("/admin/projects") }] : []),
       { id: "a-light", group: "Actions", label: "Switch to light theme", icon: actionIcon(Sun), run: () => void saveTheme("light") },
