@@ -453,6 +453,55 @@ export const notifications = sqliteTable(
   (t) => [index("notifications_user_id_read_at_idx").on(t.userId, t.readAt), index("notifications_user_id_created_at_idx").on(t.userId, t.createdAt)],
 );
 
+export const EMAIL_STATUSES = ["pending", "sent", "failed", "digested"] as const;
+export const EMAIL_MODES = ["instant", "digest"] as const;
+
+// Email (section 8). Rows are written in the same batch as the action that causes them (rule 1); the cron job
+// sends instant rows and the 7 am digest gathers digest rows. user_id is null only for invites, where the
+// person isn't a user yet and to_email holds the address; otherwise the address is looked up at send time.
+export const emailOutbox = sqliteTable(
+  "email_outbox",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id").references(() => users.id),
+    toEmail: text("to_email"),
+    template: text("template").notNull(),
+    payloadJson: text("payload_json").notNull().default("{}"),
+    // Rule 4: stops duplicates even if a job runs twice. Null for one-off events.
+    dedupeKey: text("dedupe_key"),
+    mode: text("mode", { enum: EMAIL_MODES }).notNull().default("instant"),
+    status: text("status", { enum: EMAIL_STATUSES }).notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    sendAfter: integer("send_after").notNull(),
+    sentAt: integer("sent_at"),
+    lastError: text("last_error"),
+    createdAt: integer("created_at").notNull().default(nowMs),
+  },
+  (t) => [
+    check("email_outbox_status_check", oneOf("status", EMAIL_STATUSES)),
+    check("email_outbox_mode_check", oneOf("mode", EMAIL_MODES)),
+    index("email_outbox_status_send_after_idx").on(t.status, t.sendAfter),
+    index("email_outbox_user_id_status_idx").on(t.userId, t.status),
+    uniqueIndex("email_outbox_dedupe_key_idx").on(t.dedupeKey),
+    index("email_outbox_sent_at_idx").on(t.sentAt),
+  ],
+);
+
+// NOTIF-5: per person and event, email instant, in the digest, or off. No row means the event's default.
+export const notificationPrefs = sqliteTable(
+  "notification_prefs",
+  {
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    eventType: text("event_type").notNull(),
+    channel: text("channel").notNull().default("email"),
+    mode: text("mode", { enum: ["instant", "digest", "off"] }).notNull(),
+    ...timestamps,
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.eventType, t.channel] }), check("notification_prefs_mode_check", oneOf("mode", ["instant", "digest", "off"]))],
+);
+
 // The "small error table" (section 5): one row per server error or crashed section (11.13), counted by the
 // error-spike alert (NFR-15). No personal data: a section name, a request id and a hashed IP only (NFR-5).
 export const appErrors = sqliteTable(

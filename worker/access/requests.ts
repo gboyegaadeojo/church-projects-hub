@@ -181,19 +181,35 @@ export function accessRequestRoutes() {
     if (id === null) return forbidden(c, 404);
     const { user } = c.get("auth");
     const now = Date.now();
-    const updated = await c.env.DB.prepare(
-      `UPDATE access_requests SET last_nudged_at = ?3, updated_at = ?3
-       WHERE id = ?1 AND user_id = ?2 AND status = 'pending' AND created_at <= ?4
-         AND (last_nudged_at IS NULL OR last_nudged_at <= ?5)`,
+    const request = await c.env.DB.prepare(
+      "SELECT r.project_id, p.key, p.name FROM access_requests r JOIN projects p ON p.id = r.project_id WHERE r.id = ?1 AND r.user_id = ?2",
     )
-      .bind(id, user.id, now, now - NUDGE_AFTER_MS, now - NUDGE_INTERVAL_MS)
-      .run();
-    if (updated.meta.changes === 1) {
-      // TODO(Stage 5, section 8 / AUTH-8): queue an email_outbox row in this same write (make it a batch) —
-      // template "access_request.nudge", recipients the project's active Project Admins (App Admins if none),
-      // dedupe key "nudge:<request id>:<UTC date>".
-      return c.json({ ok: true });
-    }
+      .bind(id, user.id)
+      .first<{ project_id: number; key: string; name: string }>();
+    const [updated] = await c.env.DB.batch([
+      c.env.DB.prepare(
+        `UPDATE access_requests SET last_nudged_at = ?3, updated_at = ?3
+         WHERE id = ?1 AND user_id = ?2 AND status = 'pending' AND created_at <= ?4
+           AND (last_nudged_at IS NULL OR last_nudged_at <= ?5)`,
+      ).bind(id, user.id, now, now - NUDGE_AFTER_MS, now - NUDGE_INTERVAL_MS),
+      // AUTH-8: the reminder reaches the project's deciders, only when the nudge above was allowed.
+      ...(request
+        ? noticeStatements(
+            c.env,
+            {
+              type: "access.nudge",
+              recipients: await requestDeciders(c.env, request.project_id),
+              actorId: user.id,
+              payload: { projectKey: request.key, projectName: request.name },
+              // Several deciders: check the nudge was recorded rather than changes(), which the bell insert alters.
+              onlyIf: `EXISTS (SELECT 1 FROM access_requests WHERE id = ${Number(id)} AND last_nudged_at = ${now})`,
+              dedupeKey: `nudge:${id}:${new Date(now).toISOString().slice(0, 10)}`,
+            },
+            now,
+          )
+        : []),
+    ]);
+    if (updated!.meta.changes === 1) return c.json({ ok: true });
     const own = await c.env.DB.prepare("SELECT 1 FROM access_requests WHERE id = ?1 AND user_id = ?2")
       .bind(id, user.id)
       .first();
@@ -359,7 +375,7 @@ export function accessRequestRoutes() {
             type: "access.decided",
             recipients: [target.user_id],
             actorId: user.id,
-            payload: { projectKey: target.project_key, projectName: target.project_name, decision: "denied" },
+            payload: { projectKey: target.project_key, projectName: target.project_name, decision: "denied", reason: parsed.data.reason },
             onlyIf: "changes() = 1",
           },
           now,
