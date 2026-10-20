@@ -10,6 +10,7 @@ import { emailRoutes } from "./email/routes";
 import { manageRoutes } from "./access/manage";
 import { adminAuditRoutes } from "./admin/audit";
 import { adminUsageRoutes } from "./admin/usage";
+import { retentionRoutes } from "./admin/retention";
 import { adminUserRoutes } from "./admin/users";
 import { feedbackRoutes } from "./feedback/routes";
 import { profileRoutes } from "./profile/routes";
@@ -61,6 +62,7 @@ export function createApp(deps: AppDeps) {
   app.route("/", manageRoutes());
   app.route("/", adminAuditRoutes());
   app.route("/", adminUsageRoutes());
+  app.route("/", retentionRoutes());
 
   // Unknown API routes return JSON, never the SPA shell.
   app.notFound((c) => c.json({ error: "Not found" }, 404));

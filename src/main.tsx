@@ -9,7 +9,9 @@ import { MaintenancePage } from "./components/StatusBanners";
 import { useMaintenance } from "./lib/maintenance";
 import { AdminProjectsPage } from "./pages/AdminProjectsPage";
 import { AdminRequestsPage } from "./pages/AdminRequestsPage";
+import { AccountDataPage } from "./pages/AccountDataPage";
 import { AdminAuditPage } from "./pages/AdminAuditPage";
+import { AdminDeletionsPage } from "./pages/AdminDeletionsPage";
 import { AdminUsagePage } from "./pages/AdminUsagePage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { ProjectMembersPage } from "./pages/ProjectMembersPage";
@@ -62,6 +64,8 @@ function App() {
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/audit" element={<AdminAuditPage />} />
           <Route path="/admin/usage" element={<AdminUsagePage />} />
+          <Route path="/admin/deletions" element={<AdminDeletionsPage />} />
+          <Route path="/settings/data" element={<AccountDataPage />} />
         </Route>
         <Route path="/invite/:token" element={<InvitePage />} />
         <Route path="/unsubscribe" element={<UnsubscribePage />} />

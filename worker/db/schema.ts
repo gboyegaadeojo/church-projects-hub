@@ -53,6 +53,8 @@ export const users = sqliteTable(
     lastSeenAt: integer("last_seen_at"),
     deletedAt: integer("deleted_at"),
     deletionRequestedAt: integer("deletion_requested_at"),
+    // ADM-8: when they were suspended; six months later their details are eligible for purge.
+    suspendedAt: integer("suspended_at"),
     ...timestamps,
   },
   (t) => [
@@ -525,6 +527,25 @@ export const userNewsSeen = sqliteTable("user_news_seen", {
   lastNewsId: integer("last_news_id").notNull(),
   seenAt: integer("seen_at").notNull(),
 });
+
+export const DELETION_STATUSES = ["pending", "approved", "rejected", "completed"] as const;
+
+// ADM-6: a person asks for their data to be deleted; an App Admin approves (anonymised at once) or rejects.
+export const dataDeletionRequests = sqliteTable(
+  "data_deletion_requests",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id),
+    requestedAt: integer("requested_at").notNull(),
+    status: text("status", { enum: DELETION_STATUSES }).notNull().default("pending"),
+    decidedBy: integer("decided_by").references(() => users.id),
+    decidedAt: integer("decided_at"),
+    ...timestamps,
+  },
+  (t) => [check("data_deletion_requests_status_check", oneOf("status", DELETION_STATUSES)), index("data_deletion_requests_status_idx").on(t.status, t.requestedAt)],
+);
 
 // The "small error table" (section 5): one row per server error or crashed section (11.13), counted by the
 // error-spike alert (NFR-15). No personal data: a section name, a request id and a hashed IP only (NFR-5).

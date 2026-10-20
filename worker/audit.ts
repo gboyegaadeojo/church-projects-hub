@@ -26,6 +26,11 @@ export const AUDIT = {
   appRoleChanged: "user.app_role_changed",
   userSuspended: "user.suspended",
   userRestored: "user.restored",
+  deletionRequested: "user.deletion_requested",
+  deletionApproved: "user.deletion_approved",
+  deletionRejected: "user.deletion_rejected",
+  deletionCompleted: "user.deletion_completed",
+  retentionPurged: "retention.purge_confirmed",
   // Workflow: columns, labels, components or milestones changed (section 6).
   workflowChanged: "workflow.changed",
   // Destructive actions (section 6, 11.14).

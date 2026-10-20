@@ -99,7 +99,8 @@ export function PrivacyPage() {
 
         <Section title="Asking us to delete your data">
           <p>
-            Email {contact} from the Google account you use here and ask for your data to be deleted. We aim to finish
+            Signed in, open <strong>Your data</strong> from your account menu and choose Request deletion, or email {contact}
+            from the Google account you use here. We aim to finish
             within 30 days. Your name, email, photo and Google ID are removed and replaced with "Deleted User" plus a
             number. Tasks you worked on stay for the team, under that placeholder. A record that the deletion happened is
             kept in the security log.

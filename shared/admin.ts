@@ -136,3 +136,33 @@ export const usageResponse = z.object({
   failedEmails: z.number().int(),
 });
 export type UsageResponse = z.infer<typeof usageResponse>;
+
+// ---- Data deletion (ADM-6) and retention purge (ADM-8)
+
+export const RETENTION_MS = 183 * 24 * 60 * 60 * 1000; // six months
+export const DELETION_CONFIRM = { approve: "user.delete_data", purge: "retention.purge", request: "data.request_deletion" } as const;
+
+export const myDeletionResponse = z.object({
+  request: z.object({ status: z.enum(["pending", "approved", "rejected", "completed"]), requestedAt: z.number(), decidedAt: z.number().nullable() }).nullable(),
+});
+
+export const deletionRequestRow = z.object({
+  id: z.number().int(),
+  user: z.object({ id: z.number().int(), name: z.string(), email: z.string(), appRole: z.enum(["admin", "member"]) }),
+  status: z.enum(["pending", "approved", "rejected", "completed"]),
+  requestedAt: z.number(),
+  decidedAt: z.number().nullable(),
+  decidedBy: z.string().nullable(),
+});
+export type DeletionRequestRow = z.infer<typeof deletionRequestRow>;
+export const deletionsResponse = z.object({ requests: z.array(deletionRequestRow) });
+
+export const retentionResponse = z.object({
+  projects: z.array(z.object({ id: z.number().int(), key: z.string(), name: z.string(), archivedAt: z.number(), tasks: z.number().int() })),
+  users: z.array(z.object({ id: z.number().int(), name: z.string(), email: z.string(), suspendedAt: z.number() })),
+});
+export type RetentionResponse = z.infer<typeof retentionResponse>;
+
+export const DELETION_COPY = {
+  requested: "Your request was sent. An app admin will review it within 30 days.",
+} as const;
