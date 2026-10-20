@@ -10,7 +10,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   BOARD_LABEL,
-  BOARD_PROJECTS,
   BOARD_TASKS,
   COLUMNS,
   HOUR,
@@ -20,7 +19,7 @@ import {
   PROJECTS,
   REQUESTS,
   sessionIdFor,
-  VIEWPORTS,
+  TASK_PROJECTS,
 } from "./fixtures.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -90,9 +89,9 @@ for (const p of PERSONAS) {
     );
   }
 }
-// Board projects: a label and three tasks in To Do (reported by the board's contributor).
-for (const v of VIEWPORTS) {
-  const project = BOARD_PROJECTS[v];
+// Board and detail projects: a label and three tasks in To Do (reported by that viewport's contributor).
+for (const project of TASK_PROJECTS) {
+  const v = project.key.endsWith("DESK") ? "desktop" : "mobile";
   const reporter = PERSONAS.find((p) => p.key === `mover-${v}`)!;
   const toDo = `(SELECT id FROM workflow_states WHERE project_id = ${project.id} AND position = 1)`;
   sql.push(

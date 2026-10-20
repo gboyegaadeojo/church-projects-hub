@@ -21,9 +21,15 @@ export const PROJECTS = [
   // One board per viewport for the task tests, which move cards (hidden so they stay off the request screen).
   { id: 5, key: "BRDDESK", name: "Board desktop", description: "Board tests on desktop.", hidden: true },
   { id: 6, key: "BRDMOB", name: "Board mobile", description: "Board tests on mobile.", hidden: true },
+  // The task detail tests run alongside the board tests, so they get their own projects.
+  { id: 7, key: "DETDESK", name: "Detail desktop", description: "Task detail tests on desktop.", hidden: true },
+  { id: 8, key: "DETMOB", name: "Detail mobile", description: "Task detail tests on mobile.", hidden: true },
 ] as const;
 
 export const BOARD_PROJECTS = { desktop: PROJECTS[4], mobile: PROJECTS[5] } as const;
+export const DETAIL_PROJECTS = { desktop: PROJECTS[6], mobile: PROJECTS[7] } as const;
+/** Every project seeded with the board tasks below. */
+export const TASK_PROJECTS = [BOARD_PROJECTS.desktop, BOARD_PROJECTS.mobile, DETAIL_PROJECTS.desktop, DETAIL_PROJECTS.mobile] as const;
 
 /** The default columns (shared/projects.ts DEFAULT_WORKFLOW), seeded for every project. */
 export const COLUMNS = [
@@ -101,7 +107,10 @@ export const PERSONAS: Persona[] = [
       email: `${k}.${v}@example.org`,
       status: "active" as const,
       appRole: "member" as const,
-      memberships: [{ projectId: k === "mover" ? BOARD_PROJECTS[v].id : 1, role: "contributor" as const }],
+      memberships:
+        k === "mover"
+          ? [BOARD_PROJECTS[v], DETAIL_PROJECTS[v]].map((p) => ({ projectId: p.id, role: "contributor" as const }))
+          : [{ projectId: 1, role: "contributor" as const }],
     })),
   ),
 ].map((p, i) => ({ ...p, id: i + 1 }));
