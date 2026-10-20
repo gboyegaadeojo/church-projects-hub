@@ -15,6 +15,7 @@ import {
   REASON_MAX,
 } from "../../shared/access";
 import type { MeResponse } from "../../shared/auth";
+import { InviteList, INVITES_KEY } from "../components/InviteList";
 import { AdminTabs } from "../components/shell/AdminTabs";
 import { useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
@@ -106,7 +107,10 @@ export function AdminRequestsPage() {
       )}
 
       {queue.data && queue.data.invitableProjects.length > 0 && (
-        <InviteForm me={me} projects={queue.data.invitableProjects} />
+        <>
+          <InviteForm me={me} projects={queue.data.invitableProjects} />
+          <InviteList me={me} />
+        </>
       )}
 
       <ApproveDialog me={me} request={approving} onClose={() => setApproving(null)} />
@@ -245,6 +249,7 @@ function InviteForm({ me, projects }: { me: MeResponse; projects: AccessQueueRes
   const [role, setRole] = useState<ProjectRole>(DEFAULT_APPROVAL_ROLE);
   const [errors, setErrors] = useState<{ project?: string; email?: string }>({});
   const [link, setLink] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const create = useMutation({
     mutationFn: () =>
@@ -254,6 +259,7 @@ function InviteForm({ me, projects }: { me: MeResponse; projects: AccessQueueRes
     onSuccess: (body) => {
       setLink(body.link);
       setEmail("");
+      void queryClient.invalidateQueries({ queryKey: INVITES_KEY });
     },
     onError: (err) => {
       if (err instanceof ApiError && err.code === ACCESS_ERRORS.invalid) {

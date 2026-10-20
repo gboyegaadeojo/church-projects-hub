@@ -1,6 +1,7 @@
 // Single cron (every 5 minutes) dispatches all background work — see docs/REQUIREMENTS.md section 5.
 // Each job is filled in during its build stage; until then the dispatcher only decides what is due.
 
+import { inviteExpiryStatement } from "../access/manage";
 import { emailSenderFor } from "../email/sender";
 import { dueReminderStatements, queueDigests } from "./digest";
 import { cleanOrphanedAttachments } from "./orphans";
@@ -37,11 +38,13 @@ export async function runScheduledJobs(now: Date, env: Env): Promise<DueJobs> {
     await accessReminderStatement(env, ms).run();
     // NOTIF-2: due in 7 days, due tomorrow, overdue — mostly into the 7 am digest.
     await env.DB.batch(dueReminderStatements(env, ms));
+    // Section 6: "invite expired", once per invite.
+    await inviteExpiryStatement(env, ms).run();
   }
   // Section 8 rule 3: digests for everyone whose local time is 7 am, sent by the outbox step below.
   if (due.hourly) await queueDigests(env, ms);
   // Stage 7: incremental report_snapshots.
-  // Stage 6: retention queue (ADM-8), invite expiry (audit "invite expired").
+  // Stage 6d: retention queue (ADM-8).
   if (due.outbox) await sendDueEmails(env, emailSenderFor(env), ms);
   return due;
 }

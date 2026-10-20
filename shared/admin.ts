@@ -47,3 +47,43 @@ export const adminUserDetail = adminUserRow.extend({
 export type AdminUserDetail = z.infer<typeof adminUserDetail>;
 
 export const appRoleBody = z.object({ appRole: z.enum(["admin", "member"]) });
+
+// ---- Invite management (ADM-7) and project members (section 2 "Change member roles")
+
+export const MANAGE_CONFIRM = {
+  cancelInvite: "invite.cancel",
+  removeMember: "member.remove",
+  lowerRole: "member.lower_role",
+} as const;
+
+export const INVITE_STATUSES = ["pending", "used", "expired", "cancelled"] as const;
+export type InviteStatus = (typeof INVITE_STATUSES)[number];
+
+export const inviteRow = z.object({
+  id: z.number().int(),
+  email: z.string(),
+  role: z.enum(["admin", "contributor", "viewer"]),
+  project: z.object({ id: z.number().int(), key: z.string(), name: z.string() }),
+  sentBy: z.string(),
+  createdAt: z.number(),
+  expiresAt: z.number(),
+  status: z.enum(INVITE_STATUSES),
+});
+export type InviteRow = z.infer<typeof inviteRow>;
+export const invitesResponse = z.object({ invites: z.array(inviteRow) });
+export const resendInviteResponse = z.object({ link: z.string(), expiresAt: z.number() });
+
+export const memberRow = z.object({
+  userId: z.number().int(),
+  name: z.string(),
+  email: z.string(),
+  avatarUrl: z.string().nullable(),
+  role: z.enum(["admin", "contributor", "viewer"]),
+  addedAt: z.number(),
+});
+export type MemberRow = z.infer<typeof memberRow>;
+export const membersResponse = z.object({ members: z.array(memberRow), canManage: z.boolean() });
+export const memberRoleBody = z.object({ role: z.enum(["admin", "contributor", "viewer"]) });
+
+/** Higher number = more rights; a change to a lower number needs confirmation (section 11.14). */
+export const ROLE_RANK = { viewer: 0, contributor: 1, admin: 2 } as const;

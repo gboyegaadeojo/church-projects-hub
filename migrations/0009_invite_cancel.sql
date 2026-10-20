@@ -1,0 +1,1 @@
+ALTER TABLE `invites` ADD `cancelled_at` integer;

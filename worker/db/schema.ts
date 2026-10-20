@@ -170,6 +170,8 @@ export const invites = sqliteTable(
     token: text("token").notNull(),
     expiresAt: integer("expires_at").notNull(),
     usedAt: integer("used_at"),
+    // ADM-7: an admin cancelled it before it was used.
+    cancelledAt: integer("cancelled_at"),
     ...timestamps,
   },
   (t) => [

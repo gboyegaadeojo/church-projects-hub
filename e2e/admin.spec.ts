@@ -44,3 +44,38 @@ test("ADM-2 the admin can't suspend themselves", async ({ pageAs }) => {
   await expect(sheet.getByText("You can't do this to your own account.")).toBeVisible();
   await expect(sheet.getByRole("button", { name: "Suspend" })).toHaveCount(0);
 });
+
+test("Section 2 an App Admin lowers a member's role with confirmation and raises it back", async ({ pageAs }, testInfo) => {
+  const member = persona("roler", viewportOf(testInfo));
+  const page = await pageAs(persona("admin"));
+  await page.goto("/projects/MEDIA");
+  await page.getByRole("link", { name: "Members" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Media members" })).toBeVisible();
+  await expectNoViolations(page);
+  const role = page.getByRole("combobox", { name: `Role for ${member.name}` });
+  await expect(role).toHaveText("Contributor");
+  await role.click();
+  await page.getByRole("option", { name: "Viewer" }).click();
+  const confirm = page.getByRole("alertdialog", { name: `Change ${member.name} to Viewer?` });
+  await confirm.getByRole("button", { name: "Change role" }).click();
+  await expect(role).toHaveText("Viewer");
+  await role.click();
+  await page.getByRole("option", { name: "Contributor" }).click();
+  await expect(role).toHaveText("Contributor");
+});
+
+test("ADM-7 a sent invite is listed and can be cancelled", async ({ pageAs }, testInfo) => {
+  const email = `listed.${viewportOf(testInfo)}.${Date.now()}@example.org`;
+  const page = await pageAs(persona("admin"));
+  await page.goto("/admin/requests");
+  await page.getByRole("combobox", { name: "Project" }).click();
+  await page.getByRole("option", { name: "Media" }).click();
+  await page.getByRole("textbox", { name: "Email" }).fill(email);
+  await page.getByRole("button", { name: "Send invite", exact: true }).click();
+  const row = page.getByRole("row").filter({ hasText: email });
+  await expect(row).toContainText("Pending");
+  await row.getByRole("button", { name: `Cancel invite for ${email}` }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel invite" }).click();
+  await expect(row).toContainText("Cancelled");
+  await expectNoViolations(page);
+});

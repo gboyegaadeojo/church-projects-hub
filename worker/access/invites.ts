@@ -28,13 +28,14 @@ type InviteRow = {
   invited_by: number;
   expires_at: number;
   used_at: number | null;
+  cancelled_at: number | null;
   project_open: number;
 };
 
 async function findInvite(env: Env, token: string): Promise<InviteRow | null> {
   return env.DB.prepare(
     `SELECT i.id, i.project_id, p.key AS project_key, p.name AS project_name, i.role, i.email, i.invited_by,
-            i.expires_at, i.used_at,
+            i.expires_at, i.used_at, i.cancelled_at,
             (p.archived_at IS NULL AND p.deleted_at IS NULL AND p.is_system = 0) AS project_open
      FROM invites i JOIN projects p ON p.id = i.project_id
      WHERE i.token = ?1`,
@@ -44,7 +45,7 @@ async function findInvite(env: Env, token: string): Promise<InviteRow | null> {
 }
 
 function usable(invite: InviteRow | null, now: number): invite is InviteRow {
-  return !!invite && invite.used_at === null && invite.expires_at > now && invite.project_open === 1;
+  return !!invite && invite.used_at === null && invite.cancelled_at === null && invite.expires_at > now && invite.project_open === 1;
 }
 
 /**
@@ -67,7 +68,7 @@ export async function redeemInvite(
     `EXISTS (SELECT 1 FROM invites WHERE id = ${idParam} AND used_at = ${nowParam})`;
   const results = await env.DB.batch([
     env.DB.prepare(
-      "UPDATE invites SET used_at = ?2, updated_at = ?2 WHERE id = ?1 AND used_at IS NULL AND expires_at > ?2",
+      "UPDATE invites SET used_at = ?2, updated_at = ?2 WHERE id = ?1 AND used_at IS NULL AND cancelled_at IS NULL AND expires_at > ?2",
     ).bind(invite.id, now),
     // An existing membership is left as it is (an invite never changes someone's current role).
     env.DB.prepare(
