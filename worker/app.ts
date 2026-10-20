@@ -7,6 +7,7 @@ import { notificationRoutes, unreadHeader } from "./notifications";
 import { sameOriginWrites } from "./auth/middleware";
 import { authRoutes } from "./auth/routes";
 import { emailRoutes } from "./email/routes";
+import { feedbackRoutes } from "./feedback/routes";
 import { profileRoutes } from "./profile/routes";
 import { projectRoutes } from "./projects/routes";
 import { attachmentRoutes } from "./tasks/attachments";
@@ -51,6 +52,7 @@ export function createApp(deps: AppDeps) {
   app.route("/", workRoutes());
   app.route("/", notificationRoutes());
   app.route("/", emailRoutes());
+  app.route("/", feedbackRoutes());
 
   // Unknown API routes return JSON, never the SPA shell.
   app.notFound((c) => c.json({ error: "Not found" }, 404));

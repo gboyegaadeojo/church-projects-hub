@@ -11,6 +11,7 @@ import { AdminProjectsPage } from "./pages/AdminProjectsPage";
 import { AdminRequestsPage } from "./pages/AdminRequestsPage";
 import { ProjectPage } from "./pages/ProjectPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
+import { BugReportPage, FeatureRequestPage, MyFeedbackPage } from "./pages/FeedbackPages";
 import { HomePage } from "./pages/HomePage";
 import { InvitePage } from "./pages/InvitePage";
 import { NotificationSettingsPage } from "./pages/NotificationSettingsPage";
@@ -20,6 +21,7 @@ import { RequestAccessPage } from "./pages/RequestAccessPage";
 import { SearchPage } from "./pages/SearchPage";
 import { InviteExpiredPage, InviteMismatchPage, SuspendedPage } from "./pages/SecurityScreens";
 import { UnsubscribePage } from "./pages/UnsubscribePage";
+import { WhatsNewPage } from "./pages/WhatsNewPage";
 import { WorkPage } from "./pages/WorkPage";
 
 const queryClient = new QueryClient();
@@ -44,6 +46,10 @@ function App() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/settings/notifications" element={<NotificationSettingsPage />} />
+          <Route path="/whats-new" element={<WhatsNewPage />} />
+          <Route path="/feedback" element={<MyFeedbackPage />} />
+          <Route path="/feedback/bug" element={<BugReportPage />} />
+          <Route path="/feedback/feature" element={<FeatureRequestPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:key" element={<ProjectPage />} />
           <Route path="/admin/requests" element={<AdminRequestsPage />} />

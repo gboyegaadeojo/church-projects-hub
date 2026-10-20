@@ -65,7 +65,11 @@ export function eventContent(template: EmailTemplate, p: Payload, base: string):
             button: { label: "See your requests", href: `${base}/request-access` },
           };
     case "feedback.status_changed":
-      return { line: `Your feedback ${task} moved to ${p.stateName ?? "a new status"}`, details: [], button: open };
+      return {
+        line: `Your feedback ${task} moved to ${p.stateName ?? "a new status"}`,
+        details: [],
+        button: { label: "See your feedback", href: `${base}/feedback` },
+      };
     case "project.weekly_summary":
       return { line: `Weekly summary for ${p.projectName ?? "your project"}`, details: [], button: { label: "Open the project", href: `${base}/projects/${p.projectKey ?? ""}` } };
     case "invite":

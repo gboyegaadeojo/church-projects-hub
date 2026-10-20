@@ -23,6 +23,7 @@ import { useSaveTheme } from "../../lib/profile";
 import { PROJECT_COLOUR_CLASSES, PROJECT_ICON_COMPONENTS, useMyProjects } from "../../lib/projects";
 import { useSignOut } from "../../lib/session";
 import { CommandPalette, openCommandPalette } from "../CommandPalette";
+import { HelpMenu } from "../HelpMenu";
 import { NotificationBell } from "../NotificationBell";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { SessionGate } from "../SessionGate";
@@ -121,7 +122,10 @@ function Shell({ me, children }: { me: MeResponse; children?: ReactNode }) {
           <Link to="/work" className="rounded-control">
             <BrandMark />
           </Link>
-          <NotificationBell me={me} />
+          <div className="flex items-center">
+            <HelpMenu />
+            <NotificationBell me={me} />
+          </div>
         </div>
         <OfflineBanner />
         {/* Section 11.13: a crashed page stays inside the shell; navigation keeps working. Keyed so it resets. */}
@@ -224,7 +228,10 @@ function Sidebar({ me, collapsed, onToggle }: { me: MeResponse; collapsed: boole
         <Link to="/work" className="rounded-control">
           <BrandMark showName={!collapsed} />
         </Link>
-        <NotificationBell me={me} side={collapsed ? "right" : "bottom"} />
+        <div className={cn("flex items-center", collapsed && "flex-col")}>
+          <HelpMenu side={collapsed ? "right" : "bottom"} />
+          <NotificationBell me={me} side={collapsed ? "right" : "bottom"} />
+        </div>
         {onToggle && (
           <IconButton
             icon={collapsed ? PanelLeftOpen : PanelLeftClose}

@@ -23,6 +23,9 @@ export const AUDIT = {
   subtaskDeleted: "subtask.deleted",
   attachmentDeleted: "attachment.deleted",
   savedFilterDeleted: "saved_filter.deleted",
+  // Content (section 6).
+  newsPublished: "news.published",
+  newsEdited: "news.edited",
 } as const;
 export type AuditAction = (typeof AUDIT)[keyof typeof AUDIT];
 
@@ -40,7 +43,8 @@ export type AuditTargetType =
   | "label"
   | "component"
   | "milestone"
-  | "saved_filter";
+  | "saved_filter"
+  | "news";
 
 export type AuditEvent = {
   actorId: number | null;
