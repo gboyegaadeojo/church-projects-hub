@@ -8,6 +8,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  Search,
   Settings2,
   Shield,
 } from "lucide-react";
@@ -186,6 +187,7 @@ function Sidebar({ me, collapsed, onToggle }: { me: MeResponse; collapsed: boole
       <nav aria-label="Main" className="flex-1 overflow-y-auto p-3">
         <ul className="flex flex-col gap-1">
           <SidebarLink to="/work" label="My Work" icon={House} collapsed={collapsed} />
+          <SidebarLink to="/search" label="Search" icon={Search} collapsed={collapsed} />
         </ul>
 
         <SectionLabel collapsed={collapsed}>Projects</SectionLabel>
@@ -329,6 +331,12 @@ function BottomNav({ me }: { me: MeResponse }) {
           <NavLink to="/projects" className={({ isActive }) => tabClasses(isActive)}>
             <Icon icon={FolderKanban} />
             Projects
+          </NavLink>
+        </li>
+        <li className="flex flex-1">
+          <NavLink to="/search" className={({ isActive }) => tabClasses(isActive)}>
+            <Icon icon={Search} />
+            Search
           </NavLink>
         </li>
         {admin.length > 0 && (

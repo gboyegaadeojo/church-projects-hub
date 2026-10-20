@@ -13,6 +13,7 @@ import { HomePage } from "./pages/HomePage";
 import { InvitePage } from "./pages/InvitePage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { RequestAccessPage } from "./pages/RequestAccessPage";
+import { SearchPage } from "./pages/SearchPage";
 import { InviteExpiredPage, InviteMismatchPage, SuspendedPage } from "./pages/SecurityScreens";
 import { WorkPage } from "./pages/WorkPage";
 
@@ -33,6 +34,7 @@ createRoot(document.getElementById("root")!).render(
             {/* Active members: inside the app shell (section 12). */}
             <Route element={<AppShell />}>
               <Route path="/work" element={<WorkPage />} />
+              <Route path="/search" element={<SearchPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:key" element={<ProjectPage />} />
               <Route path="/admin/requests" element={<AdminRequestsPage />} />
