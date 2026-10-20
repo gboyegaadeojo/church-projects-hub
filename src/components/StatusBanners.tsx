@@ -1,4 +1,4 @@
-import { CloudOff, RefreshCw, Smartphone, X } from "lucide-react";
+import { CloudOff, type LucideIcon, RefreshCw, Smartphone, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { MeResponse } from "../../shared/auth";
 import { MAINTENANCE_COPY } from "../lib/maintenance";
@@ -6,6 +6,7 @@ import { OFFLINE_COPY, useOnline } from "../lib/online";
 import { BrandMark } from "./shell/BrandMark";
 import { Button, IconButton } from "./ui/Button";
 import { Icon } from "./ui/Icon";
+import { Tooltip } from "./ui/Tooltip";
 
 // App-wide states: offline (section 11.10), maintenance (NFR-18) and the add-to-home-screen prompt (NFR-21).
 
@@ -18,6 +19,29 @@ export function OfflineBanner() {
       <Icon icon={CloudOff} className="mt-px text-warning-ink" />
       <span>{OFFLINE_COPY.banner}</span>
     </div>
+  );
+}
+
+/**
+ * A write control while offline (section 11.10): visibly disabled, with "Not available offline." as its tooltip
+ * and description. aria-disabled (not disabled) keeps it focusable so keyboard users can find out why.
+ */
+export function OfflineDisabled({ label, icon, iconOnly = false }: { label: string; icon: LucideIcon; iconOnly?: boolean }) {
+  return (
+    <Tooltip content={OFFLINE_COPY.writeDisabled}>
+      <Button
+        variant={iconOnly ? "ghost" : "primary"}
+        icon={icon}
+        iconOnly={iconOnly}
+        aria-disabled="true"
+        aria-label={iconOnly ? `${label}: ${OFFLINE_COPY.writeDisabled}` : undefined}
+        aria-description={iconOnly ? undefined : OFFLINE_COPY.writeDisabled}
+        onClick={(e) => e.preventDefault()}
+        className="cursor-not-allowed bg-disabled text-ink-disabled state-hover:bg-disabled"
+      >
+        {iconOnly ? null : label}
+      </Button>
+    </Tooltip>
   );
 }
 

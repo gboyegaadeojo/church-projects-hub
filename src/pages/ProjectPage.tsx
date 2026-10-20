@@ -21,6 +21,7 @@ import { EmptyState, ErrorState } from "../components/ui/States";
 import { toast } from "../components/ui/Toast";
 import { api, ApiError } from "../lib/api";
 import { cn } from "../lib/cn";
+import { OfflineDisabled } from "../components/StatusBanners";
 import { useOnline } from "../lib/online";
 import { peopleById, useBoard, useBulkEdit, useMoveTask } from "../lib/tasks";
 import { ProjectBadges } from "./ProjectsPage";
@@ -208,6 +209,8 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
               New task
             </Button>
           )}
+          {/* Section 11.10: offline, write controls stay visible but disabled, with the reason. */}
+          {!online && canEditTasks(me, project) && <OfflineDisabled label="New task" icon={Plus} />}
         </div>
       }
     >
@@ -281,6 +284,7 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
               people={people}
               today={today}
               canMove={canEdit}
+              offline={!online && canEditTasks(me, project)}
               onOpen={openTask}
               onMove={(input) => move.mutate(input)}
             />

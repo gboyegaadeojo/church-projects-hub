@@ -57,9 +57,13 @@ test("Section 11.10 offline: amber banner, last saved view read-only, writes bac
   await expect(page.getByRole("button", { name: "New task" }).first()).toBeVisible();
   await page.context().setOffline(true);
   await expect(page.getByRole("status").filter({ hasText: "You're offline. Showing your last saved view" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "New task" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: `Move ${project.key}-3` })).toHaveCount(0);
+  // Write controls stay visible but disabled, saying why (section 11.10).
+  const newTask = page.getByRole("button", { name: "New task" }).first();
+  await expect(newTask).toHaveAttribute("aria-disabled", "true");
   await expectNoViolations(page);
+  await newTask.hover();
+  await expect(page.getByRole("tooltip").filter({ hasText: "Not available offline." })).toBeVisible();
+  await expect(page.getByRole("button", { name: `Move ${project.key}-3: Not available offline.` })).toHaveAttribute("aria-disabled", "true");
   await page.context().setOffline(false);
   await expect(page.getByText("You're offline.")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "New task" }).first()).toBeVisible();
