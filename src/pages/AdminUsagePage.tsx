@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, Gauge, OctagonAlert, RefreshCw } from "lucide-react";
 import { FREE_LIMITS, USAGE_WARN_AT, type UsageResponse, usageResponse } from "../../shared/admin";
-import { AdminTabs } from "../components/shell/AdminTabs";
-import { useMe } from "../components/shell/AppShell";
+import { ADMIN_CRUMBS, useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
 import { Button } from "../components/ui/Button";
 import { Icon } from "../components/ui/Icon";
@@ -89,6 +88,7 @@ export function AdminUsagePage() {
 
   return (
     <PageLayout
+      breadcrumbs={ADMIN_CRUMBS}
       title="Usage"
       intro="Free-tier use for the whole Cloudflare account (shared with the checklist app). Limits reset at midnight UTC."
       actions={
@@ -99,7 +99,6 @@ export function AdminUsagePage() {
         )
       }
     >
-      <AdminTabs me={me} />
       {me.user.appRole !== "admin" ? (
         <EmptyState icon={Gauge} title="Only app admins can see usage." />
       ) : usage.isError ? (

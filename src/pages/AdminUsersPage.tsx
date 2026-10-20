@@ -3,8 +3,7 @@ import { LogOut, Search, ShieldCheck, ShieldOff, UserCheck, UserX, Users } from 
 import { useEffect, useState } from "react";
 import { ADMIN_CONFIRM, ADMIN_COPY, ADMIN_ERRORS, type AdminUserRow, adminUserDetail, adminUsersResponse, type UserSort } from "../../shared/admin";
 import type { MeResponse } from "../../shared/auth";
-import { AdminTabs } from "../components/shell/AdminTabs";
-import { useMe } from "../components/shell/AppShell";
+import { ADMIN_CRUMBS, useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
 import { Avatar } from "../components/ui/Avatar";
 import { Badge } from "../components/ui/Badge";
@@ -49,9 +48,9 @@ function StatusBadge({ status }: { status: AdminUserRow["status"] }) {
 export function AdminUsersPage() {
   const me = useMe();
   return (
-    <PageLayout title="Users">
-      <AdminTabs me={me} />
-      {me.user.appRole === "admin" ? <UserDirectory me={me} /> : <EmptyState icon={Users} title="Only app admins can manage users." />}
+    <PageLayout breadcrumbs={ADMIN_CRUMBS} title="Users">
+      {me.user.appRole === "admin" ? <UserDirectory me={me} />
+ : <EmptyState icon={Users} title="Only app admins can manage users." />}
     </PageLayout>
   );
 }

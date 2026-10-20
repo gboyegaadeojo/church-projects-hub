@@ -23,34 +23,47 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  /* Surfaces (section 9 roles) */
+  /* Surfaces (section 9 roles). A cool, work-tracker neutral: navy-tinted greys, white cards. */
   --surface-primary: #ffffff;
-  --surface-secondary: #f4f4f6;
+  --surface-secondary: #f7f8f9;
   --surface-elevated: #ffffff;
   /* Usage: light grey page with white cards */
   --surface-page: var(--surface-secondary);
   --surface-card: var(--surface-primary);
-  --surface-hover: #ebebef;
-  --surface-pressed: #e1e1e7;
-  --surface-disabled: #ececf0;
+  --surface-hover: #f1f2f4;
+  --surface-pressed: #dcdfe4;
+  --surface-disabled: #f1f2f4;
+  /* Board columns sit a step below the page so white cards stand out on them */
+  --surface-column: #f1f2f4;
 
-  /* Text */
-  --ink-primary: #1c1c1e;
-  --ink-secondary: #55555f;
-  --ink-disabled: #66666f;
+  /* Text: deep navy rather than black, softer on the eye at the same contrast */
+  --ink-primary: #172b4d;
+  --ink-secondary: #44546f;
+  --ink-disabled: #5e6c84;
   --ink-on-accent: #ffffff;
   --ink-on-danger: #ffffff;
 
   /* Borders: decorative and component boundaries (≥ 3:1) */
-  --line: #e3e3e8;
-  --line-strong: #85858f;
+  --line: #dcdfe4;
+  --line-strong: #758195;
 
   /* Project accent (default; a project overrides --accent on its container) */
-  --accent: #2563eb;
-  --accent-hover: #1d4fd8;
-  --accent-pressed: #1a43b8;
-  --accent-soft: #e8efff;
-  --accent-ink: #1d4fd8;
+  --accent: #0c66e4;
+  --accent-hover: #0055cc;
+  --accent-pressed: #09326c;
+  --accent-soft: #e9f2ff;
+  --accent-ink: #0055cc;
+
+  /* Brand: the logo tile, the welcome banner and the active-nav marker */
+  --brand-from: #0c66e4;
+  --brand-to: #6e5dc6;
+  --hero-from: #e9f2ff;
+  --hero-to: #f3f0ff;
+
+  /* Workflow categories (board column dots, list status pills). Graphics only, always beside the column name. */
+  --status-todo: #758195;
+  --status-progress: #0c66e4;
+  --status-done: #1f845a;
 
   /* Project colours (PROJ-1): the dot and icon that mark a project; graphics, ≥ 3:1 on every surface */
   --project-blue: #2563eb;
@@ -75,19 +88,19 @@
   --danger-line: #f3a6a0;
 
   /* Success */
-  --success-soft: #e7f6ec;
-  --success-ink: #157a3c;
-  --success-line: #9bd3ae;
+  --success-soft: #dcfff1;
+  --success-ink: #216e4e;
+  --success-line: #7ee2b8;
 
   /* Warning */
-  --warning-soft: #fff4e0;
-  --warning-ink: #9a4a00;
-  --warning-line: #f5c27a;
+  --warning-soft: #fff7d6;
+  --warning-ink: #974f0c;
+  --warning-line: #f5cd47;
 
   /* Info */
   --info-soft: var(--accent-soft);
   --info-ink: var(--accent-ink);
-  --info-line: #a9c1fb;
+  --info-line: #85b8ff;
 
   /* Task status (section 9): overdue = red, due soon = amber, done = green */
   --overdue-soft: var(--danger-soft);
@@ -101,12 +114,12 @@
   --done-line: var(--success-line);
 
   /* Focus, overlay, elevation, skeleton */
-  --focus-ring: #2563eb;
-  --overlay: rgb(17 17 22 / 0.45);
-  --shadow-1: 0 1px 2px rgb(16 16 20 / 0.06), 0 1px 3px rgb(16 16 20 / 0.08);
-  --shadow-2: 0 4px 12px rgb(16 16 20 / 0.1), 0 1px 3px rgb(16 16 20 / 0.06);
-  --shadow-3: 0 16px 40px rgb(16 16 20 / 0.18), 0 2px 6px rgb(16 16 20 / 0.08);
-  --skeleton: #e6e6eb;
+  --focus-ring: #0c66e4;
+  --overlay: rgb(9 30 66 / 0.5);
+  --shadow-1: 0 1px 1px rgb(9 30 66 / 0.25), 0 0 1px rgb(9 30 66 / 0.31);
+  --shadow-2: 0 8px 12px rgb(9 30 66 / 0.15), 0 0 1px rgb(9 30 66 / 0.31);
+  --shadow-3: 0 20px 48px rgb(9 30 66 / 0.22), 0 0 1px rgb(9 30 66 / 0.31);
+  --skeleton: #e4e6ea;
   --skeleton-shine: rgb(255 255 255 / 0.6);
 }
 
@@ -114,31 +127,42 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --surface-primary: #111113;
-  --surface-secondary: #1b1b1e;
-  --surface-elevated: #26262a;
-  /* Usage: near-black page; cards and panels step up in lightness instead of relying on shadow */
+  /* Blue-slate rather than pure black: calmer for long evenings of planning */
+  --surface-primary: #1d2125;
+  --surface-secondary: #22272b;
+  --surface-elevated: #282e33;
+  /* Usage: dark page; cards and panels step up in lightness instead of relying on shadow */
   --surface-page: var(--surface-primary);
   --surface-card: var(--surface-secondary);
-  --surface-hover: #2c2c31;
-  --surface-pressed: #34343a;
-  --surface-disabled: #232327;
+  --surface-hover: #2c333a;
+  --surface-pressed: #38414a;
+  --surface-disabled: #2c333a;
+  --surface-column: #161a1d;
 
-  --ink-primary: #f2f2f5;
-  --ink-secondary: #a8a8b3;
-  --ink-disabled: #8c8c96;
-  --ink-on-accent: #0b1530;
+  --ink-primary: #dee4ea;
+  --ink-secondary: #9fadbc;
+  --ink-disabled: #8c9bab;
+  --ink-on-accent: #1d2125;
   --ink-on-danger: #ffffff;
 
-  --line: #2e2e34;
-  --line-strong: #7a7a85;
+  --line: #38414a;
+  --line-strong: #738496;
 
   /* Accent lightened and softened for dark surfaces */
-  --accent: #6b9bff;
-  --accent-hover: #85adff;
-  --accent-pressed: #5b8af0;
-  --accent-soft: #18233d;
-  --accent-ink: #8fb4ff;
+  --accent: #579dff;
+  --accent-hover: #85b8ff;
+  --accent-pressed: #388bff;
+  --accent-soft: #1c2b41;
+  --accent-ink: #85b8ff;
+
+  --brand-from: #388bff;
+  --brand-to: #8f7ee7;
+  --hero-from: #1c2b41;
+  --hero-to: #2b273f;
+
+  --status-todo: #8c9bab;
+  --status-progress: #579dff;
+  --status-done: #4bce97;
 
   /* Project colours lifted for dark surfaces */
   --project-blue: #6b9bff;
@@ -153,7 +177,7 @@
   --chart-2: #d95926;
   --chart-3: #199e70;
 
-  --danger: #c9372c;
+  --danger: #d0392e;
   --danger-hover: #b32e24;
   --danger-pressed: #9c271f;
   --danger-soft: #3a1715;
@@ -182,13 +206,13 @@
   --done-ink: var(--success-ink);
   --done-line: var(--success-line);
 
-  --focus-ring: #8fb4ff;
-  --overlay: rgb(0 0 0 / 0.6);
+  --focus-ring: #85b8ff;
+  --overlay: rgb(3 4 4 / 0.6);
   /* Shadows read poorly on dark; pair a deep shadow with a faint top edge */
   --shadow-1: 0 0 0 1px rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.5);
   --shadow-2: 0 0 0 1px rgb(255 255 255 / 0.06), 0 6px 16px rgb(0 0 0 / 0.5);
   --shadow-3: 0 0 0 1px rgb(255 255 255 / 0.08), 0 20px 48px rgb(0 0 0 / 0.6);
-  --skeleton: #26262a;
+  --skeleton: #2c333a;
   --skeleton-shine: rgb(255 255 255 / 0.06);
 }
 
@@ -202,6 +226,15 @@
   --color-hover: var(--surface-hover);
   --color-pressed: var(--surface-pressed);
   --color-disabled: var(--surface-disabled);
+  --color-column: var(--surface-column);
+
+  --color-brand-from: var(--brand-from);
+  --color-brand-to: var(--brand-to);
+  --color-hero-from: var(--hero-from);
+  --color-hero-to: var(--hero-to);
+  --color-status-todo: var(--status-todo);
+  --color-status-progress: var(--status-progress);
+  --color-status-done: var(--status-done);
 
   --color-ink: var(--ink-primary);
   --color-ink-2: var(--ink-secondary);
@@ -303,6 +336,7 @@
   --spacing-sidebar: 256px;
   --spacing-rail: 72px;
   --spacing-bottom-nav: 64px;
+  --spacing-topbar: 56px;
   --container-page: 1024px; /* readable width of page content (max-w-page) */
 
   --radius-card: 12px;
@@ -325,7 +359,14 @@
   --animate-toast-in: toast-in var(--duration-menu) var(--ease-spring);
   --animate-toast-out: fade-out var(--duration-micro) var(--ease-out);
   --animate-shimmer: shimmer var(--duration-shimmer) var(--ease-out) infinite;
+  /* Page content and list items settle in; list items stagger by their --i index (see .stagger).
+     "backwards" fill: no transform is left behind afterwards, so fixed children keep their position. */
+  --animate-rise-in: rise-in var(--duration-sheet) var(--ease-out) backwards;
+  --animate-badge-pop: pop-in var(--duration-menu) var(--ease-spring) backwards;
 
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(6px); }
+  }
   @keyframes fade-in {
     from { opacity: 0; }
   }
@@ -366,6 +407,8 @@
   --duration-sheet: 300ms; /* sheets, drawers, task panels: 240–360 ms */
   --duration-celebrate: 600ms; /* celebration: 400–800 ms */
   --duration-shimmer: 1600ms;
+  --stagger-step: 35ms; /* delay between list items rising in; capped at 8 steps */
+  --lift-hover: -2px; /* cards rise slightly under the pointer */
   --scale-pressed: 0.98; /* pressed feedback on buttons */
 
   /* Focus ring (section 15): 2 px ring, 2 px offset, both themes */
@@ -380,6 +423,8 @@
     --duration-menu: 0ms;
     --duration-sheet: 0ms;
     --duration-celebrate: 0ms;
+    --stagger-step: 0ms;
+    --lift-hover: 0px;
   }
   *,
   *::before,
@@ -428,6 +473,27 @@
   [data-preview="focus"] {
     outline: var(--focus-ring-width) solid var(--focus-ring);
     outline-offset: var(--focus-ring-offset);
+  }
+
+  /* List items rise in one after another: give each child style={{ "--i": index }} (capped at 8 steps) */
+  .stagger > * {
+    animation: var(--animate-rise-in);
+    animation-delay: calc(min(var(--i, 0), 8) * var(--stagger-step));
+  }
+
+  /* Clickable cards lift slightly under a mouse pointer (never needed to find an action) */
+  .lift {
+    transition:
+      transform var(--duration-micro) var(--ease-out),
+      box-shadow var(--duration-micro) var(--ease-out),
+      background-color var(--duration-micro) var(--ease-out),
+      border-color var(--duration-micro) var(--ease-out);
+  }
+  @media (hover: hover) {
+    .lift:hover {
+      transform: translateY(var(--lift-hover));
+      box-shadow: var(--shadow-2);
+    }
   }
 
   /* Applied for one frame while the theme changes so nothing animates between themes */

@@ -1,17 +1,17 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, UserMinus, Users } from "lucide-react";
+import { UserMinus, Users } from "lucide-react";
 import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 import { MANAGE_CONFIRM, type MemberRow, membersResponse, ROLE_RANK } from "../../shared/admin";
 import { projectResponse } from "../../shared/projects";
-import { useMe } from "../components/shell/AppShell";
+import { ProjectTile, useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
+import { ProjectTabs } from "../components/shell/ProjectTabs";
 import { Avatar } from "../components/ui/Avatar";
-import { Button, buttonClasses } from "../components/ui/Button";
+import { Button } from "../components/ui/Button";
 import { Select } from "../components/ui/choices";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { Field } from "../components/ui/Field";
-import { Icon } from "../components/ui/Icon";
 import { Skeleton } from "../components/ui/Skeleton";
 import { EmptyState, ErrorState } from "../components/ui/States";
 import { toast } from "../components/ui/Toast";
@@ -68,13 +68,10 @@ export function ProjectMembersPage() {
   return (
     <PageLayout
       title={project.data ? `${project.data.name} members` : "Members"}
-      actions={
-        <Link to={`/projects/${key}`} className={buttonClasses("secondary")}>
-          <Icon icon={ArrowLeft} />
-          Back to board
-        </Link>
-      }
+      breadcrumbs={[{ to: "/projects", label: "Projects" }, ...(project.data ? [{ to: `/projects/${project.data.key}`, label: project.data.name }] : [])]}
+      leading={project.data && <ProjectTile project={project.data} size="lg" />}
     >
+      <ProjectTabs projectKey={project.data?.key ?? key.toUpperCase()} active="members" />
       {project.isError || members.isError ? (
         <ErrorState title="We couldn't load the members." description="Check your connection and try again." onRetry={() => void members.refetch()} retrying={members.isFetching} />
       ) : !members.data ? (

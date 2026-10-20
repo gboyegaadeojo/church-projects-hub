@@ -10,8 +10,7 @@ import {
   type RetentionResponse,
   retentionResponse,
 } from "../../shared/admin";
-import { AdminTabs } from "../components/shell/AdminTabs";
-import { useMe } from "../components/shell/AppShell";
+import { ADMIN_CRUMBS, useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -72,16 +71,14 @@ export function AdminDeletionsPage() {
 
   if (!isAdmin) {
     return (
-      <PageLayout title="Data deletion">
-        <AdminTabs me={me} />
+      <PageLayout breadcrumbs={ADMIN_CRUMBS} title="Data deletion">
         <EmptyState icon={ShieldX} title="Only app admins can manage data deletion." />
       </PageLayout>
     );
   }
 
   return (
-    <PageLayout title="Data deletion" intro="Nothing here is deleted automatically. Review each request and each item, then confirm.">
-      <AdminTabs me={me} />
+    <PageLayout breadcrumbs={ADMIN_CRUMBS} title="Data deletion" intro="Nothing here is deleted automatically. Review each request and each item, then confirm.">
       <section aria-labelledby="requests-heading" className="flex flex-col gap-3">
         <h2 id="requests-heading" className="text-body font-semibold text-ink">
           Deletion requests

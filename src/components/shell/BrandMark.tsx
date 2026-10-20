@@ -10,12 +10,12 @@ export function BrandMark({ showName = true, className }: { showName?: boolean; 
     <span className={cn("inline-flex items-center gap-3", className)}>
       <span
         aria-hidden="true"
-        className="inline-flex size-10 shrink-0 items-center justify-center rounded-control bg-accent text-label font-semibold tracking-wide text-on-accent"
+        className="inline-flex size-9 shrink-0 items-center justify-center rounded-control bg-linear-135 from-brand-from to-brand-to text-label font-bold tracking-wide text-on-accent shadow-raised"
       >
         IFC
       </span>
       {showName ? (
-        <span className="text-body font-semibold text-ink">{APP_NAME}</span>
+        <span className="text-body font-semibold whitespace-nowrap text-ink">{APP_NAME}</span>
       ) : (
         <span className="sr-only">{APP_NAME}</span>
       )}

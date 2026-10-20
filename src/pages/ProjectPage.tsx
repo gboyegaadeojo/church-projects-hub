@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ChartColumn, Kanban, List, Lock, Plus, SearchX, Settings2, SlidersHorizontal, Users } from "lucide-react";
+import { Kanban, Lock, Plus, SearchX, Settings2, SlidersHorizontal } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import type { MeResponse } from "../../shared/auth";
@@ -17,8 +17,9 @@ import {
 } from "../../shared/filters";
 import { projectResponse, type ProjectSummary } from "../../shared/projects";
 import { type BulkEditBody, TASK_COPY, type TaskCard, todayIn } from "../../shared/tasks";
-import { ProjectGlyph, useMe } from "../components/shell/AppShell";
+import { ProjectTile, useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
+import { ProjectTabs } from "../components/shell/ProjectTabs";
 import { Board } from "../components/tasks/Board";
 import { BulkBar } from "../components/tasks/BulkBar";
 import { FilterBar } from "../components/tasks/FilterBar";
@@ -102,29 +103,6 @@ export function canEditTasks(me: MeResponse, project: ProjectSummary): boolean {
   return me.user.appRole === "admin" || project.role === "admin" || project.role === "contributor";
 }
 
-function ViewSwitch({ view, onChange }: { view: "board" | "list"; onChange: (v: "board" | "list") => void }) {
-  const option = (value: "board" | "list", label: string, icon: typeof Kanban) => (
-    <button
-      type="button"
-      aria-pressed={view === value}
-      onClick={() => onChange(value)}
-      className={cn(
-        "inline-flex min-h-touch items-center gap-2 rounded-chip px-3 text-secondary",
-        view === value ? "bg-card font-medium text-ink shadow-raised" : "text-ink-2 state-hover:text-ink",
-      )}
-    >
-      <Icon icon={icon} size="sm" />
-      {label}
-    </button>
-  );
-  return (
-    <div role="group" aria-label="View" className="inline-flex gap-1 rounded-control bg-hover p-1">
-      {option("board", "Board", Kanban)}
-      {option("list", "List", List)}
-    </div>
-  );
-}
-
 function ProjectWork({ project }: { project: ProjectSummary }) {
   const me = useMe();
   const [params, setParams] = useSearchParams();
@@ -144,13 +122,6 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
   const today = todayIn(me.user.timezone);
 
   const setFilter = (f: TaskFilter) => setParams((p) => filterToSearch(f, p), { replace: true });
-  const setView = (v: "board" | "list") =>
-    setParams((p) => {
-      const next = new URLSearchParams(p);
-      if (v === "list") next.set("view", "list");
-      else next.delete("view");
-      return next;
-    });
   const openTask = (task: Pick<TaskCard, "key">) =>
     setParams((p) => {
       const next = new URLSearchParams(p);
@@ -201,13 +172,12 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
   }
 
   const header: ReactNode = (
-    <span className="flex flex-col gap-3">
-      <span className="flex items-center gap-2 text-secondary">
-        <ProjectGlyph project={project} size="sm" />
-        <span className="tabular-nums">{project.key}</span>
-      </span>
+    <span className="flex flex-col gap-2">
       {project.description && <span>{project.description}</span>}
-      <ProjectBadges project={project} />
+      <span className="flex flex-wrap items-center gap-2">
+        <span className="rounded-chip bg-hover px-2 py-0.5 text-label text-ink-2 tabular-nums">{project.key}</span>
+        <ProjectBadges project={project} />
+      </span>
     </span>
   );
 
@@ -215,20 +185,13 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
     <PageLayout
       wide
       title={project.name}
+      breadcrumbs={[{ to: "/projects", label: "Projects" }]}
+      leading={<ProjectTile project={project} size="lg" />}
       intro={header}
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Link to={`/projects/${project.key}/reports`} className={buttonClasses("secondary")}>
-            <Icon icon={ChartColumn} />
-            Reports
-          </Link>
-          {/* PROJ-5: who's on the project; its admins manage roles there. */}
-          <Link to={`/projects/${project.key}/members`} className={buttonClasses("secondary")}>
-            <Icon icon={Users} />
-            Members
-          </Link>
           {me.user.appRole === "admin" && !project.isSystem && (
-            <Link to="/admin/projects" className={buttonClasses("secondary")}>
+            <Link to="/admin/projects" className={buttonClasses("ghost")}>
               <Icon icon={Settings2} />
               Edit project
             </Link>
@@ -243,6 +206,8 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
         </div>
       }
     >
+      {/* PROJ-5: Members lists who's on the project; its admins manage roles there. */}
+      <ProjectTabs projectKey={project.key} active={view} />
       {board.isPending ? (
         <div aria-busy="true" aria-label="Loading tasks" className="flex gap-4 overflow-hidden">
           {showSkeleton && [0, 1, 2].map((i) => <Skeleton key={i} className="h-64 w-72 shrink-0 rounded-card" />)}
@@ -268,13 +233,11 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <ViewSwitch view={view} onChange={setView} />
+          <div className="flex flex-wrap items-center justify-end gap-3 md:hidden">
             {/* Phones: filters fold away behind one button to keep the board in reach. */}
             <Button
               variant="secondary"
               icon={SlidersHorizontal}
-              className="md:hidden"
               aria-expanded={filtersOpen}
               aria-controls="task-filters"
               onClick={() => setFiltersOpen((o) => !o)}

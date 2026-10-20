@@ -96,7 +96,14 @@ test("ADM-4 the usage panel shows emails and explains the missing analytics", as
   const page = await pageAs(persona("admin"));
   await page.goto("/admin/usage");
   await expect(page.getByRole("meter", { name: "Emails sent today" })).toBeVisible();
-  await expect(page.getByText("Worker and database numbers need Cloudflare analytics.")).toBeVisible();
+  // CI has no Cloudflare analytics keys; a developer's .dev.vars may. Either way the panel must say which it is.
+  if (process.env.CI) {
+    await expect(page.getByText("Worker and database numbers need Cloudflare analytics.")).toBeVisible();
+  } else {
+    await expect(
+      page.getByText("Worker and database numbers need Cloudflare analytics.").or(page.getByRole("meter", { name: /Worker requests today/i })).first(),
+    ).toBeVisible();
+  }
   await expectNoViolations(page);
   await page.screenshot({ path: "test-results/usage-panel.png", fullPage: true });
 });

@@ -34,6 +34,7 @@ for (const scheme of ["light", "dark"] as const) {
       if (viewportOf(testInfo) === "desktop") {
         await expect(nav.getByRole("link", { name: "Media" })).toBeVisible();
         // A Contributor has no admin area, and never sees Hub Feedback (PROJ-7).
+        await expect(nav.getByRole("link", { name: "Administration" })).toHaveCount(0);
         await expect(nav.getByRole("link", { name: "Access requests" })).toHaveCount(0);
         await expect(nav.getByRole("link", { name: HUB_FEEDBACK.name })).toHaveCount(0);
       } else {
@@ -61,7 +62,32 @@ for (const scheme of ["light", "dark"] as const) {
       await page.keyboard.press("Escape");
     });
 
-    test("an App Admin's sidebar and the Manage projects page", async ({ pageAs }, testInfo) => {
+    test("Section 11.12 the admin area: one entry, an overview, and its own navigation", async ({ pageAs }, testInfo) => {
+      const page = await pageAs(persona("admin"), scheme);
+      await page.goto("/work");
+      // Everyday navigation holds a single way in; the admin tools themselves live inside it.
+      const entry = viewportOf(testInfo) === "desktop" ? "Administration" : "Admin";
+      await expect(mainNav(page).getByRole("link", { name: "Access requests" })).toHaveCount(0);
+      await mainNav(page).getByRole("link", { name: entry, exact: true }).click();
+      await expect(page.getByRole("heading", { level: 1, name: "Administration" })).toBeVisible();
+      const main = page.getByRole("main");
+      for (const group of ["People", "Projects", "System"]) await expect(main.getByRole("heading", { level: 2, name: group })).toBeVisible();
+      for (const tool of ["Access requests", "Users", "Manage projects", "Church reports", "Audit log", "Usage", "Data deletion"]) {
+        await expect(main.getByRole("link", { name: new RegExp(`^${tool}`) })).toBeVisible();
+      }
+      await expectNoViolations(page);
+      await main.getByRole("link", { name: /^Manage projects/ }).click();
+      await expect(page.getByRole("heading", { level: 1, name: "Manage projects" })).toBeVisible();
+      // Desktop: the sidebar becomes the admin navigation; everywhere: a breadcrumb back to the overview.
+      if (viewportOf(testInfo) === "desktop") {
+        const adminNav = page.getByRole("navigation", { name: "Admin" });
+        await expect(adminNav.getByRole("link", { name: "Manage projects" })).toHaveAttribute("aria-current", "page");
+        await expect(adminNav.getByRole("link", { name: "Back to My Work" })).toBeVisible();
+      }
+      await expect(page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Administration" })).toBeVisible();
+    });
+
+    test("an App Admin's Manage projects page", async ({ pageAs }) => {
       const page = await pageAs(persona("admin"), scheme);
       await page.goto("/admin/projects");
       await expect(page.getByRole("heading", { level: 1, name: "Manage projects" })).toBeVisible();
@@ -69,16 +95,17 @@ for (const scheme of ["light", "dark"] as const) {
       const hub = page.getByRole("row").filter({ hasText: HUB_FEEDBACK.name });
       await expect(hub.getByText("App Admins only")).toBeVisible();
       await expect(hub.getByText("Built in")).toBeVisible();
-      if (viewportOf(testInfo) === "desktop") {
-        await expect(mainNav(page).getByRole("link", { name: HUB_FEEDBACK.name })).toBeVisible();
-      }
-      await expect(page.getByRole("navigation", { name: "Admin" })).toBeVisible();
       await expectNoViolations(page);
 
       await page.getByRole("button", { name: "New project" }).click();
       const dialog = page.getByRole("dialog", { name: "New project" });
       await expect(dialog.getByLabel("Name")).toBeFocused();
       await expectNoViolations(page);
+      await page.keyboard.press("Escape");
+
+      // PROJ-7: App Admins find Hub Feedback among their projects.
+      await page.goto("/projects");
+      await expect(page.getByRole("main").getByRole("link", { name: new RegExp(HUB_FEEDBACK.name) })).toBeVisible();
     });
 
     test("a member with no projects sees the request link (section 11.1)", async ({ pageAs }) => {

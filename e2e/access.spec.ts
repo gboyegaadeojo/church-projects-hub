@@ -96,9 +96,10 @@ for (const scheme of ["light", "dark"] as const) {
     test("The app shell links an admin to the access queue", async ({ pageAs }, testInfo) => {
       const page = await pageAs(persona("admin"), scheme);
       await page.goto("/work");
-      // Sidebar on desktop; the Admin tab of the bottom bar on mobile (section 12).
-      const name = viewportOf(testInfo) === "desktop" ? "Access requests" : "Admin";
+      // Administration in the sidebar on desktop; the Admin tab of the bottom bar on mobile (section 12).
+      const name = viewportOf(testInfo) === "desktop" ? "Administration" : "Admin";
       await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name, exact: true }).click();
+      await page.getByRole("main").getByRole("link", { name: /^Access requests/ }).click();
       await expect(page.getByRole("heading", { level: 1, name: "Access requests" })).toBeVisible();
       await expectNoViolations(page);
     });

@@ -11,6 +11,7 @@ import { AdminProjectsPage } from "./pages/AdminProjectsPage";
 import { AdminRequestsPage } from "./pages/AdminRequestsPage";
 import { AccountDataPage } from "./pages/AccountDataPage";
 import { AdminAuditPage } from "./pages/AdminAuditPage";
+import { AdminHomePage } from "./pages/AdminHomePage";
 import { AdminDeletionsPage } from "./pages/AdminDeletionsPage";
 import { AdminUsagePage } from "./pages/AdminUsagePage";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
@@ -62,6 +63,7 @@ function App() {
           <Route path="/projects/:key" element={<ProjectPage />} />
           <Route path="/projects/:key/members" element={<ProjectMembersPage />} />
           <Route path="/projects/:key/reports" element={<ProjectReportsPage />} />
+          <Route path="/admin" element={<AdminHomePage />} />
           <Route path="/admin/requests" element={<AdminRequestsPage />} />
           <Route path="/admin/projects" element={<AdminProjectsPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />
