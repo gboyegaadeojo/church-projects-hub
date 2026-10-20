@@ -29,6 +29,13 @@
       "when": 1792397567873,
       "tag": "0003_tasks_search",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792468307403,
+      "tag": "0004_attachment_purge",
+      "breakpoints": true
     }
   ]
 }
