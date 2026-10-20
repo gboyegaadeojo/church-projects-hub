@@ -1,11 +1,12 @@
 import { ArrowLeft, Bell, BellOff, Plus, RefreshCw, SearchX, Tag, Trash2, TriangleAlert } from "lucide-react";
-import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { type ComponentProps, type FormEvent, lazy, type ReactNode, Suspense, useEffect, useId, useRef, useState } from "react";
 import type { MeResponse } from "../../../shared/auth";
 import type { ProjectSummary } from "../../../shared/projects";
-import { docFromText } from "../../../shared/richtext";
+import type { RichTextDoc } from "../../../shared/richtext";
 import {
   type BoardResponse,
   type Comment,
+  type Person,
   PRIORITIES,
   PRIORITY_LABELS,
   SCOPE_LABELS,
@@ -162,9 +163,16 @@ function TaskBody({ task, board, project, me, canEdit, onDeleted }: { task: Task
 
       <div className="grid gap-group lg:grid-cols-[minmax(0,1fr)_16rem]">
         <div className="flex min-w-0 flex-col gap-group">
-          <DescriptionSection task={task} canEdit={canEdit} onSave={(text) => save({ description: docFromText(text) as never })} />
+          <DescriptionSection task={task} people={board.members} canEdit={canEdit} onSave={(doc) => save({ description: doc as never })} />
           <SubtaskSection task={task} canEdit={canEdit} csrfToken={me.csrfToken} />
-          <CommentSection task={task} me={me} people={people} canComment={!project.archived} isAdmin={me.user.appRole === "admin" || project.role === "admin"} />
+          <CommentSection
+            task={task}
+            me={me}
+            people={people}
+            mentionable={board.members}
+            canComment={!project.archived}
+            isAdmin={me.user.appRole === "admin" || project.role === "admin"}
+          />
           <ActivitySection task={task} board={board} people={people} timezone={me.user.timezone} />
         </div>
 
@@ -356,11 +364,25 @@ function Section({ title, children, action }: { title: string; children: ReactNo
   );
 }
 
-/** Plain-text editing until the rich text editor arrives (3d); shown as stored rich text. */
-function DescriptionSection({ task, canEdit, onSave }: { task: TaskDetail; canEdit: boolean; onSave: (text: string) => void }) {
+// The editor loads only when someone starts writing, so the board stays light (NFR-11).
+const RichTextEditor = lazy(() => import("./RichTextEditor"));
+
+function Editor(props: ComponentProps<typeof RichTextEditor>) {
+  return (
+    <Suspense fallback={<Skeleton className="h-36 w-full rounded-control" />}>
+      <RichTextEditor {...props} />
+    </Suspense>
+  );
+}
+
+function DescriptionSection({ task, people, canEdit, onSave }: { task: TaskDetail; people: Person[]; canEdit: boolean; onSave: (doc: RichTextDoc) => void }) {
   const [editing, setEditing] = useState(false);
-  const [text, setText] = useState("");
+  const draft = useRef<RichTextDoc>(task.description);
   const empty = isEmptyDoc(task.description);
+  const start = () => {
+    draft.current = task.description;
+    setEditing(true);
+  };
   return (
     <Section title="Description">
       {editing ? (
@@ -368,13 +390,20 @@ function DescriptionSection({ task, canEdit, onSave }: { task: TaskDetail; canEd
           className="flex flex-col gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            onSave(text);
+            onSave(draft.current);
             setEditing(false);
           }}
         >
-          <Field label="Description" className="[&>label]:sr-only">
-            <Textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} autoFocus />
-          </Field>
+          <Editor
+            kind="description"
+            label="Description"
+            initial={task.description}
+            people={people}
+            autoFocus
+            onChange={(doc) => {
+              draft.current = doc;
+            }}
+          />
           <p className="text-caption text-ink-2">{TASK_COPY.dataSafety}</p>
           <div className="flex gap-2">
             <Button type="submit">Save description</Button>
@@ -387,10 +416,7 @@ function DescriptionSection({ task, canEdit, onSave }: { task: TaskDetail; canEd
         canEdit ? (
           <button
             type="button"
-            onClick={() => {
-              setText("");
-              setEditing(true);
-            }}
+            onClick={start}
             className="min-h-touch rounded-control border border-dashed border-line-strong px-3 text-left text-secondary text-ink-2 state-hover:bg-hover"
           >
             {TASK_COPY.emptyDescription}
@@ -402,14 +428,7 @@ function DescriptionSection({ task, canEdit, onSave }: { task: TaskDetail; canEd
         <div className="flex flex-col gap-2">
           <RichTextView doc={task.description} />
           {canEdit && (
-            <Button
-              variant="ghost"
-              className="self-start"
-              onClick={() => {
-                setText(docText(task.description));
-                setEditing(true);
-              }}
-            >
+            <Button variant="ghost" className="self-start" onClick={start}>
               Edit description
             </Button>
           )}
@@ -504,32 +523,38 @@ function CommentSection({
   task,
   me,
   people,
+  mentionable,
   canComment,
   isAdmin,
 }: {
   task: TaskDetail;
   me: MeResponse;
   people: Map<number, { name: string; avatarUrl: string | null }>;
+  mentionable: Person[];
   canComment: boolean;
   isAdmin: boolean;
 }) {
   const comments = useComments(task, me.csrfToken);
-  const [text, setText] = useState("");
+  const draft = useRef<{ doc: RichTextDoc; empty: boolean }>({ doc: { type: "doc", content: [] }, empty: true });
+  // Remounting the composer clears it after posting.
+  const [composerKey, setComposerKey] = useState(0);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string>();
-  const [editing, setEditing] = useState<{ id: number; text: string } | null>(null);
+  const [editing, setEditing] = useState<number | null>(null);
+  const editDraft = useRef<RichTextDoc>({ type: "doc", content: [] });
   const [deleting, setDeleting] = useState<Comment | null>(null);
 
-  async function post(e: FormEvent) {
-    e.preventDefault();
-    if (!text.trim()) {
+  async function post(e?: FormEvent) {
+    e?.preventDefault();
+    if (draft.current.empty) {
       setError("Write a comment first.");
       return;
     }
     setPosting(true);
     try {
-      await comments.add(docFromText(text));
-      setText("");
+      await comments.add(draft.current.doc);
+      draft.current = { doc: { type: "doc", content: [] }, empty: true };
+      setComposerKey((k) => k + 1);
       setError(undefined);
     } catch {
       setError(TASK_COPY.saveFailed);
@@ -553,23 +578,29 @@ function CommentSection({
                   <span className="font-medium text-ink">{author?.name ?? "Former member"}</span> · {formatTime(c.createdAt, me.user.timezone)}
                   {c.editedAt && " · edited"}
                 </p>
-                {editing?.id === c.id ? (
+                {editing === c.id ? (
                   <form
                     className="flex flex-col gap-2"
                     onSubmit={async (e) => {
                       e.preventDefault();
-                      if (!editing.text.trim()) return;
                       try {
-                        await comments.edit(c.id, docFromText(editing.text));
+                        await comments.edit(c.id, editDraft.current);
                         setEditing(null);
                       } catch {
                         toast({ variant: "error", title: TASK_COPY.saveFailed });
                       }
                     }}
                   >
-                    <Field label="Edit comment" className="[&>label]:sr-only">
-                      <Textarea rows={3} value={editing.text} onChange={(e) => setEditing({ id: c.id, text: e.target.value })} autoFocus />
-                    </Field>
+                    <Editor
+                      kind="comment"
+                      label="Edit comment"
+                      initial={c.body}
+                      people={mentionable}
+                      autoFocus
+                      onChange={(doc) => {
+                        editDraft.current = doc;
+                      }}
+                    />
                     <div className="flex gap-2">
                       <Button type="submit">Save comment</Button>
                       <Button variant="secondary" onClick={() => setEditing(null)}>
@@ -580,10 +611,17 @@ function CommentSection({
                 ) : (
                   <RichTextView doc={c.body} className="flex flex-col gap-1 text-secondary text-ink break-words" />
                 )}
-                {canComment && editing?.id !== c.id && (mine || isAdmin) && (
+                {canComment && editing !== c.id && (mine || isAdmin) && (
                   <div className="flex gap-1">
                     {mine && (
-                      <Button variant="ghost" className="min-h-touch px-2 text-caption" onClick={() => setEditing({ id: c.id, text: docText(c.body) })}>
+                      <Button
+                        variant="ghost"
+                        className="min-h-touch px-2 text-caption"
+                        onClick={() => {
+                          editDraft.current = c.body;
+                          setEditing(c.id);
+                        }}
+                      >
                         Edit
                       </Button>
                     )}
@@ -599,9 +637,24 @@ function CommentSection({
       </ol>
       {canComment && (
         <form onSubmit={post} className="flex flex-col gap-2" noValidate>
-          <Field label="Add a comment" error={error} className="[&>label]:sr-only">
-            <Textarea rows={3} value={text} placeholder="Add a comment" onChange={(e) => setText(e.target.value)} />
-          </Field>
+          <Editor
+            key={composerKey}
+            kind="comment"
+            label="Add a comment"
+            initial={null}
+            people={mentionable}
+            onSubmit={() => void post()}
+            onChange={(doc, empty) => {
+              draft.current = { doc, empty };
+              if (!empty) setError(undefined);
+            }}
+          />
+          {error && (
+            <p role="alert" className="text-caption text-danger-ink">
+              {error}
+            </p>
+          )}
+          <p className="text-caption text-ink-2">{TASK_COPY.dataSafety}</p>
           <Button type="submit" loading={posting} className="self-start">
             Comment
           </Button>
@@ -620,22 +673,6 @@ function CommentSection({
       />
     </Section>
   );
-}
-
-/** A document's text for re-editing in the plain editor, one paragraph per block. */
-function docText(doc: { content?: unknown[] }): string {
-  const lines: string[] = [];
-  const walk = (n: { type?: string; text?: string; attrs?: Record<string, unknown>; content?: unknown[] }, out: string[]) => {
-    if (n.type === "text") out.push(n.text ?? "");
-    else if (n.type === "mention") out.push(`@${String(n.attrs?.label ?? "")}`);
-    (n.content as (typeof n)[] | undefined)?.forEach((child) => walk(child, out));
-  };
-  for (const block of doc.content ?? []) {
-    const out: string[] = [];
-    walk(block as never, out);
-    lines.push(out.join(""));
-  }
-  return lines.join("\n\n");
 }
 
 function describeEvent(e: TaskEvent, board: BoardResponse, people: Map<number, { name: string }>): string {
