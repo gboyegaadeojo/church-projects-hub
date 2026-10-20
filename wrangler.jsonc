@@ -49,5 +49,30 @@
   "vars": {
     "APP_BASE_URL": "https://hub.ifcwpg.com",
     "EMAIL_FROM": "media@ifcwpg.com"
+  },
+
+  // Staging (Stage 8 measurements and restore drills): its own Worker, database and bucket, filled only
+  // with synthetic load-test data by scripts/loadtest. It never sees production data and has no Resend key,
+  // so it never sends email. Build and deploy with: CLOUDFLARE_ENV=staging npm run build && npx wrangler deploy
+  "env": {
+    "staging": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "church-projects-hub-staging",
+          "database_id": "fd4ff66b-6cfd-4b9d-b7ba-8bc20fc4c6a3",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "church-projects-hub-staging-files" }],
+      "triggers": { "crons": ["*/5 * * * *"] },
+      "ratelimits": [
+        { "name": "SIGNIN_RATE_LIMITER", "namespace_id": "2102", "simple": { "limit": 30, "period": 60 } }
+      ],
+      "vars": {
+        "APP_BASE_URL": "https://church-projects-hub-staging.media-5f7.workers.dev",
+        "EMAIL_FROM": "media@ifcwpg.com"
+      }
+    }
   }
 }
