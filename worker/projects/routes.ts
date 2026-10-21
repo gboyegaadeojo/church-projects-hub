@@ -60,8 +60,8 @@ function toSummary(row: ProjectRow): ProjectSummary {
 /** Inserts the default columns (PROJ-2) for the project matched by `where`, which binds ?1. */
 function seedWorkflow(env: Env, where: string, bind: unknown, now: number, actorId: number | null) {
   return env.DB.prepare(
-    `INSERT INTO workflow_states (project_id, name, category, position, created_at, updated_at, created_by)
-     SELECT p.id, json_extract(s.value, '$.name'), json_extract(s.value, '$.category'), s.key, ?2, ?2, ?3
+    `INSERT INTO workflow_states (project_id, name, category, position, blocks, created_at, updated_at, created_by)
+     SELECT p.id, json_extract(s.value, '$.name'), json_extract(s.value, '$.category'), s.key, coalesce(json_extract(s.value, '$.blocks'), 0), ?2, ?2, ?3
      FROM projects p, json_each(?4) s WHERE ${where}`,
   ).bind(bind, now, actorId, JSON.stringify(DEFAULT_WORKFLOW));
 }

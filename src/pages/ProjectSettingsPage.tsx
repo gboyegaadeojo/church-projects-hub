@@ -341,7 +341,7 @@ function ColumnsSection({ project, data, canManage }: { project: ProjectSummary;
           ) : (
             <li key={s.id} className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 py-2">
               <StatusPill name={s.name} tone={tones.get(s.id) ?? "grey"} className="min-w-28" />
-              <span className="text-secondary text-ink-2">{CATEGORY_LABELS[s.category]}</span>
+              <span className="text-secondary text-ink-2">{s.blocks ? "Blocks tasks" : CATEGORY_LABELS[s.category]}</span>
               <span className="text-caption text-ink-2 tabular-nums">
                 {counts.get(s.id) ?? 0} {counts.get(s.id) === 1 ? "task" : "tasks"}
               </span>
@@ -387,16 +387,25 @@ function ColumnsSection({ project, data, canManage }: { project: ProjectSummary;
   );
 }
 
-function ColumnForm({ initial, onSubmit, onCancel }: { initial?: WorkflowState; onSubmit: (body: { name: string; category: WorkflowCategory }) => Promise<unknown>; onCancel: () => void }) {
+function ColumnForm({
+  initial,
+  onSubmit,
+  onCancel,
+}: {
+  initial?: WorkflowState;
+  onSubmit: (body: { name: string; category: WorkflowCategory; blocks: boolean }) => Promise<unknown>;
+  onCancel: () => void;
+}) {
   const [name, setName] = useState(initial?.name ?? "");
   const [category, setCategory] = useState<WorkflowCategory>(initial?.category ?? "todo");
+  const [blocks, setBlocks] = useState(initial?.blocks ?? false);
   const [error, setError] = useState<string>();
   const [saving, setSaving] = useState(false);
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!name.trim()) return setError("Enter a column name.");
     setSaving(true);
-    await onSubmit({ name: name.trim(), category });
+    await onSubmit({ name: name.trim(), category, blocks });
     setSaving(false);
   }
   return (
@@ -409,6 +418,12 @@ function ColumnForm({ initial, onSubmit, onCancel }: { initial?: WorkflowState; 
           <Select value={category} onValueChange={(v) => setCategory(v as WorkflowCategory)} options={WORKFLOW_CATEGORY_VALUES.map((c) => ({ value: c, label: CATEGORY_LABELS[c] }))} />
         </Field>
       </div>
+      <Switch
+        label="Tasks moved here are blocked"
+        hint="People must say why when they move a task into this column, and everyone on it is told."
+        checked={blocks}
+        onCheckedChange={setBlocks}
+      />
       <FormButtons onCancel={onCancel} saving={saving} submitLabel={initial ? "Save column" : "Add column"} />
     </form>
   );

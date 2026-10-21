@@ -48,6 +48,7 @@ export const COLUMNS = [
   { name: "To Do", category: "todo" },
   { name: "In Progress", category: "in_progress" },
   { name: "In Review", category: "in_progress" },
+  { name: "Blocked", category: "in_progress", blocks: true },
   { name: "Done", category: "done" },
 ] as const;
 

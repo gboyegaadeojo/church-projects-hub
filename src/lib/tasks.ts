@@ -40,7 +40,8 @@ export function columnCards(tasks: TaskCard[], stateId: number): TaskCard[] {
   return tasks.filter((t) => t.stateId === stateId).sort((a, b) => (a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : 0));
 }
 
-export type MoveInput = { task: TaskCard; stateId: number; afterId: number | null; beforeId: number | null };
+/** blockedReason: required when the target column blocks (v4.7). */
+export type MoveInput = { task: TaskCard; stateId: number; afterId: number | null; beforeId: number | null; blockedReason?: string };
 
 /**
  * Card moves are optimistic (NFR-12): the card moves at once and goes back with
@@ -50,9 +51,9 @@ export function useMoveTask(projectId: number, csrfToken: string) {
   const queryClient = useQueryClient();
   const key = boardKey(projectId);
   return useMutation({
-    mutationFn: ({ task, stateId, afterId, beforeId }: MoveInput) =>
-      api<{ task: TaskCard }>(`/api/tasks/${task.id}/move`, { method: "POST", body: { stateId, afterId, beforeId }, csrfToken }),
-    onMutate: async ({ task, stateId, afterId, beforeId }) => {
+    mutationFn: ({ task, stateId, afterId, beforeId, blockedReason }: MoveInput) =>
+      api<{ task: TaskCard }>(`/api/tasks/${task.id}/move`, { method: "POST", body: { stateId, afterId, beforeId, blockedReason }, csrfToken }),
+    onMutate: async ({ task, stateId, afterId, beforeId, blockedReason }) => {
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData<BoardResponse>(key);
       if (previous) {
@@ -66,7 +67,8 @@ export function useMoveTask(projectId: number, csrfToken: string) {
         const rank = rankBetween(after, before);
         queryClient.setQueryData<BoardResponse>(key, {
           ...previous,
-          tasks: previous.tasks.map((t) => (t.id === task.id ? { ...t, stateId, rank } : t)),
+          // A reason shows at once; leaving a column clears it (the server confirms either way).
+          tasks: previous.tasks.map((t) => (t.id === task.id ? { ...t, stateId, rank, blockedReason: blockedReason ?? (t.stateId === stateId ? t.blockedReason : null) } : t)),
         });
       }
       return { previous };
@@ -121,6 +123,9 @@ export function syncCardFromDetail(queryClient: ReturnType<typeof useQueryClient
       componentId: detail.componentId,
       epicId: detail.epicId,
       milestoneId: detail.milestoneId,
+      blockedReason: detail.blockedReason,
+      blockedAt: detail.blockedAt,
+      blockedBy: detail.blockedBy,
       rank: detail.rank,
       version: detail.version,
       subtasksDone: detail.subtasks.filter((s) => s.done).length,

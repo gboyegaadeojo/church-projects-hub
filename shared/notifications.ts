@@ -11,6 +11,8 @@ export const NOTIFICATION_EVENTS = {
   "task.mentioned": { label: "Someone @mentions me", bell: true, email: "instant" },
   "task.commented": { label: "A comment on a task I own or watch", bell: true, email: "digest" },
   "task.status_changed": { label: "A task I reported changes status", bell: true, email: "digest" },
+  // v4.7: someone moved a task you're on into a blocking column, with the reason.
+  "task.blocked": { label: "A task I'm on is blocked", bell: true, email: "instant" },
   "task.due_soon": { label: "A task of mine is due in 7 days", bell: false, email: "digest" },
   "task.due_tomorrow": { label: "A task of mine is due tomorrow", bell: false, email: "digest" },
   "task.overdue": { label: "A task of mine is overdue", bell: true, email: "digest" },
@@ -87,6 +89,8 @@ export function describeNotification(n: Pick<NotificationItem, "type" | "actor" 
       return `${who} commented on ${task}`;
     case "task.status_changed":
       return `${who} moved ${task} to ${n.payload.stateName ?? "another column"}`;
+    case "task.blocked":
+      return `${who} marked ${task} as blocked${n.payload.reason ? `: ${n.payload.reason}` : ""}`;
     case "task.due_soon":
       return `${task} is due in 7 days`;
     case "task.due_tomorrow":

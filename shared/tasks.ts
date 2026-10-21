@@ -29,6 +29,9 @@ export const TASK_LIMITS = {
   labelsPerTask: 10,
   labelName: 30,
   stateName: 30,
+  /** v4.7: why a task is blocked. */
+  blockedReasonMin: 3,
+  blockedReason: 500,
   componentName: 40,
   milestoneName: 60,
   bulk: 100,
@@ -57,6 +60,8 @@ export const TASK_ERRORS = {
   /** A workflow column that holds, or once held, tasks can't be removed. */
   notEmpty: "not_empty",
   lastColumn: "last_column",
+  /** v4.7: moving a task into a blocking column needs a reason. */
+  reasonRequired: "reason_required",
 } as const;
 
 /** Confirmation header values (section 11.14) for destructive task actions. */
@@ -104,6 +109,13 @@ const labelIds = z
   .max(TASK_LIMITS.labelsPerTask, `Use at most ${TASK_LIMITS.labelsPerTask} labels.`)
   .refine((ids) => new Set(ids).size === ids.length, "Each label can be used once.");
 
+/** v4.7: why a task is blocked, required when it moves into a blocking column. */
+export const blockedReason = z
+  .string()
+  .trim()
+  .min(TASK_LIMITS.blockedReasonMin, "Say what's blocking it, in a few words.")
+  .max(TASK_LIMITS.blockedReason, `Keep it under ${TASK_LIMITS.blockedReason} characters.`);
+
 const editableFields = {
   title,
   description: richText("description"),
@@ -136,12 +148,13 @@ export const createTaskBody = z.object({
   componentId: editableFields.componentId.default(null),
   epicId: editableFields.epicId.default(null),
   milestoneId: editableFields.milestoneId.default(null),
+  blockedReason: blockedReason.optional(),
 });
 export type CreateTaskBody = z.input<typeof createTaskBody>;
 
 /** NFR-10: every edit carries the version it was based on; a mismatch is a 409 conflict, never an overwrite. */
 export const updateTaskBody = z
-  .object({ version: z.number().int().nonnegative(), ...editableFields })
+  .object({ version: z.number().int().nonnegative(), ...editableFields, blockedReason })
   .partial({
     title: true,
     description: true,
@@ -156,6 +169,7 @@ export const updateTaskBody = z
     componentId: true,
     epicId: true,
     milestoneId: true,
+    blockedReason: true,
   })
   .refine((b) => Object.keys(b).length > 1, "Nothing to change.");
 export type UpdateTaskBody = z.input<typeof updateTaskBody>;
@@ -166,6 +180,8 @@ export const moveTaskBody = z.object({
   stateId: id,
   afterId: id.nullable().default(null),
   beforeId: id.nullable().default(null),
+  /** Required when the target column blocks (v4.7). */
+  blockedReason: blockedReason.optional(),
 });
 export type MoveTaskBody = z.input<typeof moveTaskBody>;
 
@@ -179,6 +195,8 @@ export const bulkEditBody = z
       .refine((ids) => new Set(ids).size === ids.length),
     assigneeId: id.nullable().optional(),
     stateId: id.optional(),
+    /** Required when stateId is a blocking column (v4.7). */
+    blockedReason: blockedReason.optional(),
     dueDate: dueDate.nullable().optional(),
     addLabelIds: z.array(id).max(TASK_LIMITS.labelsPerTask).optional(),
     removeLabelIds: z.array(id).max(TASK_LIMITS.labelsPerTask).optional(),
@@ -207,6 +225,7 @@ export const labelBody = z.object({
 export const stateBody = z.object({
   name: z.string().trim().min(1, "Enter a column name.").max(TASK_LIMITS.stateName, `Keep it under ${TASK_LIMITS.stateName} characters.`),
   category: z.enum(WORKFLOW_CATEGORY_VALUES, "Choose what the column means."),
+  blocks: z.boolean().default(false),
 });
 export const stateOrderBody = z.object({ ids: z.array(id).min(1).max(TASK_LIMITS.columns) });
 
@@ -240,6 +259,8 @@ export const workflowState = z.object({
   name: z.string(),
   category: z.enum(WORKFLOW_CATEGORY_VALUES),
   position: z.number().int(),
+  /** v4.7: tasks moved here are blocked and need a reason. */
+  blocks: z.boolean(),
 });
 export type WorkflowState = z.infer<typeof workflowState>;
 
@@ -276,6 +297,10 @@ export const taskCard = z.object({
   componentId: z.number().int().nullable(),
   epicId: z.number().int().nullable(),
   milestoneId: z.number().int().nullable(),
+  /** v4.7: set while the task is in a blocking column. */
+  blockedReason: z.string().nullable(),
+  blockedAt: z.number().nullable(),
+  blockedBy: z.number().int().nullable(),
   rank: z.string(),
   version: z.number().int(),
   subtasksDone: z.number().int(),

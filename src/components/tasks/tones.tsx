@@ -28,13 +28,18 @@ const PROGRESS_TONES: Vivid[] = ["orange", "purple", "pink", "indigo"];
 const DONE_TONES: Vivid[] = ["green", "teal"];
 
 /**
- * A colour per workflow column, from its category and order: the first "to do" column (usually Backlog) is grey,
+ * A colour per workflow column, from its category and order: a blocking column is red; the first "to do" column (usually Backlog) is grey,
  * later ones blue; "in progress" columns are orange then purple; "done" is green. Stable as long as the columns are.
  */
-export function columnTones(states: Pick<WorkflowState, "id" | "category" | "position">[]): Map<number, Vivid> {
+export function columnTones(states: Pick<WorkflowState, "id" | "category" | "position" | "blocks">[]): Map<number, Vivid> {
   const seen = { todo: 0, in_progress: 0, done: 0 };
   const tones = new Map<number, Vivid>();
   for (const s of [...states].sort((a, b) => a.position - b.position)) {
+    // v4.7: a blocking column is always red.
+    if (s.blocks) {
+      tones.set(s.id, "red");
+      continue;
+    }
     const list = s.category === "todo" ? TODO_TONES : s.category === "in_progress" ? PROGRESS_TONES : DONE_TONES;
     tones.set(s.id, list[seen[s.category]++ % list.length]!);
   }

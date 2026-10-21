@@ -9,6 +9,7 @@ import {
   Lightbulb,
   ListChecks,
   type LucideIcon,
+  OctagonAlert,
 } from "lucide-react";
 import { type DueStatus, dueStatus, type Label, type Priority, PRIORITY_LABELS, TASK_TYPE_LABELS, type TaskType } from "../../../shared/tasks";
 import { cn } from "../../lib/cn";
@@ -87,6 +88,19 @@ export function LabelChip({ label, className }: { label: Pick<Label, "name" | "c
     >
       <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", PROJECT_COLOUR_CLASSES[label.colour].bg)} />
       <span className="truncate">{label.name}</span>
+    </span>
+  );
+}
+
+/** v4.7: a blocked task says so, with why, in red; the words carry the meaning, not only the colour. */
+export function BlockedNote({ reason, className }: { reason: string | null; className?: string }) {
+  return (
+    <span className={cn("flex items-start gap-1.5 rounded-chip border border-danger-line bg-danger-soft px-2 py-1 text-label text-danger-ink", className)}>
+      <Icon icon={OctagonAlert} size="sm" className="mt-px shrink-0" />
+      <span className="min-w-0">
+        <span className="font-semibold">Blocked</span>
+        {reason && <span className="line-clamp-2 font-normal text-ink">{reason}</span>}
+      </span>
     </span>
   );
 }

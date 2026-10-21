@@ -36,7 +36,8 @@ import { toast } from "../components/ui/Toast";
 import { api, ApiError } from "../lib/api";
 import { OfflineDisabled } from "../components/StatusBanners";
 import { useOnline } from "../lib/online";
-import { peopleById, useBoard, useBulkEdit, useMoveTask } from "../lib/tasks";
+import { type MoveInput, peopleById, useBoard, useBulkEdit, useMoveTask } from "../lib/tasks";
+import { useBlockReason } from "../components/tasks/BlockReasonDialog";
 import { ProjectBadges } from "./ProjectsPage";
 
 // A project's work (sections 11.2, 12): board or list, filters in the URL, new task, bulk edit.
@@ -161,7 +162,28 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
   );
   const doneState = data?.states.find((s) => s.category === "done");
 
-  function applyBulk(ids: number[], changes: Omit<BulkEditBody, "taskIds">, message?: string) {
+  // v4.7: every move into a blocking column asks why first; cancelling leaves the task where it was.
+  const blockReason = useBlockReason();
+  const blocksTo = (stateId: number) => data?.states.find((s) => s.id === stateId);
+  async function requestMove(input: MoveInput) {
+    const target = blocksTo(input.stateId);
+    const from = blocksTo(input.task.stateId);
+    if (target?.blocks && !from?.blocks) {
+      const reason = await blockReason.ask(input.task.key, target.name);
+      if (!reason) return;
+      move.mutate({ ...input, blockedReason: reason });
+      return;
+    }
+    move.mutate(input);
+  }
+
+  async function applyBulk(ids: number[], changes: Omit<BulkEditBody, "taskIds">, message?: string) {
+    const target = changes.stateId !== undefined ? blocksTo(changes.stateId) : undefined;
+    if (target?.blocks) {
+      const reason = await blockReason.ask(ids.length === 1 ? "this task" : `these ${ids.length} tasks`, target.name);
+      if (!reason) return;
+      changes = { ...changes, blockedReason: reason };
+    }
     bulk.mutate(
       { taskIds: ids, ...changes },
       {
@@ -304,7 +326,7 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
               today={today}
               canEdit={canEdit}
               onOpen={openTask}
-              onMove={(input) => move.mutate(input)}
+              onMove={(input) => void requestMove(input)}
             />
           ) : view === "board" ? (
             <Board
@@ -316,7 +338,7 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
               canMove={canEdit}
               offline={!online && canEditTasks(me, project)}
               onOpen={openTask}
-              onMove={(input) => move.mutate(input)}
+              onMove={(input) => void requestMove(input)}
             />
           ) : (
             <TaskList
@@ -333,7 +355,7 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
               onComplete={(task) =>
                 doneState && move.mutate({ task, stateId: doneState.id, afterId: null, beforeId: null })
               }
-              onReassign={(task, assigneeId) => applyBulk([task.id], { assigneeId }, `${task.key} reassigned.`)}
+              onReassign={(task, assigneeId) => void applyBulk([task.id], { assigneeId }, `${task.key} reassigned.`)}
             />
           )}
           {view === "list" && selected.size > 0 && canEdit && (
@@ -343,7 +365,7 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
               assignable={assignable}
               labels={data.labels}
               pending={bulk.isPending}
-              onApply={(changes) => applyBulk([...selected], changes)}
+              onApply={(changes) => void applyBulk([...selected], changes)}
               onClear={() => setSelected(new Set())}
             />
           )}
@@ -379,6 +401,7 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
           onCreated={openTask}
         />
       )}
+      {blockReason.dialog}
     </PageLayout>
   );
 }
