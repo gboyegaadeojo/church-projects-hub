@@ -4,7 +4,7 @@ A private, Jira-style work tracker for Immanuel Fellowship Church volunteer team
 
 ## Source of truth
 
-- `docs/REQUIREMENTS.md` (v4.5) is the single source of truth. Read the sections named in the current stage before writing code.
+- `docs/REQUIREMENTS.md` (v4.7) is the single source of truth. Read the sections named in the current stage before writing code.
 - Never resolve a conflict between requirements silently. Stop, describe the conflict, and ask @G.
 - `docs/BUILD-STAGES.md` lists the build stages. Work on one stage at a time and only on what that stage names.
 

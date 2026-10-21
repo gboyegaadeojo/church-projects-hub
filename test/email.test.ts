@@ -96,7 +96,7 @@ describe("Section 8 rule 1: the action and its email row commit together", () =>
     expect(rows).toEqual([expect.objectContaining({ user_id: admin.userId, mode: "digest", payload: expect.objectContaining({ stateName: "Doing" }) })]);
   });
 
-  it("NOTIF-5: a person's own setting wins: off queues nothing, digest moves an instant event to the digest", async () => {
+  it("NOTIF-5: a person's own setting wins: digest moves an instant event to the digest; a stored 'off' still sends (v4.7)", async () => {
     const p = await projectWithColumns();
     const admin = await actorAs("projectAdmin", p.id);
     const quiet = await actorAs("contributor", p.id);
@@ -106,7 +106,8 @@ describe("Section 8 rule 1: the action and its email row commit together", () =>
       .run();
     await call(admin, "POST", `/api/projects/${p.id}/tasks`, { title: "Quiet one", assigneeId: quiet.userId });
     await call(admin, "POST", `/api/projects/${p.id}/tasks`, { title: "Later one", assigneeId: later.userId });
-    expect(await outboxFor("user_id = ? AND template = 'task.assigned'", quiet.userId)).toHaveLength(0);
+    // v4.7: email is required; an "off" from before falls back to the event's default.
+    expect(await outboxFor("user_id = ? AND template = 'task.assigned'", quiet.userId)).toEqual([expect.objectContaining({ mode: "instant" })]);
     expect(await outboxFor("user_id = ? AND template = 'task.assigned'", later.userId)).toEqual([expect.objectContaining({ mode: "digest" })]);
     // The bell still gets it: preferences only shape email.
     const bell = await env.DB.prepare("SELECT count(*) AS n FROM notifications WHERE user_id = ? AND type = 'task.assigned'").bind(quiet.userId).first<number>("n");
@@ -160,7 +161,6 @@ describe("Section 8 rule 1: the action and its email row commit together", () =>
     await sendDueEmails(env, recorder);
     const email = recorder.sent.find((e) => e.to === "invitee@example.org");
     expect(email?.text).toContain(link);
-    expect(email?.unsubscribeUrl).toBeNull();
     const [after] = await outboxFor("id = ?", row!.id);
     expect(after).toMatchObject({ status: "sent" });
     expect(after!.payload.link).toBeUndefined();
@@ -175,13 +175,12 @@ describe("Section 8 sending mechanics", () => {
     await setUser(person.userId, { status: "active" });
   });
 
-  it("sends due rows with the List-Unsubscribe link (NOTIF-6) and marks them sent; future rows wait", async () => {
+  it("sends due rows and marks them sent; future rows wait", async () => {
     const due = await queue(person.userId, "task.assigned", { payload: { actorName: "Sam", taskKey: "MEDIA-42", taskTitle: "Replace stage left DI box", projectKey: "MEDIA" } });
     const future = await queue(person.userId, "task.assigned", { sendAfter: Date.now() + 10 * MIN });
     const recorder = new Recorder();
     expect(await sendDueEmails(env, recorder)).toMatchObject({ sent: 1 });
     expect(recorder.sent[0]).toMatchObject({ subject: "Sam assigned you MEDIA-42: Replace stage left DI box" });
-    expect(recorder.sent[0]!.unsubscribeUrl).toMatch(new RegExp(`/api/unsubscribe\\?u=${person.userId}&e=task\\.assigned&t=`));
     expect((await outboxFor("id = ?", due))[0]).toMatchObject({ status: "sent", attempts: 1 });
     expect((await outboxFor("id = ?", future))[0]).toMatchObject({ status: "pending", attempts: 0 });
   });
@@ -286,20 +285,21 @@ describe("Section 8 email design", () => {
     const r = renderEmail(
       "task.commented",
       { actorName: "<b>Sam</b>", taskKey: "MEDIA-1", taskTitle: 'Fix "mic" <script>', projectKey: "MEDIA", projectName: "Media & AV", dueDate: "2026-11-01" },
-      { base: "https://hub.test", settings: "https://hub.test/settings/notifications", unsubscribe: "https://hub.test/api/unsubscribe?u=1&e=x&t=y" },
+      { base: "https://hub.test", settings: "https://hub.test/settings/notifications" },
     );
     expect(r.subject).toBe('<b>Sam</b> commented on MEDIA-1: Fix "mic" <script>');
     expect(r.html).not.toContain("<script>");
     expect(r.html).toContain("&lt;b&gt;Sam&lt;/b&gt;");
     expect(r.html).toContain("Media &amp; AV");
     expect(r.html).toContain("Sun, Nov 1, 2026");
-    expect(r.html).toContain("Unsubscribe from these emails");
+    expect(r.html).toContain("Choose when they arrive");
+    expect(r.html).not.toMatch(/unsubscribe/i);
     expect(r.text).toContain("Open task: https://hub.test/projects/MEDIA?task=MEDIA-1");
   });
 });
 
 describe("Section 5: the Resend sender", () => {
-  it("posts to Resend with the bearer key, the church sender and one-click unsubscribe headers; errors never carry the address or key", async () => {
+  it("posts to Resend with the bearer key and the church sender; errors never carry the address or key", async () => {
     const calls: { url: string; init: RequestInit }[] = [];
     const realFetch = globalThis.fetch;
     let status = 200;
@@ -309,7 +309,7 @@ describe("Section 5: the Resend sender", () => {
     }) as typeof fetch;
     try {
       const sender = new ResendSender("re_test_key", "media@ifcwpg.com");
-      await sender.send({ to: "someone@example.org", subject: "Hi", html: "<p>Hi</p>", text: "Hi", unsubscribeUrl: "https://hub.test/api/unsubscribe?u=1" });
+      await sender.send({ to: "someone@example.org", subject: "Hi", html: "<p>Hi</p>", text: "Hi" });
       expect(calls[0]!.url).toBe("https://api.resend.com/emails");
       expect((calls[0]!.init.headers as Record<string, string>).Authorization).toBe("Bearer re_test_key");
       const body = JSON.parse(calls[0]!.init.body as string);
@@ -317,8 +317,8 @@ describe("Section 5: the Resend sender", () => {
         from: "Church Projects Hub <media@ifcwpg.com>",
         to: ["someone@example.org"],
         reply_to: "media@ifcwpg.com",
-        headers: { "List-Unsubscribe": "<https://hub.test/api/unsubscribe?u=1>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
       });
+      expect(body.headers).toBeUndefined();
 
       status = 429;
       const error = await sender.send({ to: "someone@example.org", subject: "Hi", html: "", text: "" }).catch((e: Error) => e);

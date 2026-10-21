@@ -2,14 +2,15 @@ import { type NotificationPayload, type NotificationType } from "../../shared/no
 
 // Email content (section 8 "Email design"): plain layout, the church's name, a one-line subject like
 // "Sam assigned you MEDIA-42: Replace stage left DI box", the task, its project and due date, one button, and
-// a footer with notification settings and one-click unsubscribe. Every value is HTML-escaped; nothing from a
+// a footer linking to Email settings (v4.7: email can't be turned off). Every value is HTML-escaped; nothing from a
 // person is ever inserted as HTML.
 
 /** System emails to App Admins (ADM-5, NFR-15); not settings, so they carry no unsubscribe link. */
 export const SYSTEM_TEMPLATES = ["usage.warning", "errors.alert"] as const;
 export type EmailTemplate = NotificationType | "invite" | "digest" | (typeof SYSTEM_TEMPLATES)[number];
 export type Rendered = { subject: string; html: string; text: string };
-export type Links = { base: string; settings: string; unsubscribe: string | null; oneClick?: string | null };
+/** v4.7: email is required for everyone, so there are no unsubscribe links, only Email settings (when to get it). */
+export type Links = { base: string; settings: string };
 
 type Payload = NotificationPayload & {
   actorName?: string | null;
@@ -124,10 +125,8 @@ function layout(inner: string, links: Links): string {
 <tr><td style="padding:24px 24px 8px;font-size:13px;font-weight:600;letter-spacing:0.04em;color:${COLORS.muted}">IMMANUEL FELLOWSHIP CHURCH · PROJECTS HUB</td></tr>
 ${inner}
 <tr><td style="padding:16px 24px 24px;border-top:1px solid ${COLORS.line};font-size:12px;line-height:1.5;color:${COLORS.muted}">
-You get this because of your notification settings.
-<a href="${escapeHtml(links.settings)}" style="color:${COLORS.muted}">Change notification settings</a>${
-    links.unsubscribe ? ` · <a href="${escapeHtml(links.unsubscribe)}" style="color:${COLORS.muted}">Unsubscribe from these emails</a>` : ""
-  }
+Hub emails are on for everyone in the church's projects.
+<a href="${escapeHtml(links.settings)}" style="color:${COLORS.muted}">Choose when they arrive</a>
 </td></tr></table></td></tr></table></body></html>`;
 }
 
@@ -138,7 +137,7 @@ ${details.map((d) => `<tr><td style="padding:6px 24px 0;font-size:15px;line-heig
 }
 
 function footerText(links: Links): string {
-  return `\n\n--\nChange notification settings: ${links.settings}${links.unsubscribe ? `\nUnsubscribe from these emails: ${links.unsubscribe}` : ""}`;
+  return `\n\n--\nHub emails are on for everyone in the church's projects. Choose when they arrive: ${links.settings}`;
 }
 
 export function renderEmail(template: EmailTemplate, payload: Payload, links: Links): Rendered {

@@ -68,22 +68,24 @@ test("NOTIF-5 email settings save and stay saved", async ({ pageAs }, testInfo) 
   const comments = page.getByRole("radiogroup", { name: "A comment on a task I own or watch" });
   await expect(comments.getByRole("radio", { name: "Digest" })).toBeChecked();
   await expectNoViolations(page);
-  await comments.getByRole("radio", { name: "Off" }).click();
+  // v4.7: email is required, so the choice is only when it arrives.
+  await expect(comments.getByRole("radio", { name: "Off" })).toHaveCount(0);
+  await comments.getByRole("radio", { name: "Right away" }).click();
   await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("radiogroup", { name: "A comment on a task I own or watch" }).getByRole("radio", { name: "Off" })).toBeChecked();
+  await expect(page.getByRole("radiogroup", { name: "A comment on a task I own or watch" }).getByRole("radio", { name: "Right away" })).toBeChecked();
   await expect(page.getByText("Usually in the 7 am digest")).toBeVisible();
   // Access-request emails are only offered to people who decide requests.
   await expect(page.getByRole("radiogroup", { name: "Someone asks to join a project I run" })).toHaveCount(0);
-  // v4.6 presets: "Recommended" puts every email back to its default.
+  // Presets: "Recommended" puts every email back to its default.
   await page.getByRole("button", { name: "Recommended" }).click();
   await expect(page.getByRole("radiogroup", { name: "A comment on a task I own or watch" }).getByRole("radio", { name: "Digest" })).toBeChecked();
 });
 
-test("NOTIF-6 an unsubscribe link that isn't valid says so, without signing in", async ({ page }) => {
-  await page.goto("/unsubscribe?u=1&e=task.assigned&t=not-a-real-token");
-  await expect(page.getByRole("heading", { level: 1, name: /Unsubscribe from/ })).toBeVisible();
+test("v4.7 an old unsubscribe link explains that hub emails stay on, and points to Email settings", async ({ page }) => {
+  await page.goto("/unsubscribe?u=1&e=task.assigned&t=old-link");
+  await expect(page.getByRole("heading", { level: 1, name: UNSUBSCRIBE_COPY.title })).toBeVisible();
+  await expect(page.getByText(UNSUBSCRIBE_COPY.body)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Choose when emails arrive" })).toHaveAttribute("href", "/settings/notifications");
   await expectNoViolations(page);
-  await page.getByRole("button", { name: "Unsubscribe" }).click();
-  await expect(page.getByRole("alert")).toHaveText(UNSUBSCRIBE_COPY.invalid);
 });

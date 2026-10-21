@@ -1,28 +1,28 @@
 import { Hono } from "hono";
 import { ACCESS_ERRORS } from "../../shared/access";
 import {
+  EMAIL_REQUIRED,
   type EmailMode,
   NOTIFICATION_EVENTS,
   type NotificationSettings,
   type NotificationType,
   SETTABLE_EVENTS,
-  unsubscribeBody,
   updateNotificationSettingsBody,
 } from "../../shared/notifications";
 import { requireSession } from "../auth/middleware";
-import { timingSafeEqual } from "../lib/crypto";
 import { isTimeZone } from "../lib/time";
 import type { AppEnv } from "../types";
-import { unsubscribeToken } from "./sender";
 
-// Email settings (NOTIF-5: each event instant, in the 7 am digest, or off; the digest's timezone) and
-// one-click unsubscribe (NOTIF-6), which needs no sign-in: the signed link is the proof.
+// Email settings (NOTIF-5): each email right away or in the 7 am digest, and the digest's timezone. Since v4.7 email
+// is required for everyone: there is no "off", and the old one-click unsubscribe links (NOTIF-6) no longer turn
+// anything off.
 
 async function modesFor(env: Pick<Env, "DB">, userId: number): Promise<Map<NotificationType, EmailMode>> {
   const { results } = await env.DB.prepare("SELECT event_type, mode FROM notification_prefs WHERE user_id = ? AND channel = 'email'")
     .bind(userId)
     .all<{ event_type: NotificationType; mode: EmailMode }>();
-  const own = new Map(results.map((r) => [r.event_type, r.mode]));
+  // A stored "off" from before v4.7 counts as the event's default.
+  const own = new Map(results.filter((r) => r.mode !== "off").map((r) => [r.event_type, r.mode]));
   return new Map(SETTABLE_EVENTS.map((t) => [t, own.get(t) ?? NOTIFICATION_EVENTS[t].email]));
 }
 
@@ -64,23 +64,9 @@ export function emailRoutes() {
     return c.json({ ok: true });
   });
 
-  // RFC 8058: mail apps POST here straight from the List-Unsubscribe header; the /unsubscribe page posts here
-  // after the person presses the button. Either way the link's own query string says who and what.
-  routes.post("/unsubscribe", async (c) => {
-    const parsed = unsubscribeBody.safeParse(c.req.query());
-    if (!parsed.success) return c.json({ error: ACCESS_ERRORS.invalid }, 400);
-    const { u, e, t } = parsed.data;
-    if (!timingSafeEqual(t, await unsubscribeToken(c.env.SESSION_SECRET, u, e))) return c.json({ error: ACCESS_ERRORS.invalid }, 400);
-    const exists = await c.env.DB.prepare("SELECT 1 FROM users WHERE id = ? AND deleted_at IS NULL").bind(u).first();
-    if (!exists) return c.json({ error: ACCESS_ERRORS.invalid }, 400);
-
-    // "digest" turns off everything that would arrive in the morning digest.
-    const modes = await modesFor(c.env, u);
-    const off: [string, EmailMode][] =
-      e === "digest" ? [...modes].filter(([, m]) => m === "digest").map(([type]) => [type, "off"]) : [[e, "off"]];
-    if (off.length > 0) await c.env.DB.batch(upserts(c.env, u, off, Date.now()));
-    return c.json({ ok: true, event: e });
-  });
+  // v4.7: links in emails sent before email became required still arrive here (mail apps POST from the old
+  // List-Unsubscribe header). Nothing is turned off; the /unsubscribe page explains and links to Email settings.
+  routes.post("/unsubscribe", (c) => c.json({ error: EMAIL_REQUIRED }, 410));
 
   return routes;
 }
