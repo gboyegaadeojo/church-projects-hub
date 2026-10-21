@@ -23,7 +23,7 @@ test("Section 17 create a task → assign → move on the board → task detail 
   await page.getByRole("button", { name: "New task" }).first().click();
   const dialog = page.getByRole("dialog", { name: "New task" });
   await dialog.getByLabel("Title").fill(title);
-  await dialog.getByRole("combobox", { name: "Column" }).click();
+  await dialog.getByRole("combobox", { name: "Status" }).click();
   await page.getByRole("option", { name: "To Do" }).click();
   await dialog.getByRole("combobox", { name: /^Assignee/ }).click();
   await page.getByRole("option", { name: me.name }).click();

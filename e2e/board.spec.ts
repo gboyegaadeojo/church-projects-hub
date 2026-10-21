@@ -112,6 +112,11 @@ test.describe("TASK-2 board", () => {
     const dialog = page.getByRole("dialog", { name: "New task" });
     await dialog.getByRole("button", { name: "Create task" }).click();
     await expect(dialog.getByText("Enter a title.")).toBeVisible();
+    // v4.7: the same fields as an existing task, not a short form.
+    for (const field of ["Status", "Assignee", "Secondary assignee", "Priority", "Epic", "Scope", "Type"]) {
+      await expect(dialog.getByRole("combobox", { name: field, exact: true })).toBeVisible();
+    }
+    await expect(dialog.getByRole("textbox", { name: "Description" })).toBeVisible();
     await dialog.getByLabel("Title").fill("Coil the XLR cables");
     await expectNoViolations(page, "[role=dialog]");
     await dialog.getByRole("button", { name: "Create task" }).click();

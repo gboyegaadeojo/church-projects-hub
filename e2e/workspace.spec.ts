@@ -71,7 +71,7 @@ test("ORG-3 Epics: create an epic, put a task in it, and see its progress", asyn
   await page.getByRole("button", { name: "New epic" }).first().click();
   const dialog = page.getByRole("dialog", { name: "New epic" });
   await dialog.getByLabel("Title").fill("Christmas Eve services");
-  await dialog.getByRole("button", { name: "Create task" }).click();
+  await dialog.getByRole("button", { name: "Create epic" }).click();
   await closeDetail(page, `${project.key}-3`);
 
   // Put the backlog's first task into the epic from its detail.
