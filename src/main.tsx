@@ -37,7 +37,21 @@ import { WorkPage } from "./pages/WorkPage";
 const queryClient = new QueryClient();
 
 // Service worker (NFR-20): production only, so development always runs fresh code.
-if (import.meta.env.PROD) void import("virtual:pwa-register").then(({ registerSW }) => registerSW({ immediate: true }));
+// The service worker updates itself (autoUpdate), but browsers only look for a new version on a full page load. An
+// installed app or a tab left open would keep the old version for days, so also check when the app comes back on
+// screen and hourly while it is visible (never while hidden: section 5). A new version reloads the page.
+if (import.meta.env.PROD)
+  void import("virtual:pwa-register").then(({ registerSW }) =>
+    registerSW({
+      immediate: true,
+      onRegisteredSW(_url, registration) {
+        if (!registration) return;
+        const check = () => document.visibilityState === "visible" && navigator.onLine && void registration.update().catch(() => {});
+        document.addEventListener("visibilitychange", check);
+        setInterval(check, 60 * 60 * 1000);
+      },
+    }),
+  );
 
 /** NFR-18: the maintenance page replaces the app while the database is unreachable. */
 function App() {

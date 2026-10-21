@@ -29,7 +29,7 @@ import { Link } from "react-router";
 import { PROJECT_COLOURS } from "../../../shared/projects";
 import { api, ApiError } from "../../lib/api";
 import { cn } from "../../lib/cn";
-import { TaskConflict, useComments, useDeleteTask, useSubtasks, useTaskDetail, useUpdateTask, useWatch } from "../../lib/taskDetail";
+import { TaskConflict, taskKeyOf, useComments, useDeleteTask, useSubtasks, useTaskDetail, useUpdateTask, useWatch } from "../../lib/taskDetail";
 import { boardKey, peopleById, useCreateTask } from "../../lib/tasks";
 import { ProjectTile } from "../shell/AppShell";
 import { Avatar } from "../ui/Avatar";
@@ -46,7 +46,7 @@ import { EmptyState, ErrorState } from "../ui/States";
 import { toast } from "../ui/Toast";
 import { useOnline } from "../../lib/online";
 import { ErrorBoundary } from "../ErrorBoundary";
-import { AttachmentSection } from "./Attachments";
+import { AttachmentSection, PendingFiles, uploadAll } from "./Attachments";
 import { DueBadge, formatDate, LabelChip, TypeIcon } from "./bits";
 import { isEmptyDoc, RichTextView } from "./RichTextView";
 import { columnTones, PriorityPill, StatusPill } from "./tones";
@@ -515,7 +515,7 @@ const EMPTY_DOC: RichTextDoc = { type: "doc", content: [] };
 
 /**
  * Creating a task looks and works like editing one: title, description and the full Details card. Nothing is saved
- * until Create task; then the new task opens, where its checklist, files and comments can be added.
+ * until Create task: the task is created, then its checklist, files and first comment are saved onto it, and it opens.
  */
 export function NewTaskPanel({ open, onOpenChange, board, project, me, defaultType = "task", onCreated }: NewTaskPanelProps) {
   if (!open) return null;
@@ -531,6 +531,12 @@ function NewTaskBody({ board, project, me, defaultType, onCreated, onClose }: Om
   const [titleError, setTitleError] = useState<string>();
   const [failed, setFailed] = useState<string>();
   const description = useRef<RichTextDoc>(EMPTY_DOC);
+  // Checklist, files and a first comment wait here until Create task (v4.7: the same sections as an existing task).
+  const [checklist, setChecklist] = useState<string[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
+  const comment = useRef<{ doc: RichTextDoc; empty: boolean }>({ doc: EMPTY_DOC, empty: true });
+  const [finishing, setFinishing] = useState(false);
+  const queryClient = useQueryClient();
   // The draft has the shape of a task, so the Details card works on it exactly as on a saved one.
   const [draft, setDraft] = useState<TaskDetail>({
     id: 0,
@@ -614,10 +620,26 @@ function NewTaskBody({ board, project, me, defaultType, onCreated, onClose }: Om
     setFailed(undefined);
     try {
       const task = await create.mutateAsync(body as Parameters<typeof create.mutateAsync>[0]);
-      toast({ variant: "success", title: `${task.key} created.` });
+      setFinishing(true);
+      let missed = 0;
+      for (const item of checklist) {
+        await api(`/api/tasks/${task.id}/subtasks`, { method: "POST", body: { title: item }, csrfToken: me.csrfToken }).catch(() => missed++);
+      }
+      missed += await uploadAll(task.id, files, me.csrfToken);
+      if (!comment.current.empty) {
+        await api(`/api/tasks/${task.id}/comments`, { method: "POST", body: { body: comment.current.doc }, csrfToken: me.csrfToken }).catch(() => missed++);
+      }
+      if (checklist.length || files.length || !comment.current.empty) await queryClient.invalidateQueries({ queryKey: taskKeyOf(task.key) });
+      setFinishing(false);
+      toast(
+        missed
+          ? { variant: "error", title: `${task.key} created, but ${missed === 1 ? "one item" : `${missed} items`} didn't save. Add ${missed === 1 ? "it" : "them"} again on the task.` }
+          : { variant: "success", title: `${task.key} created.` },
+      );
       onClose();
       onCreated(task);
     } catch (err) {
+      setFinishing(false);
       const field = err instanceof ApiError ? (err.body as { field?: string } | null)?.field : undefined;
       setFailed(
         field === "assigneeId" || field === "secondaryAssigneeId"
@@ -701,9 +723,21 @@ function NewTaskBody({ board, project, me, defaultType, onCreated, onClose }: Om
                 />
                 <p className="text-caption text-ink-2">{TASK_COPY.dataSafety}</p>
               </Section>
-              <p className="rounded-control border border-dashed border-line-strong px-3 py-2 text-secondary text-ink-2">
-                Add a checklist, files and comments once the task is created.
-              </p>
+              <DraftChecklist items={checklist} onChange={setChecklist} />
+              <PendingFiles files={files} onChange={setFiles} />
+              <Section title="Comments">
+                <p className="text-secondary text-ink-2">No comments yet.</p>
+                <Editor
+                  kind="comment"
+                  label="Add a comment"
+                  initial={null}
+                  people={board.members}
+                  onChange={(doc, empty) => {
+                    comment.current = { doc, empty };
+                  }}
+                />
+                <p className="text-caption text-ink-2">{TASK_COPY.dataSafety} The comment posts when the task is created.</p>
+              </Section>
             </div>
           </div>
         </form>
@@ -716,13 +750,62 @@ function NewTaskBody({ board, project, me, defaultType, onCreated, onClose }: Om
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" form="new-task" icon={Plus} loading={create.isPending}>
+          <Button type="submit" form="new-task" icon={Plus} loading={create.isPending || finishing}>
             {draft.type === "epic" ? "Create epic" : "Create task"}
           </Button>
         </footer>
         {blockReason.dialog}
       </PanelContent>
     </Dialog>
+  );
+}
+
+/** The Checklist section for a task not yet created: items are kept here and added on Create task. */
+function DraftChecklist({ items, onChange }: { items: string[]; onChange: (items: string[]) => void }) {
+  const [title, setTitle] = useState("");
+  const [error, setError] = useState<string>();
+  function add() {
+    if (!title.trim()) {
+      setError("Enter the checklist item.");
+      return;
+    }
+    onChange([...items, title.trim()]);
+    setTitle("");
+    setError(undefined);
+  }
+  return (
+    <Section title="Checklist" action={items.length > 0 && <span className="text-secondary text-ink-2 tabular-nums">0 of {items.length} done</span>}>
+      <ul className="flex flex-col">
+        {items.map((item, i) => (
+          <li key={`${item}-${i}`} className="flex items-center gap-2">
+            <div className="flex-1">
+              <Checkbox label={item} checked={false} disabled onCheckedChange={() => {}} />
+            </div>
+            <IconButton icon={Trash2} label={`Delete “${item}”`} onClick={() => onChange(items.filter((_, j) => j !== i))} />
+          </li>
+        ))}
+      </ul>
+      {/* Not a nested form: the whole panel is the New task form. Enter adds the item instead of creating the task. */}
+      <div className="flex items-start gap-2">
+        <Field label="New checklist item" className="flex-1 [&>label]:sr-only" error={error}>
+          <TextInput
+            value={title}
+            placeholder="Add an item"
+            maxLength={200}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                add();
+              }
+            }}
+          />
+        </Field>
+        <Button variant="secondary" icon={Plus} onClick={add}>
+          Add
+        </Button>
+      </div>
+    </Section>
   );
 }
 

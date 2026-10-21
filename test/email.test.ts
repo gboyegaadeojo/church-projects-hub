@@ -121,6 +121,9 @@ describe("Section 8 rule 1: the action and its email row commit together", () =>
     await call(newcomer, "POST", "/api/access-requests", { projectIds: [p.id] });
     const requested = await outboxFor("template = 'access.requested' AND user_id = ?", teamAdmin.userId);
     expect(requested.at(-1)).toMatchObject({ mode: "instant", payload: expect.objectContaining({ projectName: p.name }) });
+    // v4.7: the requester is told right away that the request went in.
+    const received = await outboxFor("template = 'access.received' AND user_id = ?", newcomer.userId);
+    expect(received).toEqual([expect.objectContaining({ mode: "instant", payload: expect.objectContaining({ projectName: p.name }) })]);
 
     const id = (await env.DB.prepare("SELECT id FROM access_requests WHERE user_id = ?").bind(newcomer.userId).first<number>("id"))!;
     const deny = () => call(teamAdmin, "POST", `/api/access-requests/${id}/deny`, { reason: "Full this season." }, { [CONFIRM_HEADER]: "access_request.deny" });
@@ -295,6 +298,12 @@ describe("Section 8 email design", () => {
     expect(r.html).toContain("Choose when they arrive");
     expect(r.html).not.toMatch(/unsubscribe/i);
     expect(r.text).toContain("Open task: https://hub.test/projects/MEDIA?task=MEDIA-1");
+  });
+
+  it("v4.7: the request-received email names the projects and links to the request status page", () => {
+    const r = renderEmail("access.received", { projectName: "Media and Ushers" }, { base: "https://hub.test", settings: "https://hub.test/settings/notifications" });
+    expect(r.subject).toBe("We got your request to join Media and Ushers");
+    expect(r.text).toContain("https://hub.test/request-access");
   });
 });
 
