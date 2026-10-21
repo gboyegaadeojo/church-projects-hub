@@ -90,8 +90,8 @@ export function dueReminderStatements(env: Pick<Env, "DB">, now: number): D1Prep
         `${recipients}
          INSERT OR IGNORE INTO email_outbox (user_id, template, payload_json, dedupe_key, mode, send_after, created_at)
          SELECT user_id, ?1, payload, ?6 || ':' || task_key || ':' || ?2 || ':' || user_id, mode, ?4, ?4
-         FROM (SELECT x.*, coalesce((SELECT np.mode FROM notification_prefs np
-                                     WHERE np.user_id = x.user_id AND np.event_type = ?1 AND np.channel = 'email'), ?5) AS mode FROM x)
+         FROM (SELECT x.*, coalesce(nullif((SELECT np.mode FROM notification_prefs np
+                                     WHERE np.user_id = x.user_id AND np.event_type = ?1 AND np.channel = 'email'), 'off'), ?5) AS mode FROM x)
          WHERE mode != 'off'`,
       ).bind(...binds),
     );

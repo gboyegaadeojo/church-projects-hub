@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellOff, Clock, Inbox, type LucideIcon, Mail, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { Clock, Inbox, type LucideIcon, Mail, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { RadioGroup } from "radix-ui";
 import { useMemo } from "react";
 import {
@@ -10,6 +10,7 @@ import {
   type NotificationSettings,
   notificationSettingsResponse,
   type NotificationType,
+  type SettableMode,
 } from "../../shared/notifications";
 import { useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
@@ -23,16 +24,15 @@ import { toast } from "../components/ui/Toast";
 import { api } from "../lib/api";
 import { cn } from "../lib/cn";
 
-// NOTIF-5 (v4.6 layout): every email at a glance. A summary of what arrives when, one-click presets, the digest's
-// timezone with the time there now, and each email grouped by what it's about with a three-way switch: right away,
-// in the 7 am digest, or off. The bell isn't affected; these settings only shape email.
+// NOTIF-5 (v4.7): email is on for everyone; people choose when each email arrives. A summary of what arrives when,
+// presets, the digest's timezone with the time there now, and each email grouped by what it's about with a two-way
+// switch: right away or in the 7 am digest. The bell always shows everything too.
 
 const QUERY_KEY = ["notification-settings"];
 const SAVE_FAILED = "We couldn't save this change. Check your connection and try again.";
-const MODES: { value: EmailMode; label: string; icon: LucideIcon }[] = [
+const MODES: { value: SettableMode; label: string; icon: LucideIcon }[] = [
   { value: "instant", label: "Right away", icon: Zap },
   { value: "digest", label: "Digest", icon: Clock },
-  { value: "off", label: "Off", icon: BellOff },
 ];
 const MODE_WORDS: Record<EmailMode, string> = { instant: "right away", digest: "in the 7 am digest", off: "off" };
 
@@ -89,7 +89,7 @@ export function NotificationSettingsPage() {
   const showSkeleton = useDelayedFlag(settings.isPending);
 
   const save = useMutation({
-    mutationFn: (body: { timezone?: string; events?: Partial<Record<NotificationType, EmailMode>> }) =>
+    mutationFn: (body: { timezone?: string; events?: Partial<Record<NotificationType, SettableMode>> }) =>
       api("/api/me/notification-settings", { method: "PUT", body, csrfToken: me.csrfToken }),
     onMutate: async (body) => {
       await queryClient.cancelQueries({ queryKey: QUERY_KEY });
@@ -118,10 +118,12 @@ export function NotificationSettingsPage() {
   );
   const zones = useMemo(() => timeZones(settings.data?.timezone ?? "America/Winnipeg"), [settings.data?.timezone]);
   const count = (mode: EmailMode) => visible.filter((e) => e.mode === mode).length;
-  const applyAll = (pick: (e: (typeof visible)[number]) => EmailMode) => save.mutate({ events: Object.fromEntries(visible.map((e) => [e.type, pick(e)])) });
+  // The defaults never include "off" for a settable email; an "off" from before v4.7 already reads as the default.
+  const applyAll = (pick: (e: (typeof visible)[number]) => SettableMode) =>
+    save.mutate({ events: Object.fromEntries(visible.map((e) => [e.type, pick(e)])) });
 
   return (
-    <PageLayout title="Email settings" intro="Choose which emails you get and when. The notification bell in the app always shows everything.">
+    <PageLayout title="Email settings" intro="Hub emails are on for everyone in the church's projects. Choose when each one arrives: right away, or together in one email each morning.">
       {settings.isPending ? (
         <div aria-busy="true" aria-label="Loading email settings" className="flex flex-col gap-3">
           {showSkeleton && [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
@@ -134,26 +136,22 @@ export function NotificationSettingsPage() {
             <h2 id="summary-heading" className="sr-only">
               Summary
             </h2>
-            <dl className="grid grid-cols-3 gap-3">
+            <dl className="grid grid-cols-2 gap-3">
               <Count icon={Zap} tone="bg-vivid-blue" label="Right away" value={count("instant")} />
               <Count icon={Inbox} tone="bg-vivid-purple" label="In the 7 am digest" value={count("digest")} />
-              <Count icon={BellOff} tone="bg-vivid-grey" label="Off" value={count("off")} />
             </dl>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-secondary text-ink-2">Quick set:</span>
-              <Button variant="secondary" icon={Sparkles} onClick={() => applyAll((e) => e.defaultMode)}>
+              <Button variant="secondary" icon={Sparkles} onClick={() => applyAll((e) => (e.defaultMode === "off" ? "digest" : e.defaultMode))}>
                 Recommended
               </Button>
-              <Button variant="secondary" icon={Inbox} onClick={() => applyAll((e) => (e.mode === "off" ? "off" : "digest"))}>
-                Fewer emails
-              </Button>
-              <Button variant="secondary" icon={BellOff} onClick={() => applyAll(() => "off")}>
-                Pause all
+              <Button variant="secondary" icon={Inbox} onClick={() => applyAll(() => "digest")}>
+                Fewer emails: one each morning
               </Button>
             </div>
             <p className="flex items-start gap-2 text-caption text-ink-2">
               <Icon icon={ShieldCheck} size="sm" className="mt-px" />
-              Security emails, like being signed out by an admin, and invites always arrive.
+              Emails can't be turned off: they're how the team keeps work moving. Security emails and invites always arrive right away.
             </p>
           </section>
 
@@ -189,10 +187,10 @@ export function NotificationSettingsPage() {
                         </p>
                         <p className="text-caption text-ink-2">
                           {DESCRIPTIONS[e.type]}
-                          {e.mode !== e.defaultMode && <span className="ml-1">Usually {MODE_WORDS[e.defaultMode]}.</span>}
+                          {e.mode !== e.defaultMode && e.defaultMode !== "off" && <span className="ml-1">Usually {MODE_WORDS[e.defaultMode]}.</span>}
                         </p>
                       </div>
-                      <ModeSwitch labelledBy={`event-${e.type}`} value={e.mode} onChange={(mode) => save.mutate({ events: { [e.type]: mode } })} />
+                      <ModeSwitch labelledBy={`event-${e.type}`} value={e.mode === "off" ? "digest" : e.mode} onChange={(mode) => save.mutate({ events: { [e.type]: mode } })} />
                     </li>
                   ))}
                 </ul>
@@ -219,13 +217,13 @@ function Count({ icon, tone, label, value }: { icon: LucideIcon; tone: string; l
   );
 }
 
-/** Right away / Digest / Off as one segmented radio group, named by the email it controls. */
-function ModeSwitch({ labelledBy, value, onChange }: { labelledBy: string; value: EmailMode; onChange: (mode: EmailMode) => void }) {
+/** Right away / Digest as one segmented radio group, named by the email it controls. */
+function ModeSwitch({ labelledBy, value, onChange }: { labelledBy: string; value: SettableMode; onChange: (mode: SettableMode) => void }) {
   return (
     <RadioGroup.Root
       aria-labelledby={labelledBy}
       value={value}
-      onValueChange={(v) => onChange(v as EmailMode)}
+      onValueChange={(v) => onChange(v as SettableMode)}
       orientation="horizontal"
       className="inline-flex shrink-0 self-start rounded-control border border-line bg-page p-0.5 md:self-auto"
     >

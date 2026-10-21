@@ -94,7 +94,8 @@ export function noticeStatements(env: Pick<Env, "DB">, notice: Notice, now: numb
        FROM (
          SELECT u.id,
                 json_patch(${payload}, json_object('actorName', (SELECT name FROM users WHERE id = ?2))) AS payload,
-                coalesce((SELECT np.mode FROM notification_prefs np WHERE np.user_id = u.id AND np.event_type = ?1 AND np.channel = 'email'), ?8) AS mode
+                -- v4.7: email can't be turned off; a stored "off" (from before) falls back to the default.
+                coalesce(nullif((SELECT np.mode FROM notification_prefs np WHERE np.user_id = u.id AND np.event_type = ?1 AND np.channel = 'email'), 'off'), ?8) AS mode
          FROM ${from} WHERE ${where}
        ) x
        WHERE x.mode != 'off'`,

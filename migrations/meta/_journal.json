@@ -99,6 +99,13 @@
       "when": 1792547077858,
       "tag": "0013_blocked",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1792548409901,
+      "tag": "0014_email_required",
+      "breakpoints": true
     }
   ]
 }

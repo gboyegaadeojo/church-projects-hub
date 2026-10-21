@@ -136,6 +136,11 @@ export const APP_ADMIN_EVENTS: readonly NotificationType[] = ["access.reminder"]
 
 const notificationType = z.enum(NOTIFICATION_TYPES as [NotificationType, ...NotificationType[]]);
 const emailMode = z.enum(EMAIL_MODES);
+/** v4.7: email is required for everyone; people choose only when each email arrives. */
+export const SETTABLE_MODES = ["instant", "digest"] as const;
+export type SettableMode = (typeof SETTABLE_MODES)[number];
+/** Returned by the old unsubscribe endpoint (410): hub email can't be turned off. */
+export const EMAIL_REQUIRED = "email_required";
 
 export const notificationSettingsResponse = z.object({
   timezone: z.string(),
@@ -146,18 +151,11 @@ export type NotificationSettings = z.infer<typeof notificationSettingsResponse>;
 export const updateNotificationSettingsBody = z
   .object({
     timezone: z.string().min(1).max(64).optional(),
-    events: z.partialRecord(notificationType, emailMode).optional(),
+    events: z.partialRecord(notificationType, z.enum(SETTABLE_MODES)).optional(),
   })
   .refine((b) => b.timezone !== undefined || b.events !== undefined);
 
-/** "digest" stands for every event the person gets in the morning digest. */
-export const unsubscribeBody = z.object({
-  u: z.coerce.number().int().positive(),
-  e: z.union([notificationType, z.literal("digest")]),
-  t: z.string().min(10).max(100),
-});
-
 export const UNSUBSCRIBE_COPY = {
-  done: "You're unsubscribed.",
-  invalid: "This unsubscribe link isn't valid. You can change your email settings after signing in.",
+  title: "Hub emails stay on",
+  body: "Church Projects Hub emails can't be turned off: they're how the team keeps work moving. You can choose to get most of them in one email each morning instead.",
 } as const;

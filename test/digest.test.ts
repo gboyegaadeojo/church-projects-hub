@@ -2,13 +2,13 @@ import { env } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import type { NotificationSettings } from "../shared/notifications";
 import type { TaskDetail } from "../shared/tasks";
-import { type EmailSender, type OutgoingEmail, unsubscribeUrls } from "../worker/email/sender";
+import type { EmailSender, OutgoingEmail } from "../worker/email/sender";
 import { dueReminderStatements, queueDigests } from "../worker/jobs/digest";
 import { sendDueEmails } from "../worker/jobs/outbox";
 import { call, type Client, request, signedInClient } from "./helpers/auth";
 import { actorAs, createProject, setUser } from "./helpers/fixtures";
 
-// NOTIF-2 (due-date reminders), NOTIF-5 (settings and the 7 am digest), NOTIF-6 (one-click unsubscribe),
+// NOTIF-2 (due-date reminders), NOTIF-5 (settings and the 7 am digest), v4.7 required email (no "off"),
 // section 8 rules 3 and 4, against the real routes and D1. Only the email provider is a recorder.
 
 const HOUR = 60 * 60 * 1000;
@@ -54,11 +54,13 @@ describe("NOTIF-5 email settings", () => {
     expect(initial.events.find((e) => e.type === "task.assigned")).toEqual({ type: "task.assigned", mode: "instant", defaultMode: "instant" });
     expect(initial.events.some((e) => e.type === "project.weekly_summary")).toBe(false);
 
-    expect((await call(me, "PUT", "/api/me/notification-settings", { timezone: "America/Toronto", events: { "task.assigned": "digest", "task.commented": "off" } })).status).toBe(200);
+    expect((await call(me, "PUT", "/api/me/notification-settings", { timezone: "America/Toronto", events: { "task.assigned": "digest", "task.commented": "instant" } })).status).toBe(200);
     const after = await get();
     expect(after.timezone).toBe("America/Toronto");
     expect(after.events.find((e) => e.type === "task.assigned")!.mode).toBe("digest");
-    expect(after.events.find((e) => e.type === "task.commented")!.mode).toBe("off");
+    expect(after.events.find((e) => e.type === "task.commented")!.mode).toBe("instant");
+    // v4.7: email can't be turned off.
+    expect((await call(me, "PUT", "/api/me/notification-settings", { events: { "task.commented": "off" } })).status).toBe(400);
 
     expect((await call(me, "PUT", "/api/me/notification-settings", { timezone: "Mars/Olympus" })).status).toBe(400);
     expect((await call(me, "PUT", "/api/me/notification-settings", { events: { "task.assigned": "sometimes" } })).status).toBe(400);
@@ -72,46 +74,29 @@ describe("NOTIF-5 email settings", () => {
   });
 });
 
-describe("NOTIF-6 one-click unsubscribe", () => {
-  it("a signed link turns that event off without signing in (RFC 8058 POST); a tampered link does nothing", async () => {
+describe("v4.7 email is required for everyone", () => {
+  it("old one-click unsubscribe links turn nothing off (410), and a stored 'off' counts as the default", async () => {
     const me = await activePerson();
-    const { unsubscribe, oneClick } = await unsubscribeUrls(env, me.userId, "task.assigned");
-    expect(unsubscribe).toContain("/unsubscribe?");
-    expect(new URL(oneClick).pathname).toBe("/api/unsubscribe");
-
-    const path = (u: string) => new URL(u).pathname + new URL(u).search;
-    expect((await request(path(oneClick).replace(/t=[^&]+/, "t=forged-token-value"), { method: "POST" })).status).toBe(400);
-    expect((await request(path(oneClick).replace(`u=${me.userId}`, `u=${me.userId + 1}`), { method: "POST" })).status).toBe(400);
-
-    const res = await request(path(oneClick), { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "List-Unsubscribe=One-Click" });
-    expect(res.status).toBe(200);
-    const mode = await env.DB.prepare("SELECT mode FROM notification_prefs WHERE user_id = ? AND event_type = 'task.assigned'").bind(me.userId).first<string>("mode");
-    expect(mode).toBe("off");
-  });
-
-  it("unsubscribing from the digest turns off every event that would arrive in it, and nothing else", async () => {
-    const me = await activePerson();
-    await call(me, "PUT", "/api/me/notification-settings", { events: { "task.assigned": "digest", "task.overdue": "instant" } });
-    const { oneClick } = await unsubscribeUrls(env, me.userId, "digest");
-    expect((await request(new URL(oneClick).pathname + new URL(oneClick).search, { method: "POST" })).status).toBe(200);
+    const res = await request(`/api/unsubscribe?u=${me.userId}&e=task.assigned&t=anything`, { method: "POST" });
+    expect(res.status).toBe(410);
+    expect(await res.json()).toEqual({ error: "email_required" });
+    // A setting saved as "off" before v4.7 reads back as the default and doesn't stop the email.
+    await env.DB.prepare("INSERT INTO notification_prefs (user_id, event_type, mode) VALUES (?, 'task.commented', 'off')").bind(me.userId).run();
     const settings = (await (await call(me, "GET", "/api/me/notification-settings")).json()) as NotificationSettings;
-    const mode = (t: string) => settings.events.find((e) => e.type === t)!.mode;
-    expect(mode("task.assigned")).toBe("off");
-    expect(mode("task.commented")).toBe("off");
-    expect(mode("task.overdue")).toBe("instant");
-    expect(mode("task.mentioned")).toBe("instant");
+    expect(settings.events.find((e) => e.type === "task.commented")!.mode).toBe("digest");
   });
 
-  it("every email to a user carries both links; the footer opens the confirmation page", async () => {
+  it("emails carry no unsubscribe link or header; the footer says they're on for everyone and links to Email settings", async () => {
     const me = await activePerson();
     await env.DB.prepare("UPDATE email_outbox SET status = 'sent', sent_at = 0 WHERE status = 'pending'").run();
     await env.DB.prepare("INSERT INTO email_outbox (user_id, template, payload_json, mode, send_after) VALUES (?, 'task.mentioned', '{}', 'instant', 0)").bind(me.userId).run();
     const recorder = new Recorder();
     await sendDueEmails(env, recorder);
     const email = recorder.sent[0]!;
-    expect(email.unsubscribeUrl).toMatch(/\/api\/unsubscribe\?u=\d+&e=task\.mentioned&t=/);
-    expect(email.html).toMatch(/\/unsubscribe\?u=\d+&amp;e=task\.mentioned&amp;t=/);
-    expect(email.html).not.toContain("/api/unsubscribe");
+    expect(email.html).not.toMatch(/unsubscribe/i);
+    expect(email.text).not.toMatch(/unsubscribe/i);
+    expect(email.html).toContain("Hub emails are on for everyone");
+    expect(email.html).toContain("/settings/notifications");
   });
 });
 
@@ -147,7 +132,7 @@ describe("Section 8 rule 3: the 7 am digest in each person's timezone", () => {
     const email = recorder.sent.find((e) => e.subject === "Your daily summary: 2 updates");
     expect(email?.text).toContain("Sam commented on MEDIA-1: Sound check");
     expect(email?.text).toContain("MEDIA-2: Cables moved to Done");
-    expect(email?.unsubscribeUrl).toContain("e=digest");
+    expect(email?.html).not.toMatch(/unsubscribe/i);
   });
 });
 
@@ -213,7 +198,7 @@ describe("NOTIF-2 due-date reminders (daily job)", () => {
     expect(forSam.map((r) => r.template)).toEqual(["task.due_tomorrow"]);
   });
 
-  it("follows each person's setting: off sends nothing, instant skips the digest", async () => {
+  it("follows each person's setting: a stored 'off' still sends (v4.7), instant skips the digest", async () => {
     const { alex, make } = await setup();
     await env.DB.prepare("INSERT INTO notification_prefs (user_id, event_type, mode) VALUES (?1, 'task.due_tomorrow', 'off'), (?1, 'task.due_soon', 'instant')")
       .bind(alex.userId)
@@ -221,7 +206,7 @@ describe("NOTIF-2 due-date reminders (daily job)", () => {
     const tomorrow = await make("Tomorrow", "2026-10-21");
     const soon = await make("Soon", "2026-10-27");
     await env.DB.batch(dueReminderStatements(env, WINNIPEG_3AM));
-    expect(await rows(`user_id = ? AND ${DUE} AND json_extract(payload_json, '$.taskKey') = ?`, alex.userId, tomorrow.key)).toHaveLength(0);
+    expect(await rows(`user_id = ? AND ${DUE} AND json_extract(payload_json, '$.taskKey') = ?`, alex.userId, tomorrow.key)).toEqual([expect.objectContaining({ mode: "digest" })]);
     expect(await rows(`user_id = ? AND ${DUE} AND json_extract(payload_json, '$.taskKey') = ?`, alex.userId, soon.key)).toEqual([expect.objectContaining({ mode: "instant" })]);
   });
 });
