@@ -114,6 +114,7 @@ export function syncCardFromDetail(queryClient: ReturnType<typeof useQueryClient
       priority: detail.priority,
       scope: detail.scope,
       assigneeId: detail.assigneeId,
+      secondaryAssigneeId: detail.secondaryAssigneeId,
       reporterId: detail.reporterId,
       dueDate: detail.dueDate,
       labelIds: detail.labelIds,

@@ -52,7 +52,7 @@ function addDays(date: string, days: number): string {
 /**
  * NOTIF-2 and the section 8 table, from the daily job: due in 7 days and due tomorrow to the assignee; overdue
  * (once, the day after the due date) to the assignee and the project's admins. Dates are the church's calendar
- * day (Winnipeg). Open tasks only, in projects that aren't archived. Email follows each person's preference
+ * day (Winnipeg). "Assignee" includes the secondary assignee (v4.6). Open tasks only, in projects that aren't archived. Email follows each person's preference
  * and carries a dedupe key per task, date and person (rule 4); the bell gets overdue notices once.
  */
 export function dueReminderStatements(env: Pick<Env, "DB">, now: number): D1PreparedStatement[] {
@@ -71,12 +71,14 @@ export function dueReminderStatements(env: Pick<Env, "DB">, now: number): D1Prep
         SELECT t.id AS task_id, t.project_id,
                json_object('taskKey', p.key || '-' || t.number, 'taskTitle', t.title, 'projectKey', p.key,
                            'projectName', p.name, 'dueDate', t.due_date) AS payload,
-               p.key || '-' || t.number AS task_key, t.assignee_id
+               p.key || '-' || t.number AS task_key, t.assignee_id, t.secondary_assignee_id
         FROM tasks t JOIN projects p ON p.id = t.project_id JOIN workflow_states s ON s.id = t.state_id
         WHERE t.due_date = ?2 AND t.deleted_at IS NULL AND p.archived_at IS NULL AND s.category != 'done'
       ),
       r AS (
         SELECT task_id, project_id, payload, task_key, assignee_id AS user_id FROM due WHERE assignee_id IS NOT NULL
+        UNION
+        SELECT task_id, project_id, payload, task_key, secondary_assignee_id FROM due WHERE secondary_assignee_id IS NOT NULL
         UNION
         SELECT d.task_id, d.project_id, d.payload, d.task_key, m.user_id FROM due d
         JOIN project_members m ON m.project_id = d.project_id AND m.role = 'admin' WHERE ?3 = 1

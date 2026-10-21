@@ -1,0 +1,2 @@
+ALTER TABLE `tasks` ADD `secondary_assignee_id` integer REFERENCES users(id);--> statement-breakpoint
+CREATE INDEX `tasks_secondary_assignee_id_due_date_idx` ON `tasks` (`secondary_assignee_id`,`due_date`);

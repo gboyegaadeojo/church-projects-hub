@@ -242,7 +242,7 @@ function Reports({ r, drill, csv }: { r: ProjectReports; drill: (extra: Record<s
             {r.milestones.map((m) => (
               <li key={m.id} className="flex flex-col gap-1.5">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <Link to={drill({ milestone: String(m.id) })} className="text-secondary font-medium text-ink underline-offset-2 hover:underline">
+                  <Link to={drill({ milestone: String(m.id) })} className="inline-flex min-h-6 items-center text-secondary font-medium text-ink underline-offset-2 hover:underline">
                     {m.name}
                   </Link>
                   <span className="text-caption tabular-nums text-ink-2">

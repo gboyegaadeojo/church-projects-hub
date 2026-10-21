@@ -146,6 +146,7 @@ export function TaskList(props: ListProps) {
           <tbody>
             {rows.map((t) => {
               const assignee = t.assigneeId !== null ? people.get(t.assigneeId) : undefined;
+              const secondary = t.secondaryAssigneeId !== null ? people.get(t.secondaryAssigneeId) : undefined;
               return (
                 <tr
                   key={t.id}
@@ -176,8 +177,14 @@ export function TaskList(props: ListProps) {
                   <td className="px-3 py-2 whitespace-nowrap">
                     {assignee ? (
                       <span className="inline-flex items-center gap-2">
-                        <Avatar name={assignee.name} url={assignee.avatarUrl} size="sm" />
-                        {assignee.name}
+                        <span className="inline-flex">
+                          <Avatar name={assignee.name} url={assignee.avatarUrl} size="xs" className="ring-2 ring-card" />
+                          {secondary && <Avatar name={secondary.name} url={secondary.avatarUrl} size="xs" className="-ml-1.5 ring-2 ring-card" />}
+                        </span>
+                        <span>
+                          {assignee.name}
+                          {secondary && <span className="text-ink-2"> +{secondary.name.split(" ")[0]}</span>}
+                        </span>
                       </span>
                     ) : (
                       <span className="text-ink-2">Unassigned</span>

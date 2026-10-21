@@ -12,7 +12,13 @@ const hitArea = "relative after:absolute after:-inset-3 after:content-['']";
 
 /* ---------- Select (inside <Field>) ---------- */
 
-export type SelectOption = { value: string; label: string; disabled?: boolean };
+export type SelectOption = {
+  value: string;
+  label: string;
+  disabled?: boolean;
+  /** Shown instead of the plain label, in the list and in the trigger (e.g. a status pill or an avatar and name). */
+  display?: ReactNode;
+};
 
 type SelectProps = {
   options: SelectOption[];
@@ -22,9 +28,11 @@ type SelectProps = {
   placeholder?: string;
   disabled?: boolean;
   name?: string;
+  /** "quiet": no border until hovered, for dense property panels (the task detail). */
+  variant?: "default" | "quiet";
 };
 
-export function Select({ options, placeholder = "Choose…", ...rest }: SelectProps) {
+export function Select({ options, placeholder = "Choose…", variant = "default", ...rest }: SelectProps) {
   const field = useFieldControl();
   const container = usePortalContainer();
   return (
@@ -34,11 +42,15 @@ export function Select({ options, placeholder = "Choose…", ...rest }: SelectPr
         className={cn(
           controlClasses,
           "inline-flex min-h-touch items-center justify-between gap-2 text-left data-placeholder:text-ink-2",
+          variant === "quiet" && "border-transparent bg-transparent px-2 state-hover:border-line state-hover:bg-card",
         )}
       >
-        <RadixSelect.Value placeholder={placeholder} />
+        {/* Long values (names, epic titles) stay on one line and end in "…". */}
+        <span className="min-w-0 flex-1 truncate">
+          <RadixSelect.Value placeholder={placeholder} />
+        </span>
         <RadixSelect.Icon className="text-ink-2">
-          <Icon icon={ChevronDown} />
+          <Icon icon={ChevronDown} size={variant === "quiet" ? "sm" : "md"} />
         </RadixSelect.Icon>
       </RadixSelect.Trigger>
       <RadixSelect.Portal container={container}>
@@ -53,13 +65,14 @@ export function Select({ options, placeholder = "Choose…", ...rest }: SelectPr
               <RadixSelect.Item
                 key={option.value}
                 value={option.value}
+                textValue={option.label}
                 disabled={option.disabled}
                 className="relative flex min-h-touch cursor-default select-none items-center rounded-chip py-2 pr-3 pl-9 text-body outline-none data-disabled:text-ink-disabled data-highlighted:bg-hover"
               >
                 <RadixSelect.ItemIndicator className="absolute left-2 inline-flex text-accent-ink">
                   <Icon icon={Check} />
                 </RadixSelect.ItemIndicator>
-                <RadixSelect.ItemText>{option.label}</RadixSelect.ItemText>
+                <RadixSelect.ItemText>{option.display ?? option.label}</RadixSelect.ItemText>
               </RadixSelect.Item>
             ))}
           </RadixSelect.Viewport>

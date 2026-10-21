@@ -116,7 +116,7 @@ export function StackedBar({ segments }: { segments: { label: string; value: num
           <li key={s.label} className="flex items-center gap-2">
             <span aria-hidden="true" className={cn("size-3 rounded-sm", SERIES[i % 3])} />
             {s.href ? (
-              <Link to={s.href} className="text-ink underline-offset-2 hover:underline">
+              <Link to={s.href} className="inline-flex min-h-6 items-center text-ink underline-offset-2 hover:underline">
                 {s.label}
               </Link>
             ) : (
@@ -225,7 +225,7 @@ export function BarList({ rows, series }: { rows: { label: string; values: numbe
         {rows.map((r) => (
           <li key={r.label} className="grid grid-cols-[minmax(6rem,10rem)_1fr] items-center gap-3">
             {r.href ? (
-              <Link to={r.href} className="truncate text-secondary text-ink underline-offset-2 hover:underline">
+              <Link to={r.href} className="flex min-h-6 items-center truncate text-secondary text-ink underline-offset-2 hover:underline">
                 {r.label}
               </Link>
             ) : (

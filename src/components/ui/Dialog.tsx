@@ -115,6 +115,43 @@ export function DialogContent({
   );
 }
 
+/** The accessible title for a <PanelContent>, placed by the caller in its own header. */
+export const DialogTitle = RadixDialog.Title;
+
+/**
+ * Large centred panel (the task detail, section 11.3 as of v4.6): full screen on phones, a wide modal in the middle of
+ * the screen from tablet width up. The caller lays out the inside, and must render a <DialogTitle> in it.
+ */
+export function PanelContent({
+  children,
+  className,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
+  ...rest
+}: Omit<ComponentPropsWithoutRef<typeof RadixDialog.Content>, "title">) {
+  const container = usePortalContainer();
+  const focusHandlers = useReturnFocus({ onOpenAutoFocus, onCloseAutoFocus });
+  return (
+    <RadixDialog.Portal container={container}>
+      <RadixDialog.Overlay className={cn(overlayClasses, "grid place-items-center md:p-8")}>
+        <RadixDialog.Content
+          aria-describedby={undefined}
+          className={cn(
+            "flex h-dvh w-full flex-col overflow-hidden bg-elevated text-ink shadow-modal outline-none",
+            "md:h-[calc(100dvh-4rem)] md:max-w-6xl md:rounded-sheet",
+            "data-[state=open]:animate-pop-in data-[state=closed]:animate-pop-out",
+            className,
+          )}
+          {...rest}
+          {...focusHandlers}
+        >
+          {children}
+        </RadixDialog.Content>
+      </RadixDialog.Overlay>
+    </RadixDialog.Portal>
+  );
+}
+
 /** Sheet: slides up from the bottom on mobile, in from the right from tablet width up. */
 export function SheetContent({
   title,

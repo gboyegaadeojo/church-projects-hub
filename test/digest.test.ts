@@ -202,6 +202,17 @@ describe("NOTIF-2 due-date reminders (daily job)", () => {
     expect(again).toBe(2);
   });
 
+  it("v4.6 reaches the secondary assignee too", async () => {
+    const { p, admin, alex } = await setup();
+    const sam = await actorAs("contributor", p.id);
+    const task = ((await (
+      await call(admin, "POST", `/api/projects/${p.id}/tasks`, { title: "Set up chairs", dueDate: "2026-10-21", assigneeId: alex.userId, secondaryAssigneeId: sam.userId })
+    ).json()) as { task: TaskDetail }).task;
+    await env.DB.batch(dueReminderStatements(env, WINNIPEG_3AM));
+    const forSam = await rows(`user_id = ? AND ${DUE} AND json_extract(payload_json, '$.taskKey') = ?`, sam.userId, task.key);
+    expect(forSam.map((r) => r.template)).toEqual(["task.due_tomorrow"]);
+  });
+
   it("follows each person's setting: off sends nothing, instant skips the digest", async () => {
     const { alex, make } = await setup();
     await env.DB.prepare("INSERT INTO notification_prefs (user_id, event_type, mode) VALUES (?1, 'task.due_tomorrow', 'off'), (?1, 'task.due_soon', 'instant')")

@@ -347,6 +347,7 @@ type CardBodyProps = {
 /** Key, title, assignee avatar, due date, priority and at most 2 label chips (section 11.2). */
 export function CardBody({ task, labels, people, today, done, tone, onOpen, className }: CardBodyProps) {
   const assignee = task.assigneeId !== null ? people.get(task.assigneeId) : undefined;
+  const secondary = task.secondaryAssigneeId !== null ? people.get(task.secondaryAssigneeId) : undefined;
   const cardLabels = task.labelIds.map((id) => labels.get(id)).filter((l): l is Label => !!l);
   return (
     <article className={cn("lift flex flex-col gap-2 rounded-control border border-l-4 border-line bg-card p-2.5 shadow-raised", VIVID_CLASSES[tone].edge, className)}>
@@ -380,9 +381,18 @@ export function CardBody({ task, labels, people, today, done, tone, onOpen, clas
         <span className="inline-flex shrink-0 items-center gap-1.5">
           <PriorityPill priority={task.priority} />
           {assignee ? (
-            <span className="inline-flex" title={assignee.name}>
-              <Avatar name={assignee.name} url={assignee.avatarUrl} size="xs" />
-              <span className="sr-only">Assigned to {assignee.name}</span>
+            <span className="inline-flex" title={secondary ? `${assignee.name} and ${secondary.name}` : assignee.name}>
+              <Avatar name={assignee.name} url={assignee.avatarUrl} size="xs" className="ring-2 ring-card" />
+              {secondary && <Avatar name={secondary.name} url={secondary.avatarUrl} size="xs" className="-ml-1.5 ring-2 ring-card" />}
+              <span className="sr-only">
+                Assigned to {assignee.name}
+                {secondary && `, with ${secondary.name}`}
+              </span>
+            </span>
+          ) : secondary ? (
+            <span className="inline-flex" title={secondary.name}>
+              <Avatar name={secondary.name} url={secondary.avatarUrl} size="xs" />
+              <span className="sr-only">Secondary assignee {secondary.name}</span>
             </span>
           ) : (
             <span className="sr-only">Unassigned</span>
