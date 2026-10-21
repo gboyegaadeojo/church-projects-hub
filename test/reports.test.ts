@@ -193,7 +193,27 @@ describe("Section 16 church-wide reports (App Admin)", () => {
     const res = await call(appAdmin, "GET", "/api/reports/church?weeks=4");
     expect(res.status).toBe(200);
     const r = (await res.json()) as ChurchReports;
-    expect(r.overview.find((p) => p.id === s.p.id)).toMatchObject({ open: 1, overdue: 1, completedThisMonth: 1 });
+    expect(r.overview.find((p) => p.id === s.p.id)).toMatchObject({
+      open: 1,
+      todo: 1,
+      inProgress: 0,
+      overdue: 1,
+      completedThisMonth: 1,
+      completedInRange: 1,
+      createdInRange: 2,
+      // Its one open task is overdue: more than a fifth of open work.
+      health: "at_risk",
+    });
+    expect(r.overview.find((p) => p.id === s.p.id)!.lastActivityAt).toBeGreaterThan(Date.now() - 60_000);
+    // v4.6 headline numbers, the weekly trend, aging and the priority mix (other tests add to the same database).
+    expect(r.kpis.overdue).toBeGreaterThanOrEqual(1);
+    expect(r.kpis.completedInRange).toBeGreaterThanOrEqual(1);
+    expect(r.kpis.medianCycleDays).not.toBeNull();
+    expect(r.trend).toHaveLength(4);
+    expect(r.trend.at(-1)!.created).toBeGreaterThanOrEqual(4);
+    expect(r.trend.at(-1)!.completed).toBeGreaterThanOrEqual(1);
+    expect(r.aging.week).toBeGreaterThanOrEqual(1);
+    expect(Object.values(r.priorities).reduce((a, b) => a + b, 0)).toBe(r.kpis.open);
     expect(r.workload.find((w) => w.person.id === s.contributor.userId)).toMatchObject({ open: 2, overdue: 1, projects: 2 });
     expect(r.adoption.activeByWeek).toHaveLength(4);
     expect(r.adoption.activeByWeek.at(-1)!.people).toBeGreaterThanOrEqual(2);
@@ -201,7 +221,11 @@ describe("Section 16 church-wide reports (App Admin)", () => {
 
     expect((await call(s.admin, "GET", "/api/reports/church")).status).toBe(403);
     const csv = await call(appAdmin, "GET", "/api/reports/church/overview.csv");
-    expect((await csv.text()).split("\r\n")[0]).toBe("project,key,archived,open,overdue,completed_this_month");
+    expect((await csv.text()).split("\r\n")[0]).toBe(
+      "project,key,archived,open,overdue,completed_this_month,health,to_do,in_progress,created_in_range,completed_in_range,members,last_activity",
+    );
+    const trend = await call(appAdmin, "GET", "/api/reports/church/trend.csv?weeks=4");
+    expect((await trend.text()).split("\r\n")[0]).toBe("week_starting,created,completed");
     expect((await call(s.admin, "GET", "/api/reports/church/workload.csv")).status).toBe(403);
   });
 });

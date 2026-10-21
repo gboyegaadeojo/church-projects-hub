@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PROJECT_COLOURS, PROJECT_ICONS } from "./projects";
 import { PRIORITIES } from "./tasks";
 
 // Reports (section 16, RPT-1 to RPT-4). Weeks and months follow the church's calendar (Winnipeg), Monday-start.
@@ -77,15 +78,56 @@ export function percentiles(values: number[]): { median: number | null; p85: num
   return { median, p85: rank(0.85) };
 }
 
-// ---- Church-wide reports (section 16, App Admin): overview, workload across projects, access and adoption
+// ---- Church-wide reports (section 16, App Admin): headline numbers, weekly trend, project health, overdue aging,
+// open work by priority, workload across projects, access and adoption
 
-export const CHURCH_REPORT_NAMES = ["overview", "workload", "adoption"] as const;
+export const CHURCH_REPORT_NAMES = ["overview", "trend", "workload", "adoption"] as const;
+
+/** v4.6: on track; at risk (over a fifth of its open work overdue); quiet (no task changes for 21 days); archived. */
+export const PROJECT_HEALTH = ["on_track", "at_risk", "quiet", "archived"] as const;
+export type ProjectHealth = (typeof PROJECT_HEALTH)[number];
+export const PROJECT_HEALTH_LABELS: Record<ProjectHealth, string> = { on_track: "On track", at_risk: "At risk", quiet: "Quiet", archived: "Archived" };
 export type ChurchReportName = (typeof CHURCH_REPORT_NAMES)[number];
 
 export const churchReports = z.object({
   range: z.object({ weeks: z.number().int(), from: z.string(), to: z.string() }),
+  kpis: z.object({
+    activeProjects: z.number().int(),
+    open: z.number().int(),
+    overdue: z.number().int(),
+    unassigned: z.number().int(),
+    createdInRange: z.number().int(),
+    completedInRange: z.number().int(),
+    activePeopleThisWeek: z.number().int(),
+    /** Of tasks completed in the range that had a due date: the share finished on or before it, 0–100. */
+    onTimeRate: z.number().int().nullable(),
+    /** Days from created to done, for tasks completed in the range. */
+    medianCycleDays: z.number().nullable(),
+  }),
+  trend: z.array(z.object({ weekStart: z.string(), created: z.number().int(), completed: z.number().int() })),
+  /** Open overdue tasks by how late they are: up to a week, up to a month, longer. */
+  aging: z.object({ week: z.number().int(), month: z.number().int(), older: z.number().int() }),
+  /** Open tasks by priority. */
+  priorities: z.record(z.enum(PRIORITIES), z.number().int()),
   overview: z.array(
-    z.object({ id: z.number().int(), key: z.string(), name: z.string(), archived: z.boolean(), open: z.number().int(), overdue: z.number().int(), completedThisMonth: z.number().int() }),
+    z.object({
+      id: z.number().int(),
+      key: z.string(),
+      name: z.string(),
+      colour: z.enum(PROJECT_COLOURS),
+      icon: z.enum(PROJECT_ICONS),
+      archived: z.boolean(),
+      open: z.number().int(),
+      todo: z.number().int(),
+      inProgress: z.number().int(),
+      overdue: z.number().int(),
+      createdInRange: z.number().int(),
+      completedInRange: z.number().int(),
+      completedThisMonth: z.number().int(),
+      members: z.number().int(),
+      lastActivityAt: z.number().nullable(),
+      health: z.enum(PROJECT_HEALTH),
+    }),
   ),
   workload: z.array(z.object({ person: z.object({ id: z.number().int(), name: z.string() }), open: z.number().int(), overdue: z.number().int(), projects: z.number().int() })),
   adoption: z.object({

@@ -65,17 +65,19 @@ test("NOTIF-5 email settings save and stay saved", async ({ pageAs }, testInfo) 
   const page = await pageAs(persona("themer", viewportOf(testInfo)));
   await page.goto("/settings/notifications");
   await expect(page.getByRole("heading", { level: 1, name: "Email settings" })).toBeVisible();
-  const comments = page.getByRole("combobox", { name: "A comment on a task I own or watch" });
-  await expect(comments).toHaveText("In the 7 am digest");
+  const comments = page.getByRole("radiogroup", { name: "A comment on a task I own or watch" });
+  await expect(comments.getByRole("radio", { name: "Digest" })).toBeChecked();
   await expectNoViolations(page);
-  await comments.click();
-  await page.getByRole("option", { name: "Off" }).click();
+  await comments.getByRole("radio", { name: "Off" }).click();
   await expect(page.getByText("Saved.", { exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("combobox", { name: "A comment on a task I own or watch" })).toHaveText("Off");
+  await expect(page.getByRole("radiogroup", { name: "A comment on a task I own or watch" }).getByRole("radio", { name: "Off" })).toBeChecked();
   await expect(page.getByText("Usually in the 7 am digest")).toBeVisible();
   // Access-request emails are only offered to people who decide requests.
-  await expect(page.getByRole("combobox", { name: "Someone asks to join a project I run" })).toHaveCount(0);
+  await expect(page.getByRole("radiogroup", { name: "Someone asks to join a project I run" })).toHaveCount(0);
+  // v4.6 presets: "Recommended" puts every email back to its default.
+  await page.getByRole("button", { name: "Recommended" }).click();
+  await expect(page.getByRole("radiogroup", { name: "A comment on a task I own or watch" }).getByRole("radio", { name: "Digest" })).toBeChecked();
 });
 
 test("NOTIF-6 an unsubscribe link that isn't valid says so, without signing in", async ({ page }) => {

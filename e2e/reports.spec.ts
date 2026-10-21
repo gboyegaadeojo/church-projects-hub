@@ -38,7 +38,8 @@ test("Section 16 App Admins see church-wide reports; members don't get the link"
   const page = await pageAs(persona("admin"));
   await page.goto("/admin/reports");
   await expect(page.getByRole("heading", { level: 1, name: "Church-wide reports" })).toBeVisible();
-  await expect(page.getByRole("region", { name: "All projects" }).getByRole("link", { name: "Media" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Project health" }).getByRole("link", { name: "Media" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Created and completed" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Access and adoption" })).toContainText("Waiting requests");
   await expectNoViolations(page);
   await page.screenshot({ path: `test-results/church-${v}.png`, fullPage: true });
