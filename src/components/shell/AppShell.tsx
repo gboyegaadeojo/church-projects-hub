@@ -25,7 +25,7 @@ import {
   UserX,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from "react-router";
+import { Link, NavLink, Outlet, useLocation, useMatch, useNavigate, useOutletContext, useResolvedPath } from "react-router";
 import type { MeResponse } from "../../../shared/auth";
 import type { ProjectSummary } from "../../../shared/projects";
 import { cn } from "../../lib/cn";
@@ -333,8 +333,11 @@ function SidebarLink({
   /** Shown after the label when expanded; decorative. */
   trailing?: ReactNode;
 }) {
+  // The active state is worked out here and passed as a plain string: in the collapsed rail the tooltip's Slot
+  // merges props, and it would turn NavLink's className function into text.
+  const isActive = useMatch({ path: useResolvedPath(to).pathname, end: !!end }) !== null;
   const link = (
-    <NavLink to={to} end={end} aria-label={collapsed ? label : undefined} className={({ isActive }) => navItemClasses(isActive, collapsed)}>
+    <NavLink to={to} end={end} aria-label={collapsed ? label : undefined} className={navItemClasses(isActive, collapsed)}>
       {leading ?? (icon && <Icon icon={icon} />)}
       {!collapsed && <span className="min-w-0 flex-1 truncate">{label}</span>}
       {!collapsed && trailing}

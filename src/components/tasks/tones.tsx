@@ -50,12 +50,12 @@ export function StatusPill({ name, tone, className }: { name: string; tone: Vivi
   return <span className={cn(pill, VIVID_CLASSES[tone].bg, className)}>{name}</span>;
 }
 
-/** Priority as a solid pill with its icon and word. */
+/** Priority as a solid pill with its icon and word. Screen readers hear "Priority: High" once. */
 export function PriorityPill({ priority, className }: { priority: Priority; className?: string }) {
   return (
     <span className={cn(pill, VIVID_CLASSES[PRIORITY_TONE[priority]].bg, className)}>
-      <Icon icon={PRIORITY_STYLE[priority].icon} size="sm" />
-      {PRIORITY_LABELS[priority]}
+      <Icon icon={PRIORITY_STYLE[priority].icon} size="sm" label={`Priority: ${PRIORITY_LABELS[priority]}`} />
+      <span aria-hidden="true">{PRIORITY_LABELS[priority]}</span>
     </span>
   );
 }

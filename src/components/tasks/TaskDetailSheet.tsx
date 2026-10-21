@@ -195,7 +195,7 @@ function TaskBody({ task, board, project, me, canEdit, onClose }: { task: TaskDe
         type={task.type}
         onClose={onClose}
         status={
-          <span className="mr-2 hidden text-caption text-ink-2 sm:inline" aria-live="polite">
+          <span className="mr-1 text-caption whitespace-nowrap text-ink-2" aria-live="polite">
             {update.isPending ? "Saving…" : saved ? TASK_COPY.saved : ""}
           </span>
         }
@@ -211,11 +211,7 @@ function TaskBody({ task, board, project, me, canEdit, onClose }: { task: TaskDe
         <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_23rem] md:grid-rows-[auto_1fr]">
           <div className="flex flex-col gap-2 px-4 pt-5 md:col-start-1 md:row-start-1 md:px-8 md:pt-7">
             <TitleField task={task} canEdit={canEdit} onSave={(title) => save({ title })} />
-            {/* Phones show the save status here; the header has no room for it. */}
             <p className="px-2 text-caption text-ink-2">
-              <span className="sm:hidden" aria-hidden="true">
-                {update.isPending ? "Saving… " : saved ? `${TASK_COPY.saved} ` : ""}
-              </span>
               Reported by {reporter?.name ?? "someone"} · {formatShortDate(task.createdAt, me.user.timezone)}
             </p>
             {conflict && (

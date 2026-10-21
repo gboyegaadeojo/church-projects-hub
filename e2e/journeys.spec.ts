@@ -25,7 +25,7 @@ test("Section 17 create a task → assign → move on the board → task detail 
   await dialog.getByLabel("Title").fill(title);
   await dialog.getByRole("combobox", { name: "Column" }).click();
   await page.getByRole("option", { name: "To Do" }).click();
-  await dialog.getByRole("combobox", { name: "Assignee" }).click();
+  await dialog.getByRole("combobox", { name: /^Assignee/ }).click();
   await page.getByRole("option", { name: me.name }).click();
   await dialog.getByRole("button", { name: "Create task" }).click();
   await expect(page.getByText(`${key} created.`).first()).toBeVisible();
