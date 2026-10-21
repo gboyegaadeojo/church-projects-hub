@@ -148,11 +148,13 @@ describe("PROJ-4 archive and restore", () => {
     expect(await auditFor("project.restored", p.id)).toHaveLength(1);
   });
 
-  it("Hub Feedback can't be archived, and only App Admins archive", async () => {
+  it("Hub Feedback can't be archived; a project's own admins can archive it (v4.7), its contributors can't", async () => {
     const hub = await env.DB.prepare("SELECT id FROM projects WHERE is_system = 1").first<number>("id");
     if (hub) expect((await call(admin, "POST", `/api/projects/${hub}/archive`, undefined, ARCHIVE)).status).toBe(403);
     const p = await createProject();
+    const contributor = await actorAs("contributor", p.id);
+    expect((await call(contributor, "POST", `/api/projects/${p.id}/archive`, undefined, ARCHIVE)).status).toBe(403);
     const projectAdmin = await actorAs("projectAdmin", p.id);
-    expect((await call(projectAdmin, "POST", `/api/projects/${p.id}/archive`, undefined, ARCHIVE)).status).toBe(403);
+    expect((await call(projectAdmin, "POST", `/api/projects/${p.id}/archive`, undefined, ARCHIVE)).status).toBe(200);
   });
 });

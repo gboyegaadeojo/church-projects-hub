@@ -132,7 +132,8 @@ test.describe("TASK-2 list view and TASK-10 bulk edit", () => {
     const project = BOARD_PROJECTS.desktop;
     const page = await pageAs(persona("mover", "desktop"));
     await page.goto(`/projects/${project.key}?view=list`);
-    await expect(page.getByRole("navigation", { name: "Project" }).getByRole("link", { name: "List" })).toHaveAttribute("aria-current", "page");
+    // From tablet width up the project's pages are in the sidebar (v4.7).
+    await expect(page.getByRole("list", { name: `${project.name} pages` }).getByRole("link", { name: "List" })).toHaveAttribute("aria-current", "page");
     const table = page.getByRole("table", { name: "Tasks" });
     await table.getByRole("button", { name: "Title" }).click();
     await expect(table.getByRole("columnheader", { name: "Title" })).toHaveAttribute("aria-sort", "ascending");

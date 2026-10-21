@@ -48,6 +48,7 @@ import { Skeleton } from "../ui/Skeleton";
 import { ThemeSwitch } from "../ui/ThemeSwitch";
 import { Tooltip } from "../ui/Tooltip";
 import { BrandMark } from "./BrandMark";
+import { useProjectNav } from "./ProjectTabs";
 
 // The app shell (section 12), laid out like a work tracker:
 // - a top bar across the screen: logo, "Jump to…" search, Create, Help, notifications and the account menu;
@@ -406,9 +407,13 @@ function MainNav({ me, collapsed }: { me: MeResponse; collapsed: boolean }) {
               <Skeleton className="h-5 w-full" />
             </li>
           ))}
-        {shown.map((p) => (
-          <SidebarLink key={p.id} to={`/projects/${p.key}`} label={p.name} collapsed={collapsed} leading={<ProjectTile project={p} size="sm" />} />
-        ))}
+        {shown.map((p) =>
+          p === current ? (
+            <ProjectSidebarGroup key={p.id} project={p} collapsed={collapsed} />
+          ) : (
+            <SidebarLink key={p.id} to={`/projects/${p.key}`} label={p.name} collapsed={collapsed} leading={<ProjectTile project={p} size="sm" />} />
+          ),
+        )}
         <SidebarLink
           to="/projects"
           end
@@ -433,6 +438,52 @@ function MainNav({ me, collapsed }: { me: MeResponse; collapsed: boolean }) {
         </div>
       )}
     </nav>
+  );
+}
+
+/**
+ * The open project, expanded: its name, then Board, List, Backlog, Epics, Reports, Members and Settings (v4.7, so
+ * every view is one click away). In the collapsed rail they show as icons with tooltips.
+ */
+function ProjectSidebarGroup({ project, collapsed }: { project: ProjectSummary; collapsed: boolean }) {
+  const items = useProjectNav(project.key);
+  return (
+    <li>
+      <Link
+        to={`/projects/${project.key}`}
+        aria-label={collapsed ? project.name : undefined}
+        className={cn(navItemClasses(false, collapsed), "font-semibold")}
+      >
+        <ProjectTile project={project} size="sm" />
+        {!collapsed && <span className="min-w-0 flex-1 truncate">{project.name}</span>}
+      </Link>
+      <ul aria-label={`${project.name} pages`} className={cn("mt-0.5 flex flex-col gap-0.5", !collapsed && "ml-6 border-l border-line pl-2")}>
+        {items.map((item) => {
+          const link = (
+            <Link
+              to={item.to}
+              aria-current={item.current ? "page" : undefined}
+              aria-label={collapsed ? `${project.name}: ${item.label}` : undefined}
+              className={navItemClasses(item.current, collapsed)}
+            >
+              <Icon icon={item.icon} size="sm" />
+              {!collapsed && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
+            </Link>
+          );
+          return (
+            <li key={item.id}>
+              {collapsed ? (
+                <Tooltip content={item.label} side="right">
+                  {link}
+                </Tooltip>
+              ) : (
+                link
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </li>
   );
 }
 

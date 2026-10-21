@@ -24,7 +24,8 @@ test("ORG-1 / PROJ-3 an admin manages labels and columns in the project's Settin
 
   await page.getByRole("button", { name: "New label" }).click();
   await page.getByLabel("Label name").fill("Sunday");
-  await page.getByRole("radio", { name: "Green" }).click();
+  // Scoped to the Labels card: Project details has its own colour choice.
+  await page.getByRole("region", { name: "Labels" }).getByRole("radio", { name: "Green" }).click();
   await page.getByRole("button", { name: "Add label" }).click();
   const labels = page.getByRole("region", { name: "Labels" });
   await expect(labels.getByText("Sunday", { exact: true })).toBeVisible();

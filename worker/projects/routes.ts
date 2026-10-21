@@ -12,7 +12,7 @@ import {
 } from "../../shared/projects";
 import { ADMIN_CONFIRM } from "../../shared/admin";
 import { AUDIT, auditInsert, auditStatement } from "../audit";
-import { forbidden, idParam, requireConfirmation, requirePermission } from "../auth/authorize";
+import { authorize, forbidden, idParam, requireConfirmation, requirePermission } from "../auth/authorize";
 import { ipHash } from "../auth/ip";
 import { requireSession } from "../auth/middleware";
 import { can } from "../auth/permissions";
@@ -160,12 +160,16 @@ export function projectRoutes() {
     return c.json({ project: await loadSummary(c, "p.key = ?3", body.key) }, 201);
   });
 
-  // App Admin edits, including the Hidden flag (PROJ-6). Hub Feedback is fixed (PROJ-7).
-  routes.patch("/projects/:id", requireSession, requirePermission("project.manage"), async (c) => {
+  // App Admins edit any project, including the Hidden flag (PROJ-6); a Project Admin edits their own project's name,
+  // description, colour and icon (v4.7). Hub Feedback is fixed (PROJ-7).
+  routes.patch("/projects/:id", requireSession, async (c) => {
     const id = idParam(c, "id");
     if (id === null) return forbidden(c, 404);
+    const allowed = await authorize(c, "project.edit", id);
+    if (!allowed.ok) return forbidden(c, allowed.status);
     const parsed = updateProjectBody.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return c.json({ error: ACCESS_ERRORS.invalid, issues: parsed.error.issues }, 400);
+    if (parsed.data.hidden !== undefined && c.get("auth").user.appRole !== "admin") return forbidden(c, 403);
 
     const db = getDb(c.env);
     const current = await db.query.projects.findFirst({ where: eq(projects.id, id) });
@@ -203,7 +207,8 @@ export function projectRoutes() {
     routes.post(
       `/projects/:id/${path}`,
       requireSession,
-      requirePermission("project.manage"),
+      // v4.7: a Project Admin archives or restores their own project too.
+      requirePermission("project.edit", { projectId: (c) => idParam(c, "id") }),
       archive ? requireConfirmation(ADMIN_CONFIRM.archiveProject) : (_c, next) => next(),
       async (c) => {
         const id = idParam(c, "id");

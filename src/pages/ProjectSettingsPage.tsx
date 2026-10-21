@@ -1,8 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Check, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowDown, ArrowUp, Check, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ADMIN_CONFIRM } from "../../shared/admin";
+import { Icon } from "../components/ui/Icon";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { useParams } from "react-router";
-import { PROJECT_COLOURS, type ProjectColour, projectResponse, type ProjectSummary } from "../../shared/projects";
+import { PROJECT_COLOURS, PROJECT_DESCRIPTION_MAX, PROJECT_ICONS, PROJECT_NAME_MAX, type ProjectColour, type ProjectIcon, projectResponse, type ProjectSummary } from "../../shared/projects";
 import {
   type BoardResponse,
   type Component,
@@ -29,7 +31,7 @@ import { Skeleton } from "../components/ui/Skeleton";
 import { ErrorState } from "../components/ui/States";
 import { toast } from "../components/ui/Toast";
 import { api, ApiError } from "../lib/api";
-import { PROJECT_COLOUR_CLASSES } from "../lib/projects";
+import { PROJECT_COLOUR_CLASSES, PROJECT_ICON_COMPONENTS, PROJECT_ICON_LABELS } from "../lib/projects";
 import { boardKey, useBoard } from "../lib/tasks";
 import { ChoiceGrid } from "./AdminProjectsPage";
 
@@ -66,6 +68,8 @@ export function ProjectSettingsPage() {
 function Settings({ project }: { project: ProjectSummary }) {
   const me = useMe();
   const board = useBoard(project.id);
+  // v4.7: the project's admins run it fully: details, archive and restore as well as its organisation.
+  const isProjectAdmin = (me.user.appRole === "admin" || project.role === "admin") && !project.isSystem;
   const canManage = !project.archived && (me.user.appRole === "admin" || project.role === "admin");
   const data = board.data;
   return (
@@ -89,6 +93,8 @@ function Settings({ project }: { project: ProjectSummary }) {
         <ErrorState title="We couldn't load the settings." description="Check your connection and try again." onRetry={() => void board.refetch()} retrying={board.isFetching} />
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
+          {isProjectAdmin && <DetailsSection project={project} />}
+          {isProjectAdmin && <ArchiveSection project={project} />}
           <ColumnsSection project={project} data={data} canManage={canManage} />
           <LabelsSection project={project} data={data} canManage={canManage} />
           <ComponentsSection project={project} data={data} canManage={canManage} />
@@ -178,6 +184,114 @@ function FormButtons({ onCancel, saving, submitLabel }: { onCancel: () => void; 
         Cancel
       </Button>
     </div>
+  );
+}
+
+/* ---------- Project details and archive (v4.7: Project Admins) ---------- */
+
+function DetailsSection({ project }: { project: ProjectSummary }) {
+  const me = useMe();
+  const queryClient = useQueryClient();
+  const [name, setName] = useState(project.name);
+  const [description, setDescription] = useState(project.description);
+  const [colour, setColour] = useState<ProjectColour>(project.colour);
+  const [icon, setIcon] = useState<ProjectIcon>(project.icon);
+  const [error, setError] = useState<string>();
+  const [saving, setSaving] = useState(false);
+  const dirty = name !== project.name || description !== project.description || colour !== project.colour || icon !== project.icon;
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return setError("Enter a project name.");
+    setError(undefined);
+    setSaving(true);
+    try {
+      await api(`/api/projects/${project.id}`, { method: "PATCH", body: { name: name.trim(), description: description.trim(), colour, icon }, csrfToken: me.csrfToken });
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      toast({ variant: "success", title: "Project updated." });
+    } catch {
+      toast({ variant: "error", title: SAVE_FAILED });
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <Card title="Project details" description="The name, description, colour and icon everyone in the project sees.">
+      <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+        <Field label="Project name" required error={error}>
+          <TextInput value={name} maxLength={PROJECT_NAME_MAX} onChange={(e) => setName(e.target.value)} disabled={project.archived} />
+        </Field>
+        <Field label="Description">
+          <TextInput value={description} maxLength={PROJECT_DESCRIPTION_MAX} onChange={(e) => setDescription(e.target.value)} disabled={project.archived} />
+        </Field>
+        <ColourPicker value={colour} onChange={setColour} />
+        <ChoiceGrid
+          legend="Icon"
+          value={icon}
+          onChange={(v) => setIcon(v as ProjectIcon)}
+          options={PROJECT_ICONS.map((i) => ({ value: i, label: PROJECT_ICON_LABELS[i], content: <Icon icon={PROJECT_ICON_COMPONENTS[i]} /> }))}
+        />
+        {!project.archived && (
+          <Button type="submit" icon={Check} loading={saving} disabled={!dirty} className="self-start">
+            Save details
+          </Button>
+        )}
+      </form>
+    </Card>
+  );
+}
+
+function ArchiveSection({ project }: { project: ProjectSummary }) {
+  const me = useMe();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["projects"] });
+  return (
+    <Card
+      title={project.archived ? "Archived" : "Archive this project"}
+      description={
+        project.archived
+          ? "This project is read-only. Restore it to let people work in it again."
+          : "Archiving makes the project read-only for everyone. Nothing is deleted, and you can restore it."
+      }
+    >
+      {project.archived ? (
+        <Button
+          variant="secondary"
+          icon={ArchiveRestore}
+          className="self-start"
+          onClick={async () => {
+            try {
+              await api(`/api/projects/${project.id}/restore`, { method: "POST", csrfToken: me.csrfToken });
+              await refresh();
+              toast({ variant: "success", title: "Project restored." });
+            } catch {
+              toast({ variant: "error", title: SAVE_FAILED });
+            }
+          }}
+        >
+          Restore project
+        </Button>
+      ) : (
+        <Button variant="destructive" icon={Archive} className="self-start" onClick={() => setOpen(true)}>
+          Archive project
+        </Button>
+      )}
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={`Archive ${project.name}?`}
+        description="Everyone in the project will be able to read it but not change anything until it's restored."
+        confirmLabel="Archive project"
+        confirmIcon={Archive}
+        confirmAction={ADMIN_CONFIRM.archiveProject}
+        confirmText={project.key}
+        successMessage="Project archived."
+        onConfirm={async (headers) => {
+          await api(`/api/projects/${project.id}/archive`, { method: "POST", csrfToken: me.csrfToken, headers });
+          await refresh();
+        }}
+      />
+    </Card>
   );
 }
 
