@@ -25,8 +25,7 @@ import { BoardToolbar } from "../components/tasks/BoardToolbar";
 import { EpicsView } from "../components/tasks/EpicsView";
 import { Board } from "../components/tasks/Board";
 import { BulkBar } from "../components/tasks/BulkBar";
-import { NewTaskDialog } from "../components/tasks/NewTaskDialog";
-import { TaskDetailSheet } from "../components/tasks/TaskDetailSheet";
+import { NewTaskPanel, TaskDetailSheet } from "../components/tasks/TaskDetailSheet";
 import { TaskList } from "../components/tasks/TaskList";
 import { Button, buttonClasses } from "../components/ui/Button";
 import { Icon } from "../components/ui/Icon";
@@ -388,16 +387,15 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
         />
       )}
       {data && canEdit && (
-        <NewTaskDialog
-          // Remounted per type, so its form starts from the right type.
+        // v4.7: the same modal as an existing task. Remounted per type, so it starts from the right type.
+        <NewTaskPanel
           key={creating ?? "closed"}
           open={creating !== null}
           onOpenChange={(open) => !open && setCreating(null)}
           defaultType={creating ?? "task"}
-          projectId={project.id}
-          csrfToken={me.csrfToken}
-          states={data.states}
-          assignable={assignable}
+          board={data}
+          project={project}
+          me={me}
           onCreated={openTask}
         />
       )}

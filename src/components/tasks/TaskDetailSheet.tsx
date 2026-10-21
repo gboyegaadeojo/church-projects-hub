@@ -19,6 +19,7 @@ import {
   TASK_TYPES,
   type TaskDetail,
   type TaskEvent,
+  type TaskType,
   dueStatus,
   todayIn,
   type UpdateTaskBody,
@@ -29,7 +30,7 @@ import { PROJECT_COLOURS } from "../../../shared/projects";
 import { api, ApiError } from "../../lib/api";
 import { cn } from "../../lib/cn";
 import { TaskConflict, useComments, useDeleteTask, useSubtasks, useTaskDetail, useUpdateTask, useWatch } from "../../lib/taskDetail";
-import { boardKey, peopleById } from "../../lib/tasks";
+import { boardKey, peopleById, useCreateTask } from "../../lib/tasks";
 import { ProjectTile } from "../shell/AppShell";
 import { Avatar } from "../ui/Avatar";
 import { Button, IconButton } from "../ui/Button";
@@ -366,6 +367,7 @@ function DetailsCard({
   onStatusChange,
   timezone,
   save,
+  draft = false,
 }: {
   task: TaskDetail;
   board: BoardResponse;
@@ -377,6 +379,8 @@ function DetailsCard({
   onStatusChange: (stateId: number) => void;
   timezone: string;
   save: (changes: Omit<UpdateTaskBody, "version">) => void;
+  /** A task being created: no reporter or dates yet. */
+  draft?: boolean;
 }) {
   const tones = columnTones(board.states);
   const reporter = people.get(task.reporterId);
@@ -478,6 +482,7 @@ function DetailsCard({
           }))}
         />
       </Field>
+      {!draft && (
       <dl className="mt-1 grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-x-2 gap-y-2 border-t border-line pt-3 text-secondary">
         <dt className="text-ink-2">Reporter</dt>
         <dd className="inline-flex min-w-0 items-center gap-2 px-2 text-ink">
@@ -489,7 +494,235 @@ function DetailsCard({
         <dt className="text-ink-2">Updated</dt>
         <dd className="px-2 text-ink tabular-nums">{formatShortDate(task.updatedAt, timezone)}</dd>
       </dl>
+      )}
     </div>
+  );
+}
+
+/* ---------- New task (v4.7): the same modal and fields as an existing task ---------- */
+
+export type NewTaskPanelProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  board: BoardResponse;
+  project: ProjectSummary;
+  me: MeResponse;
+  defaultType?: TaskType;
+  onCreated: (task: TaskDetail) => void;
+};
+
+const EMPTY_DOC: RichTextDoc = { type: "doc", content: [] };
+
+/**
+ * Creating a task looks and works like editing one: title, description and the full Details card. Nothing is saved
+ * until Create task; then the new task opens, where its checklist, files and comments can be added.
+ */
+export function NewTaskPanel({ open, onOpenChange, board, project, me, defaultType = "task", onCreated }: NewTaskPanelProps) {
+  if (!open) return null;
+  return <NewTaskBody board={board} project={project} me={me} defaultType={defaultType} onCreated={onCreated} onClose={() => onOpenChange(false)} />;
+}
+
+function NewTaskBody({ board, project, me, defaultType, onCreated, onClose }: Omit<NewTaskPanelProps, "open" | "onOpenChange"> & { defaultType: TaskType; onClose: () => void }) {
+  const create = useCreateTask(project.id, me.csrfToken);
+  const blockReason = useBlockReason();
+  const now = useRef(Date.now()).current;
+  const firstColumn = [...board.states].sort((a, b) => a.position - b.position).find((s) => !s.blocks) ?? board.states[0]!;
+  const [title, setTitle] = useState("");
+  const [titleError, setTitleError] = useState<string>();
+  const [failed, setFailed] = useState<string>();
+  const description = useRef<RichTextDoc>(EMPTY_DOC);
+  // The draft has the shape of a task, so the Details card works on it exactly as on a saved one.
+  const [draft, setDraft] = useState<TaskDetail>({
+    id: 0,
+    key: "New",
+    number: 0,
+    title: "",
+    type: defaultType,
+    stateId: firstColumn.id,
+    priority: "medium",
+    scope: "in_scope",
+    assigneeId: null,
+    secondaryAssigneeId: null,
+    reporterId: me.user.id,
+    dueDate: null,
+    labelIds: [],
+    componentId: null,
+    epicId: null,
+    milestoneId: null,
+    blockedReason: null,
+    blockedAt: null,
+    blockedBy: null,
+    rank: "",
+    version: 0,
+    subtasksDone: 0,
+    subtasksTotal: 0,
+    createdAt: now,
+    updatedAt: now,
+    projectId: project.id,
+    projectKey: project.key,
+    description: EMPTY_DOC,
+    subtasks: [],
+    comments: [],
+    events: [],
+    attachments: [],
+    watcherIds: [],
+    people: [],
+  });
+  const people = peopleById({ members: board.members, people: board.people });
+  const update = (changes: Omit<UpdateTaskBody, "version">) =>
+    setDraft((d) => {
+      const next = { ...d, ...(changes as Partial<TaskDetail>) };
+      // Never the same person twice (v4.6); an epic has no parent epic.
+      if (next.secondaryAssigneeId !== null && next.secondaryAssigneeId === next.assigneeId) next.secondaryAssigneeId = null;
+      if (next.type === "epic") next.epicId = null;
+      return next;
+    });
+
+  async function changeStatus(stateId: number) {
+    const target = board.states.find((s) => s.id === stateId);
+    if (target?.blocks) {
+      const reason = await blockReason.ask(title.trim() || "this task", target.name, draft.blockedReason ?? "");
+      if (reason) update({ stateId, blockedReason: reason });
+      return;
+    }
+    setDraft((d) => ({ ...d, stateId, blockedReason: null }));
+  }
+
+  async function submit(e?: FormEvent) {
+    e?.preventDefault();
+    const body = {
+      title,
+      description: description.current,
+      type: draft.type,
+      stateId: draft.stateId,
+      priority: draft.priority,
+      scope: draft.scope,
+      assigneeId: draft.assigneeId,
+      secondaryAssigneeId: draft.secondaryAssigneeId,
+      dueDate: draft.dueDate,
+      labelIds: draft.labelIds,
+      componentId: draft.componentId,
+      epicId: draft.epicId,
+      milestoneId: draft.milestoneId,
+      ...(draft.blockedReason ? { blockedReason: draft.blockedReason } : {}),
+    };
+    if (!title.trim()) {
+      setTitleError("Enter a title.");
+      return;
+    }
+    setTitleError(undefined);
+    setFailed(undefined);
+    try {
+      const task = await create.mutateAsync(body as Parameters<typeof create.mutateAsync>[0]);
+      toast({ variant: "success", title: `${task.key} created.` });
+      onClose();
+      onCreated(task);
+    } catch (err) {
+      const field = err instanceof ApiError ? (err.body as { field?: string } | null)?.field : undefined;
+      setFailed(
+        field === "assigneeId" || field === "secondaryAssigneeId"
+          ? "That person can't be assigned here. Choose someone else."
+          : field === "blockedReason"
+            ? "Say why it's blocked, or choose another status."
+            : TASK_COPY.saveFailed,
+      );
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <PanelContent>
+        <header className="flex min-h-14 shrink-0 items-center gap-2 border-b border-line px-3 md:px-5">
+          <span className="hidden min-w-0 items-center gap-2 text-secondary text-ink-2 md:flex">
+            <ProjectTile project={project} size="sm" />
+            <span className="truncate">{project.name}</span>
+            <span aria-hidden="true">/</span>
+          </span>
+          <DialogTitle className="text-secondary font-semibold text-ink">{draft.type === "epic" ? "New epic" : "New task"}</DialogTitle>
+          <DialogClose asChild>
+            <IconButton icon={X} label="Close" className="ml-auto" />
+          </DialogClose>
+        </header>
+        <form id="new-task" onSubmit={submit} noValidate className="min-h-0 flex-1 overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_23rem] md:grid-rows-[auto_1fr]">
+            <div className="flex flex-col gap-2 px-4 pt-5 md:col-start-1 md:row-start-1 md:px-8 md:pt-7">
+              <Field label="Title" required error={titleError} className="[&>label]:sr-only">
+                <Textarea
+                  rows={1}
+                  value={title}
+                  maxLength={200}
+                  autoFocus
+                  placeholder={draft.type === "epic" ? "Name the epic" : "What needs doing?"}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void submit();
+                    }
+                  }}
+                  className="field-sizing-content resize-none! border-transparent bg-transparent px-2 text-large-title state-hover:border-line"
+                />
+              </Field>
+              {draft.blockedReason && (
+                <p role="status" className="flex items-start gap-2 rounded-control border border-danger-line bg-danger-soft p-3 text-secondary text-ink">
+                  <Icon icon={OctagonAlert} className="mt-0.5 text-danger-ink" />
+                  <span>
+                    <span className="font-semibold text-danger-ink">Blocked: </span>
+                    {draft.blockedReason}
+                  </span>
+                </p>
+              )}
+            </div>
+            <aside aria-label="Details" className="px-4 pt-4 md:sticky md:top-0 md:col-start-2 md:row-span-2 md:row-start-1 md:self-start md:py-6 md:pr-6 md:pl-0">
+              <DetailsCard
+                task={draft}
+                board={board}
+                people={people}
+                today={todayIn(me.user.timezone)}
+                done={false}
+                canEdit
+                labelManager={me.user.appRole === "admin" || project.role === "admin" ? { projectId: project.id, csrfToken: me.csrfToken } : null}
+                onStatusChange={(id) => void changeStatus(id)}
+                timezone={me.user.timezone}
+                save={update}
+                draft
+              />
+            </aside>
+            <div className="flex min-w-0 flex-col gap-6 px-4 py-6 md:col-start-1 md:row-start-2 md:px-8">
+              <Section title="Description">
+                <Editor
+                  kind="description"
+                  label="Description"
+                  initial={null}
+                  people={board.members}
+                  onChange={(doc) => {
+                    description.current = doc;
+                  }}
+                />
+                <p className="text-caption text-ink-2">{TASK_COPY.dataSafety}</p>
+              </Section>
+              <p className="rounded-control border border-dashed border-line-strong px-3 py-2 text-secondary text-ink-2">
+                Add a checklist, files and comments once the task is created.
+              </p>
+            </div>
+          </div>
+        </form>
+        <footer className="flex shrink-0 flex-col gap-2 border-t border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-end md:px-6">
+          {failed && (
+            <p role="alert" className="mr-auto text-secondary text-danger-ink">
+              {failed}
+            </p>
+          )}
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="new-task" icon={Plus} loading={create.isPending}>
+            {draft.type === "epic" ? "Create epic" : "Create task"}
+          </Button>
+        </footer>
+        {blockReason.dialog}
+      </PanelContent>
+    </Dialog>
   );
 }
 
