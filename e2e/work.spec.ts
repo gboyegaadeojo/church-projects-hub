@@ -28,26 +28,26 @@ test("NAV-1 search finds tasks by words and jumps to a key", async ({ pageAs }, 
 
 test("NAV-3 My Work lists my assigned tasks by when they're due", async ({ pageAs }, testInfo) => {
   const v = viewportOf(testInfo);
-  // The detail project's task 2 stays in To Do (the board tests move the board's one to Done).
   const project = DETAIL_PROJECTS[v];
   const me = persona("mover", v);
   const page = await pageAs(me);
   await page.goto("/work");
-  // Assign a board task to me, due long ago, through the API.
+  // A task of its own, assigned to me and due long ago, made through the API. (Editing a seeded task here raced the
+  // task-detail tests, which work on the same project's tasks.)
+  const title = "Return the spare projector";
   await page.evaluate(
-    async ({ key, userId }) => {
+    async ({ projectId, userId, title }) => {
       const csrf = (await (await fetch("/api/auth/me")).json()).csrfToken;
-      const { task } = await (await fetch(`/api/tasks/by-key/${key}`)).json();
-      await fetch(`/api/tasks/${task.id}`, {
-        method: "PATCH",
+      await fetch(`/api/projects/${projectId}/tasks`, {
+        method: "POST",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
-        body: JSON.stringify({ version: task.version, assigneeId: userId, dueDate: "2026-01-04" }),
+        body: JSON.stringify({ title, assigneeId: userId, dueDate: "2026-01-04" }),
       });
     },
-    { key: `${project.key}-2`, userId: me.id },
+    { projectId: project.id, userId: me.id, title },
   );
   await page.reload();
   const overdue = page.getByRole("region", { name: /Overdue/ });
-  await expect(overdue.getByRole("link", { name: new RegExp(BOARD_TASKS[1].title) })).toBeVisible();
+  await expect(overdue.getByRole("link", { name: new RegExp(title) })).toBeVisible();
   await expectNoViolations(page);
 });

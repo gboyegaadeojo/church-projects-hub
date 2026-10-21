@@ -63,7 +63,26 @@ export function reportCsv(r: ProjectReports, name: ReportName): string[][] | nul
 export function churchCsv(r: ChurchReports, name: ChurchReportName): string[][] {
   switch (name) {
     case "overview":
-      return [["project", "key", "archived", "open", "overdue", "completed_this_month"], ...r.overview.map((p) => [p.name, p.key, p.archived ? "yes" : "no", String(p.open), String(p.overdue), String(p.completedThisMonth)])];
+      return [
+        ["project", "key", "archived", "open", "overdue", "completed_this_month", "health", "to_do", "in_progress", "created_in_range", "completed_in_range", "members", "last_activity"],
+        ...r.overview.map((p) => [
+          p.name,
+          p.key,
+          p.archived ? "yes" : "no",
+          String(p.open),
+          String(p.overdue),
+          String(p.completedThisMonth),
+          p.health,
+          String(p.todo),
+          String(p.inProgress),
+          String(p.createdInRange),
+          String(p.completedInRange),
+          String(p.members),
+          p.lastActivityAt === null ? "" : new Date(p.lastActivityAt).toISOString(),
+        ]),
+      ];
+    case "trend":
+      return [["week_starting", "created", "completed"], ...r.trend.map((w) => [w.weekStart, String(w.created), String(w.completed)])];
     case "workload":
       return [["person", "open", "overdue", "projects"], ...r.workload.map((w) => [w.person.name, String(w.open), String(w.overdue), String(w.projects)])];
     case "adoption":
