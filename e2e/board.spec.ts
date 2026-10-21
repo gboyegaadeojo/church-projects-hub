@@ -80,19 +80,25 @@ test.describe("TASK-2 board", () => {
     await expect(column(page, "To Do").getByRole("button", { name: title, exact: true })).toBeAttached();
   });
 
-  test("filter chips narrow the board, live in the URL and clear", async ({ pageAs }, testInfo) => {
+  test("the Filter panel narrows the board, lives in the URL, shows as chips and clears", async ({ pageAs }, testInfo) => {
     const v = viewportOf(testInfo);
     const project = BOARD_PROJECTS[v];
     const page = await pageAs(persona("mover", v));
     await page.goto(`/projects/${project.key}`);
-    if (v === "mobile") await page.getByRole("button", { name: /^Filters/ }).click();
-    await page.getByRole("button", { name: "Priority" }).click();
-    await page.getByRole("checkbox", { name: "High" }).click();
+    await page.getByRole("button", { name: "Filter", exact: true }).click();
+    const panel = page.getByRole("dialog", { name: "Filter tasks" });
+    // Each value says how many tasks it would show.
+    const high = panel.getByRole("button", { name: /^Priority: High/ });
+    await expect(high).toContainText("1");
+    await high.click();
+    await expect(high).toHaveAttribute("aria-pressed", "true");
+    await expectNoViolations(page, "[role=dialog]");
     await page.keyboard.press("Escape");
     await expect(page).toHaveURL(/priority=high/);
     await expect(page.getByRole("button", { name: BOARD_TASKS[0].title, exact: true })).toBeAttached();
     await expect(page.getByRole("button", { name: BOARD_TASKS[2].title, exact: true })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /^Priority\s*,\s*1\s*selected/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Filter\s*1 on$/ })).toBeVisible();
+    await expect(page.getByRole("list", { name: "Active filters" }).getByRole("button", { name: "Remove Priority: High" })).toBeVisible();
     await page.getByRole("button", { name: "Clear filters" }).click();
     await expect(page.getByRole("button", { name: BOARD_TASKS[2].title, exact: true })).toBeAttached();
   });
