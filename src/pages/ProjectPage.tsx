@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Kanban, Lock, Plus, SearchX, Settings2, SlidersHorizontal } from "lucide-react";
+import { Kanban, Layers, Lock, Plus, SearchX, Settings2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import type { MeResponse } from "../../shared/auth";
@@ -7,22 +7,24 @@ import {
   clearDrill,
   describeDrill,
   drillFromSearch,
+  EMPTY_FILTER,
   filterFromSearch,
   filterToSearch,
   isDrillActive,
-  isFilterActive,
   matchesDrill,
   matchesFilter,
   type TaskFilter,
 } from "../../shared/filters";
 import { projectResponse, type ProjectSummary } from "../../shared/projects";
-import { type BulkEditBody, TASK_COPY, type TaskCard, todayIn } from "../../shared/tasks";
+import { type BulkEditBody, TASK_COPY, type TaskCard, type TaskType, todayIn } from "../../shared/tasks";
 import { ProjectTile, useMe } from "../components/shell/AppShell";
 import { PageLayout } from "../components/shell/PageLayout";
-import { ProjectTabs } from "../components/shell/ProjectTabs";
+import { ProjectTabs, type WorkView } from "../components/shell/ProjectTabs";
+import { BacklogView } from "../components/tasks/BacklogView";
+import { BoardToolbar } from "../components/tasks/BoardToolbar";
+import { EpicsView } from "../components/tasks/EpicsView";
 import { Board } from "../components/tasks/Board";
 import { BulkBar } from "../components/tasks/BulkBar";
-import { FilterBar } from "../components/tasks/FilterBar";
 import { NewTaskDialog } from "../components/tasks/NewTaskDialog";
 import { TaskDetailSheet } from "../components/tasks/TaskDetailSheet";
 import { TaskList } from "../components/tasks/TaskList";
@@ -32,7 +34,6 @@ import { Skeleton, useDelayedFlag } from "../components/ui/Skeleton";
 import { EmptyState, ErrorState } from "../components/ui/States";
 import { toast } from "../components/ui/Toast";
 import { api, ApiError } from "../lib/api";
-import { cn } from "../lib/cn";
 import { OfflineDisabled } from "../components/StatusBanners";
 import { useOnline } from "../lib/online";
 import { peopleById, useBoard, useBulkEdit, useMoveTask } from "../lib/tasks";
@@ -106,15 +107,16 @@ export function canEditTasks(me: MeResponse, project: ProjectSummary): boolean {
 function ProjectWork({ project }: { project: ProjectSummary }) {
   const me = useMe();
   const [params, setParams] = useSearchParams();
-  const view = params.get("view") === "list" ? "list" : "board";
+  const viewParam = params.get("view");
+  const view: WorkView = viewParam === "list" || viewParam === "backlog" || viewParam === "epics" ? viewParam : "board";
   const taskParam = params.get("task");
   const filter = useMemo(() => filterFromSearch(params), [params]);
   const board = useBoard(project.id);
   const move = useMoveTask(project.id, me.csrfToken);
   const bulk = useBulkEdit(project.id, me.csrfToken);
-  const [creating, setCreating] = useState(false);
+  // Open with the type to create: "epic" from the Epics view, otherwise a task.
+  const [creating, setCreating] = useState<TaskType | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const showSkeleton = useDelayedFlag(board.isPending);
   // Section 11.10: no edits offline in v1; reconnecting brings them back without a reload.
   const online = useOnline();
@@ -134,7 +136,7 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
   // The command palette's "New task" lands here with ?new=1 (NAV-2).
   useEffect(() => {
     if (params.get("new") !== "1" || !data) return;
-    if (canEdit) setCreating(true);
+    if (canEdit) setCreating("task");
     setParams(
       (p) => {
         const next = new URLSearchParams(p);
@@ -154,7 +156,7 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
     return (id: number) => m.get(id);
   }, [data?.states]);
   const visible = useMemo(
-    () => (data?.tasks ?? []).filter((t) => matchesFilter(t, filter) && matchesDrill(t, drill, categoryOf, today)),
+    () => (data?.tasks ?? []).filter((t) => matchesFilter(t, filter, today) && matchesDrill(t, drill, categoryOf, today)),
     [data?.tasks, filter, drill, categoryOf, today],
   );
   const doneState = data?.states.find((s) => s.category === "done");
@@ -190,14 +192,14 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
       intro={header}
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          {me.user.appRole === "admin" && !project.isSystem && (
-            <Link to="/admin/projects" className={buttonClasses("ghost")}>
+          {(me.user.appRole === "admin" || project.role === "admin") && (
+            <Link to={`/projects/${project.key}/settings`} className={buttonClasses("ghost")}>
               <Icon icon={Settings2} />
-              Edit project
+              Project settings
             </Link>
           )}
           {canEdit && (
-            <Button icon={Plus} onClick={() => setCreating(true)} disabled={!data}>
+            <Button icon={Plus} onClick={() => setCreating("task")} disabled={!data}>
               New task
             </Button>
           )}
@@ -225,7 +227,7 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
           title={TASK_COPY.emptyBoard}
           action={
             canEdit && (
-              <Button icon={Plus} onClick={() => setCreating(true)}>
+              <Button icon={Plus} onClick={() => setCreating("task")}>
                 New task
               </Button>
             )
@@ -233,31 +235,25 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
         />
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-end gap-3 md:hidden">
-            {/* Phones: filters fold away behind one button to keep the board in reach. */}
-            <Button
-              variant="secondary"
-              icon={SlidersHorizontal}
-              aria-expanded={filtersOpen}
-              aria-controls="task-filters"
-              onClick={() => setFiltersOpen((o) => !o)}
-            >
-              Filters{isFilterActive(filter) ? " (on)" : ""}
-            </Button>
-          </div>
-          <div id="task-filters" className={cn(!filtersOpen && "hidden", "md:block")}>
-            <FilterBar
-              projectId={project.id}
-              filter={filter}
-              onChange={setFilter}
-              members={data.members}
-              labels={data.labels}
-              meId={me.user.id}
-              csrfToken={me.csrfToken}
-              canShare={canEdit}
-              canManageShared={me.user.appRole === "admin" || project.role === "admin"}
-            />
-          </div>
+          <BoardToolbar
+            projectId={project.id}
+            filter={filter}
+            onChange={setFilter}
+            tasks={data.tasks}
+            members={data.members}
+            labels={data.labels}
+            meId={me.user.id}
+            today={today}
+            csrfToken={me.csrfToken}
+            canShare={canEdit}
+            canManageShared={me.user.appRole === "admin" || project.role === "admin"}
+          >
+            {view === "epics" && canEdit && (
+              <Button variant="secondary" icon={Layers} onClick={() => setCreating("epic")}>
+                New epic
+              </Button>
+            )}
+          </BoardToolbar>
           {isDrillActive(drill) && (
             <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-accent-soft bg-accent-soft px-4 py-2 text-secondary text-accent-ink">
               <span>
@@ -274,15 +270,41 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
               </Button>
             </div>
           )}
-          {visible.length === 0 ? (
+          {view === "epics" ? (
+            <EpicsView
+              states={data.states}
+              allTasks={data.tasks}
+              tasks={visible}
+              people={people}
+              today={today}
+              search={filter.q}
+              canEdit={canEdit}
+              onOpen={openTask}
+              onNewEpic={() => setCreating("epic")}
+            />
+          ) : visible.length === 0 ? (
             <EmptyState
               icon={SearchX}
               title="No tasks match these filters."
               action={
-                <Button variant="secondary" onClick={() => setFilter({ assignees: [], labels: [], priorities: [], scopes: [] })}>
+                <Button variant="secondary" onClick={() => setFilter(EMPTY_FILTER)}>
                   Clear filters
                 </Button>
               }
+            />
+          ) : view === "backlog" ? (
+            <BacklogView
+              projectId={project.id}
+              projectKey={project.key}
+              csrfToken={me.csrfToken}
+              states={data.states}
+              tasks={visible}
+              labels={labels}
+              people={people}
+              today={today}
+              canEdit={canEdit}
+              onOpen={openTask}
+              onMove={(input) => move.mutate(input)}
             />
           ) : view === "board" ? (
             <Board
@@ -345,8 +367,11 @@ function ProjectWork({ project }: { project: ProjectSummary }) {
       )}
       {data && canEdit && (
         <NewTaskDialog
-          open={creating}
-          onOpenChange={setCreating}
+          // Remounted per type, so its form starts from the right type.
+          key={creating ?? "closed"}
+          open={creating !== null}
+          onOpenChange={(open) => !open && setCreating(null)}
+          defaultType={creating ?? "task"}
           projectId={project.id}
           csrfToken={me.csrfToken}
           states={data.states}

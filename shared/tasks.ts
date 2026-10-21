@@ -28,6 +28,7 @@ export const TASK_LIMITS = {
   subtasksPerTask: 50,
   labelsPerTask: 10,
   labelName: 30,
+  stateName: 30,
   componentName: 40,
   milestoneName: 60,
   bulk: 100,
@@ -53,6 +54,9 @@ export const TASK_ERRORS = {
   invalidReference: "invalid_reference",
   tooMany: "too_many",
   nameTaken: "name_taken",
+  /** A workflow column that holds, or once held, tasks can't be removed. */
+  notEmpty: "not_empty",
+  lastColumn: "last_column",
 } as const;
 
 /** Confirmation header values (section 11.14) for destructive task actions. */
@@ -65,6 +69,7 @@ export const TASK_CONFIRM = {
   deleteMilestone: "milestone.delete",
   deleteAttachment: "attachment.delete",
   deleteSavedFilter: "saved_filter.delete",
+  deleteState: "state.delete",
 } as const;
 
 // ---- Keys and dates
@@ -198,6 +203,13 @@ export const labelBody = z.object({
   name: z.string().trim().min(1, "Enter a label name.").max(TASK_LIMITS.labelName, `Keep it under ${TASK_LIMITS.labelName} characters.`),
   colour: z.enum(PROJECT_COLOURS, "Choose a colour."),
 });
+/** PROJ-3: a workflow column's name and the category reports group it under. */
+export const stateBody = z.object({
+  name: z.string().trim().min(1, "Enter a column name.").max(TASK_LIMITS.stateName, `Keep it under ${TASK_LIMITS.stateName} characters.`),
+  category: z.enum(WORKFLOW_CATEGORY_VALUES, "Choose what the column means."),
+});
+export const stateOrderBody = z.object({ ids: z.array(id).min(1).max(TASK_LIMITS.columns) });
+
 export const componentBody = z.object({
   name: z
     .string()

@@ -63,6 +63,7 @@ export type AuditTargetType =
   | "component"
   | "milestone"
   | "saved_filter"
+  | "workflow_state"
   | "news"
   | "system";
 

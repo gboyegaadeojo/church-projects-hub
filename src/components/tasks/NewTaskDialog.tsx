@@ -8,6 +8,7 @@ import {
   TASK_TYPE_LABELS,
   TASK_TYPES,
   type TaskDetail,
+  type TaskType,
   type WorkflowState,
 } from "../../../shared/tasks";
 import { ApiError } from "../../lib/api";
@@ -32,6 +33,7 @@ export function NewTaskDialog({
   states,
   assignable,
   defaultStateId,
+  defaultType = "task",
   onCreated,
 }: {
   open: boolean;
@@ -41,11 +43,13 @@ export function NewTaskDialog({
   states: WorkflowState[];
   assignable: Member[];
   defaultStateId?: number;
+  /** "epic" from the Epics view's New epic button. */
+  defaultType?: TaskType;
   onCreated: (task: TaskDetail) => void;
 }) {
   const create = useCreateTask(projectId, csrfToken);
   const [title, setTitle] = useState("");
-  const [type, setType] = useState<string>("task");
+  const [type, setType] = useState<string>(defaultType);
   const [priority, setPriority] = useState<string>("medium");
   const [stateId, setStateId] = useState<string>("");
   const [assignee, setAssignee] = useState<string>(NONE);
@@ -56,7 +60,7 @@ export function NewTaskDialog({
 
   function reset() {
     setTitle("");
-    setType("task");
+    setType(defaultType);
     setPriority("medium");
     setStateId(String(defaultStateId ?? states[0]?.id ?? ""));
     setAssignee(NONE);
@@ -111,7 +115,7 @@ export function NewTaskDialog({
       }}
     >
       <DialogContent
-        title="New task"
+        title={defaultType === "epic" ? "New epic" : "New task"}
         onOpenAutoFocus={() => reset()}
         footer={
           <>

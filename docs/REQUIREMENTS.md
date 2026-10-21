@@ -10,7 +10,7 @@ Oct 14, 2026 · @G
 
 | Version | Date | Summary |
 | --- | --- | --- |
-| 4.6 | 20 Oct 2026 | Design refresh at @G's request (feedback after Stage 8a: "look like monday.com, more colour, fonts too big, not premium"): a compact type scale (body 14 px) in Figtree; 18 px icons; controls 32 px for a mouse and 44 px on touch screens and phones; tighter radii; a brighter light theme and a navy dark theme; solid vivid pills for status and priority, a colour per workflow column, tinted label chips and coloured initials avatars; the theme switch becomes three small icons (sun, moon, screen) (sections 9, 12). Task detail becomes a wide modal in the middle of the screen with a Details card (11.3, 12). Tasks get an optional secondary assignee: a different person from the assignee, who watches the task, gets the "assigned" notification and due reminders, sees it in My Work and matches the Assignee filter; workload reports still count the assignee only (TASK-1, sections 6, 8, 11.2). |
+| 4.6 | 20 Oct 2026 | Design refresh at @G's request (feedback after Stage 8a: "look like monday.com, more colour, fonts too big, not premium"): a compact type scale (body 14 px) in Figtree; 18 px icons; controls 32 px for a mouse and 44 px on touch screens and phones; tighter radii; a brighter light theme and a navy dark theme; solid vivid pills for status and priority, a colour per workflow column, tinted label chips and coloured initials avatars; the theme switch becomes three small icons (sun, moon, screen) (sections 9, 12). Task detail becomes a wide modal in the middle of the screen with a Details card (11.3, 12). Tasks get an optional secondary assignee: a different person from the assignee, who watches the task, gets the "assigned" notification and due reminders, sees it in My Work and matches the Assignee filter; workload reports still count the assignee only (TASK-1, sections 6, 8, 11.2). Each project gets a Settings tab where its admins manage workflow columns, labels, components and milestones; labels can also be created from a task's Labels menu. Columns can be added, renamed, recategorised and reordered (up to 8); instead of hiding, a column can be removed only if no task has ever been in it, so reports keep their history (PROJ-3, ORG-1, ORG-2, ORG-4). A project's work gets two more views beside Board and List: Backlog (ranked sections for each to-do column, drag or menu to reorder and move, quick add) and Epics (each epic's progress split by done, in progress and to do, overdue and unassigned work, due range, people, and its tasks). The filter bar becomes a toolbar: search, people avatars, My tasks, a Filter panel with counts (person, priority, due date, type, label, epic, scope) and removable chips for active filters (sections 11.2, 11.16, ORG-3, ORG-5). |
 | 4.5 | 20 Oct 2026 | Email provider changed from Brevo to Resend at @G's request, on the Resend free plan (100 emails/day, 3,000/month): instant emails switch to the digest at 80 a day (80%), Resend domain verification replaces Brevo's DNS records, `RESEND_API_KEY` replaces `BREVO_API_KEY`, and the free-tier email budget is recalculated (sections 5, 8, 18, 21). |
 | 4.4 | 14 Oct 2026 | Stage 2c decisions: the My Work welcome follows the time of day in the user's timezone ("Good morning", "Good afternoon" from noon, "Good evening" from 5 pm) (section 11.1); the Hub Feedback project uses the key HUB, which is reserved for it (PROJ-7); Hub Feedback is created when an App Admin loads the app, not only at sign-in, because the first App Admin is promoted by script after signing in (section 18); a text wordmark stands in for the church logo until the logo file is supplied (sections 11.6, 11.15). |
 | 4.3 | 14 Oct 2026 | Stage 1 decisions: "Confirmed action failed" copy added (section 14); type-to-confirm matching ignores letter case and leading or trailing spaces (section 11.14); side sheets round only their two inner corners, bottom sheets only their top corners (section 9); theme preference (Light, Dark, System) moves to the user's profile in Stage 2, with the browser setting kept as the fallback for signed-out pages and first paint. Stage 2a decisions: sign-in rate limit raised to 30 attempts per minute per IP, counted when sign-in starts (church Wi-Fi shares one IP) (NFR-4, RATE-1); "Sign-in didn't work" copy added (section 14); "sign-in rate limit hit" audit event written at most once per IP per minute (section 6). Stage 2b decisions: destructive actions carry an `X-Confirm-Action` header set only by the confirmation dialog, and the API returns 428 without it (sections 11.14, 17); invites are tied to the invited email, case-insensitive, with new mismatch copy (AUTH-9, section 14); RATE-2 counts one request per project, per calendar day in the user's timezone, and an over-limit submission is rejected whole. |
@@ -154,7 +154,7 @@ Each requirement has an ID traceable to a GitHub issue and a test. Priority: **M
 | --- | --- | --- |
 | PROJ-1 | App Admin creates a project with name, short key (e.g. MEDIA), colour, icon and description. | M |
 | PROJ-2 | Each project has its own workflow columns. Default: Backlog, To Do, In Progress, In Review, Done. | M |
-| PROJ-3 | Project Admin can rename, add, reorder and hide columns, up to 8. | S |
+| PROJ-3 | Project Admin can rename, add, reorder and remove columns, up to 8, in the project's Settings tab. A column any task has ever been in can't be removed (reports read history by column); rename it instead. | S |
 | PROJ-4 | Projects can be archived (read-only) and restored. Never hard-deleted from the UI. | M |
 | PROJ-5 | Project overview page shows description, members, admins, and open task counts. | M |
 | PROJ-6 | App Admins can mark a project Hidden (invite-only). Hidden projects do not appear on the request screen; access is by invite link only. The project name still appears in the audit log. | M |
@@ -182,7 +182,7 @@ Each requirement has an ID traceable to a GitHub issue and a test. Priority: **M
 
 | ID | Requirement | Priority |
 | --- | --- | --- |
-| ORG-1 | Labels (tags) per project, with colour. Project Admin manages them. | M |
+| ORG-1 | Labels (tags) per project, with colour. Project Admin manages them in the project's Settings tab, or creates one from a task's Labels menu. | M |
 | ORG-2 | Components per project (e.g. Audio, Lighting, Stage). | S |
 | ORG-3 | Epics group related tasks with a progress bar. | S |
 | ORG-4 | Milestones tied to events (e.g. "Easter 2027") with a target date. | S |
@@ -637,7 +637,7 @@ The user's personal starting point — the first screen after an approved sign-i
 
 - Task cards show: key, title, assignee avatar, due date, priority indicator, at most 2 label chips.
 - Column header shows an open-task count.
-- Filter bar chips: Assignee, Label, Priority, Scope. Active filters visually distinct.
+- Toolbar (v4.6): search by title or key; the project's people as avatars (one click shows their tasks, as assignee or secondary assignee); My tasks; a Filter panel with Person, Priority, Due date (overdue, within 7 days, none), Type, Label, Epic and Scope, each value with the number of tasks it would show; saved filters. Active filters appear as removable chips under the toolbar.
 - Board preserves scroll position and active filters when a task detail opens and closes.
 - Optimistic card moves roll back with: *"Couldn't move this task. The board has been restored."*
 - Keyboard-accessible alternative to drag-and-drop required (e.g. a "Move" button that opens a column picker).
@@ -653,6 +653,11 @@ The user's personal starting point — the first screen after an approved sign-i
 - Empty description: *"Add a description."* — tap to start editing.
 - Overdue date = red. Due soon (within 7 days) = amber.
 - Due dates are calendar dates with no time. A task is due soon from 7 days before its due date, and overdue from 00:00 the day after its due date, in the viewer's timezone. Reminder emails use the assignee's timezone.
+
+### 11.16 Backlog and Epics (v4.6)
+
+- **Backlog**: the work not started yet, one ranked section per to-do column (Backlog, To Do). Drag a row to reorder it or move it to another section; every row's menu offers Move to top, Move to bottom and Move to a column (the keyboard alternative). Each section can take a new task by typing its title. Started and finished work is summarised with a link to the board.
+- **Epics** (ORG-3): summary tiles (epics, tasks in epics, % done, epics with overdue work), then one card per epic: status, priority, a progress bar split into done, in progress and to do with the counts in words, the due-date range of its tasks, overdue and unassigned counts, the people on it, and its tasks on demand. A New epic button. The toolbar's filters narrow the tasks counted; the search also matches epic titles.
 
 ### 11.4 File attachments (TASK-5)
 

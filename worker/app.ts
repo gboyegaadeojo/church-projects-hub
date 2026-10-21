@@ -20,6 +20,7 @@ import { attachmentRoutes } from "./tasks/attachments";
 import { filterRoutes } from "./tasks/filters";
 import { itemRoutes } from "./tasks/items";
 import { orgRoutes } from "./tasks/org";
+import { workflowRoutes } from "./tasks/workflow";
 import { taskRoutes } from "./tasks/routes";
 import { workRoutes } from "./tasks/work";
 import type { AppEnv } from "./types";
@@ -53,6 +54,7 @@ export function createApp(deps: AppDeps) {
   app.route("/", taskRoutes());
   app.route("/", itemRoutes());
   app.route("/", orgRoutes());
+  app.route("/", workflowRoutes());
   app.route("/", filterRoutes());
   app.route("/", attachmentRoutes());
   app.route("/", workRoutes());

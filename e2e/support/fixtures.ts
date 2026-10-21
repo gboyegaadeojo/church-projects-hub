@@ -29,12 +29,16 @@ export const PROJECTS = [
   { id: 10, key: "JRNMOB", name: "Journey mobile", description: "Journey tests on mobile.", hidden: true },
   { id: 11, key: "ARCDESK", name: "Archive desktop", description: "Archive test on desktop.", hidden: true },
   { id: 12, key: "ARCMOB", name: "Archive mobile", description: "Archive test on mobile.", hidden: true },
+  // v4.6 project settings, backlog and epics (e2e/workspace.spec.ts).
+  { id: 13, key: "WSPDESK", name: "Workspace desktop", description: "Settings, backlog and epics on desktop.", hidden: true },
+  { id: 14, key: "WSPMOB", name: "Workspace mobile", description: "Settings, backlog and epics on mobile.", hidden: true },
 ] as const;
 
 export const BOARD_PROJECTS = { desktop: PROJECTS[4], mobile: PROJECTS[5] } as const;
 export const DETAIL_PROJECTS = { desktop: PROJECTS[6], mobile: PROJECTS[7] } as const;
 export const JOURNEY_PROJECTS = { desktop: PROJECTS[8], mobile: PROJECTS[9] } as const;
 export const ARCHIVE_PROJECTS = { desktop: PROJECTS[10], mobile: PROJECTS[11] } as const;
+export const WORKSPACE_PROJECTS = { desktop: PROJECTS[12], mobile: PROJECTS[13] } as const;
 /** Every project seeded with the board tasks below. */
 export const TASK_PROJECTS = [BOARD_PROJECTS.desktop, BOARD_PROJECTS.mobile, DETAIL_PROJECTS.desktop, DETAIL_PROJECTS.mobile] as const;
 

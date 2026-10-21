@@ -1,8 +1,13 @@
 import { z } from "zod";
-import { PRIORITIES, type Priority, SCOPES, type Scope, type TaskCard } from "./tasks";
+import { dueStatus, PRIORITIES, type Priority, SCOPES, type Scope, TASK_TYPES, type TaskCard } from "./tasks";
 
-// Board and list filters (section 11.2: Assignee, Label, Priority, Scope) and saved filters (ORG-5).
-// The same shape is kept in the URL, stored in saved_filters.query_json and applied on the client.
+// Board and list filters (section 11.2: Assignee, Label, Priority, Scope; v4.6 adds Type, Epic, Due and a text
+// search) and saved filters (ORG-5). The same shape is kept in the URL, stored in saved_filters.query_json and
+// applied on the client. Every new field defaults to empty, so filters saved before v4.6 still load.
+
+export const DUE_FILTERS = ["overdue", "week", "none"] as const;
+export type DueFilter = (typeof DUE_FILTERS)[number];
+export const DUE_FILTER_LABELS: Record<DueFilter, string> = { overdue: "Overdue", week: "Due within 7 days", none: "No due date" };
 
 const id = z.number().int().positive();
 
@@ -12,13 +17,24 @@ export const taskFilter = z.object({
   labels: z.array(id).max(50).default([]),
   priorities: z.array(z.enum(PRIORITIES)).max(PRIORITIES.length).default([]),
   scopes: z.array(z.enum(SCOPES)).max(SCOPES.length).default([]),
+  types: z.array(z.enum(TASK_TYPES)).max(TASK_TYPES.length).default([]),
+  /** Epic task ids; "none" matches tasks outside any epic. */
+  epics: z.array(z.union([id, z.literal("none")])).max(50).default([]),
+  due: z.array(z.enum(DUE_FILTERS)).max(DUE_FILTERS.length).default([]),
+  /** Words in the title or key. */
+  q: z.string().trim().max(100).default(""),
 });
 export type TaskFilter = z.infer<typeof taskFilter>;
 
-export const EMPTY_FILTER: TaskFilter = { assignees: [], labels: [], priorities: [], scopes: [] };
+export const EMPTY_FILTER: TaskFilter = { assignees: [], labels: [], priorities: [], scopes: [], types: [], epics: [], due: [], q: "" };
+
+/** How many filter values are on (the search counts as one). */
+export function activeFilterCount(f: TaskFilter): number {
+  return f.assignees.length + f.labels.length + f.priorities.length + f.scopes.length + f.types.length + f.epics.length + f.due.length + (f.q ? 1 : 0);
+}
 
 export function isFilterActive(f: TaskFilter): boolean {
-  return f.assignees.length + f.labels.length + f.priorities.length + f.scopes.length > 0;
+  return activeFilterCount(f) > 0;
 }
 
 /**
@@ -26,8 +42,11 @@ export function isFilterActive(f: TaskFilter): boolean {
  * the assignee or the secondary assignee (v4.6); "none" matches tasks with no assignee.
  */
 export function matchesFilter(
-  task: Pick<TaskCard, "assigneeId" | "labelIds" | "priority" | "scope"> & Partial<Pick<TaskCard, "secondaryAssigneeId">>,
+  task: Pick<TaskCard, "assigneeId" | "labelIds" | "priority" | "scope"> &
+    Partial<Pick<TaskCard, "secondaryAssigneeId" | "type" | "epicId" | "dueDate" | "title" | "key">>,
   f: TaskFilter,
+  /** The viewer's date (YYYY-MM-DD), for the Due filter; without it that filter is ignored. */
+  today?: string,
 ): boolean {
   if (
     f.assignees.length &&
@@ -39,6 +58,20 @@ export function matchesFilter(
   if (f.labels.length && !task.labelIds.some((l) => f.labels.includes(l))) return false;
   if (f.priorities.length && !f.priorities.includes(task.priority)) return false;
   if (f.scopes.length && !f.scopes.includes(task.scope)) return false;
+  if (f.types.length && task.type && !f.types.includes(task.type)) return false;
+  if (f.epics.length && task.epicId !== undefined && !f.epics.includes(task.epicId ?? "none")) return false;
+  if (f.due.length && today && task.dueDate !== undefined) {
+    const status = dueStatus(task.dueDate, today);
+    const hit =
+      (f.due.includes("none") && !task.dueDate) ||
+      (f.due.includes("overdue") && status === "overdue") ||
+      (f.due.includes("week") && (status === "soon" || status === "overdue"));
+    if (!hit) return false;
+  }
+  if (f.q) {
+    const haystack = `${task.key ?? ""} ${task.title ?? ""}`.toLowerCase();
+    if (!f.q.toLowerCase().split(/\s+/).every((word) => haystack.includes(word))) return false;
+  }
   return true;
 }
 
@@ -51,6 +84,10 @@ export function filterFromSearch(params: URLSearchParams): TaskFilter {
     labels: list("label").map(Number),
     priorities: list("priority"),
     scopes: list("scope"),
+    types: list("type"),
+    epics: list("epic").map((v) => (v === "none" ? v : Number(v))),
+    due: list("due_by"),
+    q: params.get("q") ?? "",
   });
   return parsed.success ? parsed.data : EMPTY_FILTER;
 }
@@ -62,10 +99,16 @@ export function filterToSearch(f: TaskFilter, params: URLSearchParams): URLSearc
   put("label", f.labels);
   put("priority", f.priorities);
   put("scope", f.scopes);
+  put("type", f.types);
+  put("epic", f.epics);
+  // "due" is taken by the reports' drill-down, so the board's Due filter is due_by.
+  put("due_by", f.due);
+  if (f.q) next.set("q", f.q);
+  else next.delete("q");
   return next;
 }
 
-export type FilterGroup = "assignees" | "labels" | "priorities" | "scopes";
+export type FilterGroup = "assignees" | "labels" | "priorities" | "scopes" | "types" | "epics" | "due";
 
 export function toggleIn<T extends number | string>(values: T[], value: T): T[] {
   return values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
