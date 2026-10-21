@@ -13,7 +13,8 @@ export const ACTIONS = [
   "access.approve", // Approve access requests
   "member.changeRole", // Change member roles
   "workflow.edit", // Edit workflow, labels, components
-  "project.manage", // Create or archive projects
+  "project.manage", // Create projects, hide them, and manage any project
+  "project.edit", // v4.7: edit own project's name, description, colour and icon; archive or restore it
   "report.view", // View reports
   "feedback.submit", // Submit bug or feature request
   "news.publish", // Publish What's New
@@ -39,6 +40,7 @@ export const PROJECT_ACTIONS = new Set<Action>([
   "workflow.edit",
   "report.view",
   "invite.create",
+  "project.edit",
 ]);
 
 /** Project actions that change something; an archived project is read-only (PROJ-4). */
@@ -56,7 +58,8 @@ const PROJECT_WRITES = new Set<Action>([
 const PENDING_ALLOWED = new Set<Action>(["feedback.submit", "data.requestDeletion"]);
 
 const ROLE_ALLOWS: Record<ProjectRole, Set<Action>> = {
-  admin: new Set(["task.view", "task.edit", "task.comment", "task.delete", "access.approve", "member.changeRole", "workflow.edit", "report.view", "invite.create"]),
+  // v4.7: a Project Admin runs their project fully; only app-wide powers stay with App Admins.
+  admin: new Set(["task.view", "task.edit", "task.comment", "task.delete", "access.approve", "member.changeRole", "workflow.edit", "report.view", "invite.create", "project.edit"]),
   contributor: new Set(["task.view", "task.edit", "task.comment", "task.delete", "report.view"]),
   viewer: new Set(["task.view", "task.comment", "report.view"]),
 };
@@ -112,9 +115,6 @@ export function can(
     const task = resource.task;
     return !!task && task.reporterId === actor.id && now - task.createdAt <= OWN_TASK_DELETE_WINDOW_MS;
   }
-  if (action === "member.changeRole" && role === "admin") {
-    // "Own project, not other admins": only an App Admin can change another Project Admin.
-    return resource.targetMemberRole !== undefined && resource.targetMemberRole !== "admin";
-  }
+  // v4.7: Project Admins change any member's role here, other admins included; the route keeps at least one admin.
   return true;
 }

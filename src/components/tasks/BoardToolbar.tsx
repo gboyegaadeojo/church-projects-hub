@@ -108,15 +108,28 @@ export function BoardToolbar({ projectId, filter, onChange, tasks, members, labe
   const toggle = (group: FilterGroup, value: string | number) => set(group, toggleIn(filter[group] as (string | number)[], value));
   const n = activeFilterCount(filter);
   const mine = filter.assignees.length === 1 && filter.assignees[0] === meId;
+  const me = members.find((m) => m.id === meId);
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filters">
         <SearchBox value={filter.q} onChange={(q) => onChange({ ...filter, q })} />
         <PeopleFilter members={members} meId={meId} selected={filter.assignees} onToggle={(id) => toggle("assignees", id)} />
-        <Button variant="ghost" icon={UserRound} aria-pressed={mine} className={cn(mine && "bg-accent-soft text-accent-ink")} onClick={() => set("assignees", mine ? [] : [meId])}>
+        {/* v4.7: the quickest way to your own work, so it stands out: tinted when off, solid when on. */}
+        <button
+          type="button"
+          aria-pressed={mine}
+          onClick={() => set("assignees", mine ? [] : [meId])}
+          className={cn(
+            "inline-flex min-h-touch items-center gap-2 rounded-pill border pr-3.5 pl-1 text-secondary font-semibold",
+            "transition-colors duration-(--duration-micro) ease-out",
+            mine ? "border-accent bg-accent text-on-accent state-hover:bg-accent-hover" : "border-accent bg-accent-soft text-accent-ink state-hover:bg-card",
+          )}
+        >
+          {me ? <Avatar name={me.name} url={me.avatarUrl} size="xs" className={cn("ring-2", mine ? "ring-accent" : "ring-card")} /> : <Icon icon={UserRound} size="sm" className="ml-1.5" />}
           My tasks
-        </Button>
+          {mine && <Icon icon={X} size="sm" className="-mr-1" />}
+        </button>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant={n > 0 ? "secondary" : "ghost"} icon={ListFilter} className={cn(n > 0 && "border-accent text-accent-ink")}>

@@ -59,11 +59,9 @@ export function ProjectMembersPage() {
       .catch(() => toast({ variant: "error", title: FAILED }));
   }
 
-  /** Whether this person may change that member (mirrors the API: only App Admins change Project Admins). */
-  const editable = (m: MemberRow) => members.data?.canManage && m.userId !== me.user.id && (isAppAdmin || m.role !== "admin");
-  const roleOptions = (["admin", "contributor", "viewer"] as const)
-    .filter((r) => isAppAdmin || r !== "admin")
-    .map((r) => ({ value: r, label: ROLE_LABELS[r] }));
+  // v4.7: project admins manage every member here, other admins included (not themselves, so the project keeps one).
+  const editable = (m: MemberRow) => members.data?.canManage && (m.userId !== me.user.id || isAppAdmin);
+  const roleOptions = (["admin", "contributor", "viewer"] as const).map((r) => ({ value: r, label: ROLE_LABELS[r] }));
 
   return (
     <PageLayout

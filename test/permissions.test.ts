@@ -62,10 +62,16 @@ describe("Section 2 permission rules beyond the matrix cells", () => {
     expect(can(member, "task.delete", ctx)).toBe(false);
   });
 
-  it("Project Admins cannot change another Project Admin's role; App Admins can", () => {
-    expect(can(member, "member.changeRole", project("admin"), { targetMemberRole: "admin" })).toBe(false);
+  it("v4.7 Project Admins run their own project: any member's role, its details, archive and restore", () => {
+    expect(can(member, "member.changeRole", project("admin"), { targetMemberRole: "admin" })).toBe(true);
     expect(can(member, "member.changeRole", project("admin"), { targetMemberRole: "viewer" })).toBe(true);
     expect(can(appAdmin, "member.changeRole", project(null), { targetMemberRole: "admin" })).toBe(true);
+    expect(can(member, "project.edit", project("admin"))).toBe(true);
+    // Restoring works on an archived project.
+    expect(can(member, "project.edit", project("admin", { archived: true }))).toBe(true);
+    for (const role of ["contributor", "viewer", null] as const) expect(can(member, "project.edit", project(role))).toBe(false);
+    // Creating projects stays with App Admins.
+    expect(can(member, "project.manage")).toBe(false);
   });
 
   it("PROJ-4: archived projects are read-only for everyone", () => {

@@ -118,17 +118,38 @@ describe("Section 2 change member roles and remove members", () => {
     ]);
   });
 
-  it("Project Admins can't promote to admin or touch another admin; App Admins can", async () => {
+  it("v4.7 Project Admins appoint and change admins, but never leave the project without one", async () => {
     const p = await createProject();
     const admin = await actorAs("projectAdmin", p.id);
     const otherAdmin = await actorAs("projectAdmin", p.id);
     const member = await actorAs("contributor", p.id);
-    expect((await call(admin, "PATCH", `/api/projects/${p.id}/members/${member.userId}`, { role: "admin" })).status).toBe(403);
-    expect((await call(admin, "DELETE", `/api/projects/${p.id}/members/${otherAdmin.userId}`, undefined, REMOVE)).status).toBe(403);
+    expect((await call(admin, "PATCH", `/api/projects/${p.id}/members/${member.userId}`, { role: "admin" })).status).toBe(200);
+    expect((await call(admin, "PATCH", `/api/projects/${p.id}/members/${member.userId}`, { role: "contributor" }, LOWER)).status).toBe(200);
+    expect((await call(admin, "DELETE", `/api/projects/${p.id}/members/${otherAdmin.userId}`, undefined, REMOVE)).status).toBe(200);
+    // Now the only admin: they can't demote or remove themselves.
+    const last = await call(admin, "PATCH", `/api/projects/${p.id}/members/${admin.userId}`, { role: "contributor" }, LOWER);
+    expect(last.status).toBe(409);
+    expect(await last.json()).toMatchObject({ error: "last_project_admin" });
+    expect((await call(admin, "DELETE", `/api/projects/${p.id}/members/${admin.userId}`, undefined, REMOVE)).status).toBe(409);
+    // App Admins manage any project and may.
     const appAdmin = await signedInClient();
     await setUser(appAdmin.userId, { status: "active", appRole: "admin" });
-    expect((await call(appAdmin, "PATCH", `/api/projects/${p.id}/members/${member.userId}`, { role: "admin" })).status).toBe(200);
-    expect((await call(appAdmin, "PATCH", `/api/projects/${p.id}/members/${otherAdmin.userId}`, { role: "contributor" }, LOWER)).status).toBe(200);
+    expect((await call(appAdmin, "PATCH", `/api/projects/${p.id}/members/${admin.userId}`, { role: "contributor" }, LOWER)).status).toBe(200);
+  });
+
+  it("v4.7 Project Admins edit their project's details and archive it; not Hidden, and not other projects", async () => {
+    const p = await createProject();
+    const admin = await actorAs("projectAdmin", p.id);
+    const contributor = await actorAs("contributor", p.id);
+    const edited = await call(admin, "PATCH", `/api/projects/${p.id}`, { name: "Sound and Stream", colour: "teal" });
+    expect(edited.status).toBe(200);
+    expect(await edited.json()).toMatchObject({ project: { name: "Sound and Stream", colour: "teal" } });
+    expect((await call(admin, "PATCH", `/api/projects/${p.id}`, { hidden: true })).status).toBe(403);
+    expect((await call(contributor, "PATCH", `/api/projects/${p.id}`, { name: "Mine" })).status).toBe(403);
+    const other = await createProject();
+    expect((await call(admin, "PATCH", `/api/projects/${other.id}`, { name: "Not mine" })).status).toBe(403);
+    expect((await call(admin, "POST", `/api/projects/${p.id}/archive`, undefined, { "X-Confirm-Action": "project.archive" })).status).toBe(200);
+    expect((await call(admin, "POST", `/api/projects/${p.id}/restore`)).status).toBe(200);
   });
 
   it("removing needs confirmation, takes away access at once, and is audited", async () => {

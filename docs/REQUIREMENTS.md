@@ -2,7 +2,7 @@
 
 Oct 14, 2026 · @G
 
-**Version 4.6** — single engineer-ready document · **Owner:** @G, Immanuel Fellowship Church (IFC) · **Audience:** software engineers building and maintaining this product · **Status:** active baseline; pre-build decisions in section 21.
+**Version 4.7** — single engineer-ready document · **Owner:** @G, Immanuel Fellowship Church (IFC) · **Audience:** software engineers building and maintaining this product · **Status:** active baseline; pre-build decisions in section 21.
 
 > This is the single source of truth. Read it fully before writing any code. Functional requirements take precedence over design guidance where they conflict. Any conflict found during implementation must be documented and brought to @G for a decision — never resolved silently.
 
@@ -10,6 +10,7 @@ Oct 14, 2026 · @G
 
 | Version | Date | Summary |
 | --- | --- | --- |
+| 4.7 | 21 Oct 2026 | Second round of @G's feedback. Navigation: a project's pages (Board, List, Backlog, Epics, Reports, Members, Settings) sit in the sidebar under the open project from tablet width up; phones keep the row of tabs (section 12). My tasks stands out in the toolbar (11.2). Project Admins run their own project fully: they edit its name, description, colour and icon, archive and restore it, and change any member's role including appointing or demoting other admins, but can't leave it without an admin; App Admins keep the app-wide powers (creating and hiding projects, users, audit, What's New) (section 2). |
 | 4.6 | 20 Oct 2026 | Design refresh at @G's request (feedback after Stage 8a: "look like monday.com, more colour, fonts too big, not premium"): a compact type scale (body 14 px) in Figtree; 18 px icons; controls 32 px for a mouse and 44 px on touch screens and phones; tighter radii; a brighter light theme and a navy dark theme; solid vivid pills for status and priority, a colour per workflow column, tinted label chips and coloured initials avatars; the theme switch becomes three small icons (sun, moon, screen) (sections 9, 12). Task detail becomes a wide modal in the middle of the screen with a Details card (11.3, 12). Tasks get an optional secondary assignee: a different person from the assignee, who watches the task, gets the "assigned" notification and due reminders, sees it in My Work and matches the Assignee filter; workload reports still count the assignee only (TASK-1, sections 6, 8, 11.2). Each project gets a Settings tab where its admins manage workflow columns, labels, components and milestones; labels can also be created from a task's Labels menu. Columns can be added, renamed, recategorised and reordered (up to 8); instead of hiding, a column can be removed only if no task has ever been in it, so reports keep their history (PROJ-3, ORG-1, ORG-2, ORG-4). A project's work gets two more views beside Board and List: Backlog (ranked sections for each to-do column, drag or menu to reorder and move, quick add) and Epics (each epic's progress split by done, in progress and to do, overdue and unassigned work, due range, people, and its tasks). The filter bar becomes a toolbar: search, people avatars, My tasks, a Filter panel with counts (person, priority, due date, type, label, epic, scope) and removable chips for active filters (sections 11.2, 11.16, ORG-3, ORG-5). Church-wide reports gain headline numbers (active projects, open, overdue, unassigned, created and completed in range, finished on time, median time to done, people active this week), a weekly created-vs-completed chart, overdue aging, open work by priority, and project health (on track, at risk, quiet) with each project's status split, throughput, members and last activity; a trend CSV is added (section 16). Email settings are grouped by topic with a Right away / Digest / Off switch per email, a summary of what arrives when, the time in the digest's timezone, and presets: Recommended, Fewer emails, Pause all (NOTIF-5). |
 | 4.5 | 20 Oct 2026 | Email provider changed from Brevo to Resend at @G's request, on the Resend free plan (100 emails/day, 3,000/month): instant emails switch to the digest at 80 a day (80%), Resend domain verification replaces Brevo's DNS records, `RESEND_API_KEY` replaces `BREVO_API_KEY`, and the free-tier email budget is recalculated (sections 5, 8, 18, 21). |
 | 4.4 | 14 Oct 2026 | Stage 2c decisions: the My Work welcome follows the time of day in the user's timezone ("Good morning", "Good afternoon" from noon, "Good evening" from 5 pm) (section 11.1); the Hub Feedback project uses the key HUB, which is reserved for it (PROJ-7); Hub Feedback is created when an App Admin loads the app, not only at sign-in, because the first App Admin is promoted by script after signing in (section 18); a text wordmark stands in for the church logo until the logo file is supplied (sections 11.6, 11.15). |
@@ -96,7 +97,7 @@ Two layers of roles: one app-wide role per person, plus one role per project the
 
 | Role | Description |
 | --- | --- |
-| **Project Admin** | Approves/denies project requests, invites people, changes member roles, edits workflow columns, labels, and components, archives tasks. |
+| **Project Admin** | Runs their project (v4.7): approves/denies project requests, invites people, appoints and changes member roles (other admins included), edits the project's details, workflow columns, labels, components and milestones, deletes tasks, archives and restores the project. |
 | **Contributor** | Creates, edits, assigns, comments, and moves tasks. |
 | **Viewer** | Reads and comments only. Suited to pastors or leaders who want visibility. |
 
@@ -109,9 +110,10 @@ Two layers of roles: one app-wide role per person, plus one role per project the
 | Comment and @mention | All | Yes | Yes | Yes | No |
 | Delete a task | All | Yes | Own tasks only, within 24 hours | No | No |
 | Approve access requests | All projects | Own project | No | No | No |
-| Change member roles | All | Own project, not other admins | No | No | No |
+| Change member roles | All | Own project, other admins included; never leaving it without an admin | No | No | No |
 | Edit workflow, labels, components | All | Own project | No | No | No |
-| Create or archive projects | Yes | No | No | No | No |
+| Create or hide projects | Yes | No | No | No | No |
+| Edit project details; archive or restore it | All | Own project | No | No | No |
 | View reports | All projects | Own project | Own project | Own project | No |
 | Submit bug or feature request | Yes | Yes | Yes | Yes | Yes |
 | Publish What's New | Yes | No | No | No | No |
@@ -123,7 +125,7 @@ Two layers of roles: one app-wide role per person, plus one role per project the
 ### Safety rules
 
 - The last App Admin cannot be demoted or suspended.
-- A Project Admin cannot remove another Project Admin; only an App Admin can.
+- A Project Admin can change or remove another Project Admin of their project (v4.7), but a project always keeps at least one admin unless an App Admin makes the change.
 - Every role change and approval is written to the audit log with who, what, and when.
 - A suspended user's active sessions are terminated immediately (within one request cycle), not at next login.
 - An invited user's invite link expires after 7 days. Project admins can resend. Expired invites appear in the admin queue as "Expired — resend?"

@@ -154,10 +154,19 @@ export function manageRoutes() {
       .bind(projectId, userId)
       .first<{ role: MemberRow["role"]; key: string }>();
     if (!member) return forbidden(c, 404);
-    // "Own project, not other admins": only an App Admin changes or removes another Project Admin.
     const allowed = await authorize(c, "member.changeRole", projectId, { targetMemberRole: member.role });
     if (!allowed.ok) return forbidden(c, allowed.status);
     return { projectId, userId, ...member };
+  }
+
+  /**
+   * v4.7: a Project Admin can't leave their project without an admin (demoting or removing the last one, themselves
+   * included). App Admins manage every project, so they may.
+   */
+  async function wouldLeaveNoAdmin(c: Context<AppEnv>, target: { projectId: number; role: MemberRow["role"] }) {
+    if (c.get("auth").user.appRole === "admin" || target.role !== "admin") return false;
+    const row = await c.env.DB.prepare("SELECT count(*) AS n FROM project_members WHERE project_id = ?1 AND role = 'admin'").bind(target.projectId).first<{ n: number }>();
+    return (row?.n ?? 0) <= 1;
   }
 
   routes.patch("/projects/:id/members/:userId", requireSession, async (c) => {
@@ -166,9 +175,8 @@ export function manageRoutes() {
     const target = await memberTarget(c);
     if (target instanceof Response) return target;
     const { user } = c.get("auth");
-    // Making someone a Project Admin is App Admin only, like changing an existing admin.
-    if (parsed.data.role === "admin" && user.appRole !== "admin") return forbidden(c, 403);
     if (parsed.data.role === target.role) return c.json({ ok: true });
+    if (await wouldLeaveNoAdmin(c, target)) return c.json({ error: ACCESS_ERRORS.lastProjectAdmin }, 409);
     if (ROLE_RANK[parsed.data.role] < ROLE_RANK[target.role] && c.req.header("X-Confirm-Action") !== MANAGE_CONFIRM.lowerRole) {
       return c.json({ error: ACCESS_ERRORS.confirmationRequired }, 428);
     }
@@ -194,6 +202,7 @@ export function manageRoutes() {
   routes.delete("/projects/:id/members/:userId", requireSession, requireConfirmation(MANAGE_CONFIRM.removeMember), async (c) => {
     const target = await memberTarget(c);
     if (target instanceof Response) return target;
+    if (await wouldLeaveNoAdmin(c, target)) return c.json({ error: ACCESS_ERRORS.lastProjectAdmin }, 409);
     const { user } = c.get("auth");
     const now = Date.now();
     await c.env.DB.batch([

@@ -37,6 +37,8 @@ export const ACCESS_ERRORS = {
   alreadyRequested: "already_requested",
   nudgeNotAvailable: "nudge_not_available",
   confirmationRequired: "confirmation_required",
+  /** v4.7: a Project Admin tried to demote or remove their project's last admin. */
+  lastProjectAdmin: "last_project_admin",
 } as const;
 
 /** RATE-2 / NFR-4: requests per user per calendar day in their timezone; one per project. */
