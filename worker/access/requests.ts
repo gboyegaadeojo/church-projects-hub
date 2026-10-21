@@ -121,6 +121,13 @@ export function accessRequestRoutes() {
         }, now),
       );
     }
+    // The person who asked gets an email saying it went in (v4.7); one email for all the projects in this submission.
+    statements.push(
+      c.env.DB.prepare(
+        `INSERT INTO email_outbox (user_id, template, payload_json, mode, send_after, created_at)
+         VALUES (?1, 'access.received', ?2, 'instant', ?3, ?3)`,
+      ).bind(user.id, JSON.stringify({ projectName: listNames(projects.map((p) => p.name)) }), now),
+    );
     try {
       await c.env.DB.batch(statements);
     } catch (err) {
@@ -387,4 +394,9 @@ export function accessRequestRoutes() {
   );
 
   return routes;
+}
+
+/** "A", "A and B", "A, B and C". */
+function listNames(names: string[]): string {
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }

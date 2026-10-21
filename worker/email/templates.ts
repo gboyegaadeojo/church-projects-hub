@@ -7,7 +7,7 @@ import { type NotificationPayload, type NotificationType } from "../../shared/no
 
 /** System emails to App Admins (ADM-5, NFR-15); not settings, so they carry no unsubscribe link. */
 export const SYSTEM_TEMPLATES = ["usage.warning", "errors.alert"] as const;
-export type EmailTemplate = NotificationType | "invite" | "digest" | (typeof SYSTEM_TEMPLATES)[number];
+export type EmailTemplate = NotificationType | "invite" | "digest" | "access.received" | (typeof SYSTEM_TEMPLATES)[number];
 export type Rendered = { subject: string; html: string; text: string };
 /** v4.7: email is required for everyone, so there are no unsubscribe links, only Email settings (when to get it). */
 export type Links = { base: string; settings: string };
@@ -63,6 +63,13 @@ export function eventContent(template: EmailTemplate, p: Payload, base: string):
       return { line: `${task} is overdue`, details: taskDetails, button: open };
     case "access.requested":
       return { line: `${who} asked to join ${p.projectName ?? "a project"}`, details: [], button: { label: "Review requests", href: `${base}/admin/requests` } };
+    case "access.received":
+      // To the person who asked (v4.7): confirms the request went in; the decision follows in its own email.
+      return {
+        line: `We got your request to join ${p.projectName ?? "a project"}`,
+        details: ["A team admin will review it. We aim to respond within 48 hours, and we'll email you when it's decided."],
+        button: { label: "See your requests", href: `${base}/request-access` },
+      };
     case "access.nudge":
       return { line: `${who} is still waiting to join ${p.projectName ?? "a project"}`, details: [], button: { label: "Review requests", href: `${base}/admin/requests` } };
     case "access.reminder":

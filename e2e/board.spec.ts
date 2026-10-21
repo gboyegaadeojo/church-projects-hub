@@ -117,13 +117,20 @@ test.describe("TASK-2 board", () => {
       await expect(dialog.getByRole("combobox", { name: field, exact: true })).toBeVisible();
     }
     await expect(dialog.getByRole("textbox", { name: "Description" })).toBeVisible();
+    // Checklist, files and a comment are there too; what's entered is saved onto the task when it's created.
+    await expect(dialog.getByRole("button", { name: "Attach files" })).toBeVisible();
+    await expect(dialog.getByRole("textbox", { name: "Add a comment" })).toBeVisible();
+    await dialog.getByLabel("New checklist item").fill("Label both ends");
+    await dialog.getByLabel("New checklist item").press("Enter");
+    await expect(dialog.getByText("0 of 1 done")).toBeVisible();
     await dialog.getByLabel("Title").fill("Coil the XLR cables");
     await expectNoViolations(page, "[role=dialog]");
     await dialog.getByRole("button", { name: "Create task" }).click();
     await expect(page.getByText(`${project.key}-4 created.`).first()).toBeVisible();
-    // The new task opens straight away; closing it shows the card on the board.
+    // The new task opens straight away, checklist included; closing it shows the card on the board.
     const opened = page.getByRole("dialog", { name: `${project.key}-4` });
     await expect(opened).toBeVisible();
+    await expect(opened.getByRole("checkbox", { name: "Label both ends" })).toBeVisible();
     if (v === "mobile") await opened.getByRole("button", { name: "Back to board" }).click();
     else await page.keyboard.press("Escape");
     await expect(column(page, "Backlog").getByRole("button", { name: "Coil the XLR cables", exact: true })).toBeAttached();

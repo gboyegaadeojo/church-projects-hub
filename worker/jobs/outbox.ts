@@ -12,7 +12,7 @@ export const RETRY_AFTER_MIN = [5, 30, 120] as const;
 export const PER_PERSON_DAILY = 6;
 export const DAILY_SWITCH_TO_DIGEST = 80;
 const BATCH = 20;
-const ALWAYS_INSTANT = new Set<string>(["access.requested", "access.decided", "access.nudge", "access.reminder", "invite", "digest", "session.revoked", ...SYSTEM_TEMPLATES]);
+const ALWAYS_INSTANT = new Set<string>(["access.requested", "access.received", "access.decided", "access.nudge", "access.reminder", "invite", "digest", "session.revoked", ...SYSTEM_TEMPLATES]);
 
 type Row = {
   id: number;
