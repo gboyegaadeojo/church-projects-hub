@@ -144,7 +144,8 @@ export function NewTaskDialog({
               />
             </Field>
             <Field label="Column" required>
-              <Select value={stateId} onValueChange={setStateId} options={states.map((s) => ({ value: String(s.id), label: s.name }))} />
+              {/* A blocked task needs a reason, so it's blocked from its own page rather than created blocked here. */}
+              <Select value={stateId} onValueChange={setStateId} options={states.filter((s) => !s.blocks).map((s) => ({ value: String(s.id), label: s.name }))} />
             </Field>
             <Field label="Assignee" error={errors.assigneeId}>
               <Select

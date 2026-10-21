@@ -194,6 +194,8 @@ export const workflowStates = sqliteTable(
     // Reports use the category so renamed columns don't break charts.
     category: text("category", { enum: WORKFLOW_CATEGORIES }).notNull(),
     position: integer("position").notNull(),
+    // v4.7: tasks moved into this column are blocked and need a reason.
+    blocks: integer("blocks", { mode: "boolean" }).notNull().default(false),
     ...timestamps,
   },
   (t) => [
@@ -284,6 +286,10 @@ export const tasks = sqliteTable(
     milestoneId: integer("milestone_id").references(() => milestones.id),
     // Fractional index within the column (fractional-indexing), compared with plain string order.
     rank: text("rank").notNull(),
+    // v4.7: why the task is blocked, set when it moves into a blocking column and cleared when it leaves.
+    blockedReason: text("blocked_reason"),
+    blockedAt: integer("blocked_at"),
+    blockedBy: integer("blocked_by").references(() => users.id),
     // Optimistic concurrency (NFR-10): every change increments it.
     version: integer("version").notNull().default(0),
     deletedAt: integer("deleted_at"),

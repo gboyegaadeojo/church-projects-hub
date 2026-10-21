@@ -37,6 +37,7 @@ import {
 import { rankBetween } from "../../shared/rank";
 import { type Notice, noticesStatements, statusChangeNotice } from "../notify";
 import { refreshSearch, refreshSearchFor, removeFromSearch } from "./search";
+import { blockedColumns, blockedNotice, blockTransition } from "./blocked";
 
 // Tasks (TASK-1 to TASK-8, TASK-10, NFR-10, NFR-12). Every route checks the section 2 matrix in the API (NFR-1).
 
@@ -47,6 +48,11 @@ const NEW_TASK_ID = `(SELECT id FROM tasks WHERE project_id = ?1 AND number = (S
 
 export function invalid(c: Context<AppEnv>, issues: unknown) {
   return c.json({ error: ACCESS_ERRORS.invalid, issues }, 400);
+}
+
+/** v4.7: moving into a blocking column without saying why. */
+function reasonRequired(c: Context<AppEnv>) {
+  return c.json({ error: TASK_ERRORS.reasonRequired, field: "blockedReason" }, 400);
 }
 
 export function badReference(c: Context<AppEnv>, field: string) {
@@ -103,7 +109,7 @@ export function taskRoutes() {
     const project = c.get("project");
     const db = c.env.DB;
     const [states, tasks, labels, components, milestones, members, people] = await db.batch([
-      db.prepare("SELECT id, name, category, position FROM workflow_states WHERE project_id = ?1 ORDER BY position").bind(project.id),
+      db.prepare("SELECT id, name, category, position, blocks = 1 AS blocks FROM workflow_states WHERE project_id = ?1 ORDER BY position").bind(project.id),
       db.prepare(
         `SELECT ${CARD_COLUMNS} FROM tasks t JOIN projects p ON p.id = t.project_id
          WHERE t.project_id = ?1 AND t.deleted_at IS NULL ORDER BY t.state_id, t.rank`,
@@ -131,7 +137,7 @@ export function taskRoutes() {
       ).bind(project.id),
     ]);
     const body: BoardResponse = {
-      states: states!.results as BoardResponse["states"],
+      states: (states!.results as (Omit<BoardResponse["states"][number], "blocks"> & { blocks: number })[]).map((s) => ({ ...s, blocks: s.blocks === 1 })),
       tasks: (tasks!.results as CardRow[]).map(toCard),
       labels: labels!.results as BoardResponse["labels"],
       components: (components!.results as { id: number; name: string; lead_id: number | null }[]).map((r) => ({
@@ -182,6 +188,10 @@ export function taskRoutes() {
       epicId: body.epicId,
     });
     if (bad) return badReference(c, bad);
+    // v4.7: a task created straight into a blocking column needs a reason.
+    const block = await blockTransition(c.env, null, stateId);
+    if (block.into && !body.blockedReason) return reasonRequired(c);
+    const blockedReason = block.into ? body.blockedReason! : null;
 
     const now = Date.now();
     const rank = rankBetween(await lastRankIn(c.env, project.id, stateId), null);
@@ -236,6 +246,14 @@ export function taskRoutes() {
         taskIdSql: NEW_TASK_ID,
       }),
       refreshSearchFor(c.env, NEW_TASK_ID, project.id),
+      ...(blockedReason
+        ? [
+            db.prepare(`UPDATE tasks SET blocked_reason = ?2, blocked_at = ?3, blocked_by = ?4 WHERE id = ${NEW_TASK_ID}`).bind(project.id, blockedReason, now, user.id),
+            db.prepare(
+              `INSERT INTO task_events (task_id, actor_id, field, old_value, new_value, at) SELECT ${NEW_TASK_ID}, ?2, 'blocked', NULL, ?3, ?4`,
+            ).bind(project.id, user.id, blockedReason, now),
+          ]
+        : []),
       // NOTIF-1: the new assignee, and anyone @mentioned in the description.
       ...noticesStatements(
         c.env,
@@ -256,6 +274,9 @@ export function taskRoutes() {
             projectId: project.id,
             payload: {},
           },
+          ...(blockedReason
+            ? [blockedNotice({ task: { newInProject: project.id }, projectId: project.id, people: [body.assigneeId, body.secondaryAssigneeId], actorId: user.id, reason: blockedReason })]
+            : []),
         ],
         now,
       ),
@@ -343,6 +364,26 @@ export function taskRoutes() {
     }
     if (refs.stateId !== undefined) set("rank", rankBetween(await lastRankIn(c.env, project.id, refs.stateId), null));
 
+    // v4.7: entering a blocking column needs a reason; leaving one clears it; inside one the reason can be edited.
+    let blockedNow: string | null = null;
+    if (refs.stateId !== undefined || body.blockedReason !== undefined) {
+      const block = await blockTransition(c.env, task.state_id, refs.stateId ?? task.state_id);
+      const actor = c.get("auth").user.id;
+      if (block.into) {
+        if (!body.blockedReason) return reasonRequired(c);
+        for (const [column, value] of blockedColumns(body.blockedReason, actor, Date.now())) set(column, value);
+        events.push({ field: "blocked", old: null, new: body.blockedReason });
+        blockedNow = body.blockedReason;
+      } else if (block.out) {
+        for (const [column, value] of blockedColumns(null, actor, Date.now())) set(column, value);
+        events.push({ field: "unblocked", old: task.blocked_reason, new: null });
+      } else if (block.stays && body.blockedReason !== undefined && body.blockedReason !== task.blocked_reason) {
+        set("blocked_reason", body.blockedReason);
+        events.push({ field: "blocked", old: task.blocked_reason, new: body.blockedReason });
+        blockedNow = body.blockedReason;
+      }
+    }
+
     const currentLabels = labelIdsOf(task);
     const nextLabels = body.labelIds ? [...body.labelIds].sort((a, b) => a - b) : undefined;
     const labelsChanged = nextLabels !== undefined && nextLabels.join(",") !== currentLabels.join(",");
@@ -418,6 +459,17 @@ export function taskRoutes() {
       const added = description.mentions.filter((id) => !before.has(id));
       notices.push({ type: "task.mentioned", recipients: added, actorId: user.id, task: { id: task.id }, projectId: project.id, payload: {} });
     }
+    if (blockedNow) {
+      notices.push(
+        blockedNotice({
+          task: { id: task.id },
+          projectId: project.id,
+          people: [refs.assigneeId ?? task.assignee_id, refs.secondaryAssigneeId ?? task.secondary_assignee_id, task.reporter_id],
+          actorId: user.id,
+          reason: blockedNow,
+        }),
+      );
+    }
     statements.push(...noticesStatements(c.env, notices, now));
 
     try {
@@ -435,9 +487,12 @@ export function taskRoutes() {
     if (access instanceof Response) return access;
     const parsed = moveTaskBody.safeParse(await c.req.json().catch(() => null));
     if (!parsed.success) return invalid(c, parsed.error.issues);
-    const { stateId, afterId, beforeId } = parsed.data;
+    const { stateId, afterId, beforeId, blockedReason } = parsed.data;
     const { task, project } = access;
     if (await invalidReference(c.env, project, { stateId })) return badReference(c, "stateId");
+    // v4.7: moving into a blocking column needs a reason; moving out clears it.
+    const block = stateId !== task.state_id ? await blockTransition(c.env, task.state_id, stateId) : { into: false, out: false, stays: false };
+    if (block.into && !blockedReason) return reasonRequired(c);
 
     // Neighbours count only if they're live cards in the target column.
     const neighbours = new Map<number, string>();
@@ -459,11 +514,23 @@ export function taskRoutes() {
     const { user } = c.get("auth");
     const now = Date.now();
     const db = c.env.DB;
+    const blockedSql = block.into ? ", blocked_reason = ?5, blocked_at = ?4, blocked_by = ?6" : block.out ? ", blocked_reason = NULL, blocked_at = NULL, blocked_by = NULL" : "";
     const statements = [
       db
-        .prepare("UPDATE tasks SET state_id = ?2, rank = ?3, updated_at = ?4, version = version + 1 WHERE id = ?1 AND deleted_at IS NULL")
-        .bind(task.id, stateId, rank, now),
+        .prepare(`UPDATE tasks SET state_id = ?2, rank = ?3, updated_at = ?4, version = version + 1${blockedSql} WHERE id = ?1 AND deleted_at IS NULL`)
+        .bind(task.id, stateId, rank, now, ...(block.into ? [blockedReason, user.id] : [])),
     ];
+    if (block.into) {
+      statements.push(
+        eventsStatement(c.env, task.id, user.id, now, [{ field: "blocked", old: null, new: blockedReason! }]),
+        ...noticesStatements(
+          c.env,
+          [blockedNotice({ task: { id: task.id }, projectId: project.id, people: [task.assignee_id, task.secondary_assignee_id, task.reporter_id], actorId: user.id, reason: blockedReason! })],
+          now,
+        ),
+      );
+    }
+    if (block.out) statements.push(eventsStatement(c.env, task.id, user.id, now, [{ field: "unblocked", old: task.blocked_reason, new: null }]));
     if (stateId !== task.state_id) {
       statements.push(
         eventsStatement(c.env, task.id, user.id, now, [{ field: "state", old: String(task.state_id), new: String(stateId) }]),
@@ -545,6 +612,15 @@ export function taskRoutes() {
       labelIds: [...new Set([...addLabels, ...removeLabels])],
     });
     if (bad) return badReference(c, bad);
+    // v4.7: tasks entering a blocking column need a reason; tasks leaving one have theirs cleared.
+    let blocking = new Set<number>();
+    let targetBlocks = false;
+    if (body.stateId !== undefined) {
+      const { results: cols } = await db.prepare("SELECT id FROM workflow_states WHERE project_id = ?1 AND blocks = 1").bind(project.id).all<{ id: number }>();
+      blocking = new Set(cols.map((s) => s.id));
+      targetBlocks = blocking.has(body.stateId);
+      if (targetBlocks && !body.blockedReason && rows.some((t) => !blocking.has(t.state_id))) return reasonRequired(c);
+    }
 
     const { user } = c.get("auth");
     const now = Date.now();
@@ -558,6 +634,8 @@ export function taskRoutes() {
       }
       if (body.stateId !== undefined && body.stateId !== t.state_id) {
         events.push({ task: t.id, field: "state", old: str(t.state_id), new: str(body.stateId) });
+        if (targetBlocks && !blocking.has(t.state_id)) events.push({ task: t.id, field: "blocked", old: null, new: body.blockedReason! });
+        if (!targetBlocks && blocking.has(t.state_id)) events.push({ task: t.id, field: "unblocked", old: t.blocked_reason, new: null });
       }
       if (body.dueDate !== undefined && body.dueDate !== t.due_date) {
         events.push({ task: t.id, field: "due_date", old: t.due_date, new: body.dueDate });
@@ -584,7 +662,20 @@ export function taskRoutes() {
       // v4.6: the new assignee can't also be the secondary assignee.
       if (body.assigneeId !== null) sets.push(`secondary_assignee_id = CASE WHEN secondary_assignee_id = ?${values.length + 2} THEN NULL ELSE secondary_assignee_id END`);
     }
-    if (body.stateId !== undefined) set("state_id", body.stateId);
+    if (body.stateId !== undefined) {
+      // Uses each task's column before this update: SQLite reads old values throughout one UPDATE.
+      const wasBlocking = `state_id IN (SELECT value FROM json_each('${JSON.stringify([...blocking])}'))`;
+      if (targetBlocks) {
+        set("blocked_reason", body.blockedReason ?? null);
+        sets[sets.length - 1] = `blocked_reason = CASE WHEN ${wasBlocking} THEN blocked_reason ELSE ?${values.length + 2} END`;
+        sets.push(`blocked_at = CASE WHEN ${wasBlocking} THEN blocked_at ELSE ?2 END`);
+        set("blocked_by", user.id);
+        sets[sets.length - 1] = `blocked_by = CASE WHEN ${wasBlocking} THEN blocked_by ELSE ?${values.length + 2} END`;
+      } else {
+        sets.push("blocked_reason = NULL", "blocked_at = NULL", "blocked_by = NULL");
+      }
+      set("state_id", body.stateId);
+    }
     if (body.dueDate !== undefined) set("due_date", body.dueDate);
     const statements = [
       db.prepare(`UPDATE tasks SET ${sets.join(", ")} WHERE id IN (SELECT value FROM json_each(?1))`).bind(changed, now, ...values),
@@ -626,6 +717,10 @@ export function taskRoutes() {
       const base = { actorId: user.id, task: { id: e.task }, projectId: project.id };
       if (e.field === "assignee" && body.assigneeId) return [{ ...base, type: "task.assigned", recipients: [body.assigneeId], payload: {} }];
       if (e.field === "state") return [statusChangeNotice(project, { actorId: user.id, task: { id: e.task }, recipients: [reporterOf.get(e.task)!], payload: { stateName } })];
+      if (e.field === "blocked") {
+        const row = rows.find((r) => r.id === e.task)!;
+        return [blockedNotice({ task: { id: e.task }, projectId: project.id, people: [row.assignee_id, row.secondary_assignee_id, row.reporter_id], actorId: user.id, reason: e.new! })];
+      }
       return [];
     });
     statements.push(...noticesStatements(c.env, bulkNotices, now));

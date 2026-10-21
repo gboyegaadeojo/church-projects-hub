@@ -23,7 +23,7 @@ import { OfflineDisabled } from "../StatusBanners";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "../ui/Menu";
-import { DueBadge, LabelChip, SubtaskProgress, TypeIcon } from "./bits";
+import { BlockedNote, DueBadge, LabelChip, SubtaskProgress, TypeIcon } from "./bits";
 import { columnTones, PriorityPill, VIVID_CLASSES, type Vivid } from "./tones";
 
 // The project board (section 11.2, TASK-2). Drag and drop with dnd-kit on pointer and touch; every card also
@@ -361,6 +361,7 @@ export function CardBody({ task, labels, people, today, done, tone, onOpen, clas
           task.title
         )}
       </h3>
+      {task.blockedReason !== null && <BlockedNote reason={task.blockedReason} />}
       {cardLabels.length > 0 && (
         <span className="flex flex-wrap gap-1">
           {cardLabels.slice(0, 2).map((l) => (

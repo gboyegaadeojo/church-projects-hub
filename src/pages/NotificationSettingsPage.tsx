@@ -42,6 +42,7 @@ const DESCRIPTIONS: Partial<Record<NotificationType, string>> = {
   "task.mentioned": "When someone writes @your name in a task or comment.",
   "task.commented": "New comments on tasks you're on or follow.",
   "task.status_changed": "When a task you reported moves to another column.",
+  "task.blocked": "When a task you're assigned to or reported is blocked, with the reason.",
   "task.due_soon": "A week before your task is due.",
   "task.due_tomorrow": "The day before your task is due.",
   "task.overdue": "Once, the day after a task of yours was due.",
@@ -53,7 +54,7 @@ const DESCRIPTIONS: Partial<Record<NotificationType, string>> = {
 };
 
 const GROUPS: { title: string; types: NotificationType[] }[] = [
-  { title: "Your tasks", types: ["task.assigned", "task.mentioned", "task.commented", "task.status_changed"] },
+  { title: "Your tasks", types: ["task.assigned", "task.mentioned", "task.commented", "task.status_changed", "task.blocked"] },
   { title: "Due dates", types: ["task.due_soon", "task.due_tomorrow", "task.overdue"] },
   { title: "Projects you run", types: ["access.requested", "access.nudge"] },
   { title: "Your requests and feedback", types: ["access.decided", "feedback.status_changed"] },

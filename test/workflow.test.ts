@@ -26,7 +26,7 @@ describe("PROJ-3 Project Admins manage workflow columns", () => {
     const added = await call(admin, "POST", `/api/projects/${p.id}/states`, { name: "Blocked", category: "in_progress" });
     expect(added.status).toBe(201);
     const { state } = (await added.json()) as { state: { id: number; position: number } };
-    expect(state.position).toBe(5);
+    expect(state.position).toBe(6);
 
     const renamed = await call(admin, "PATCH", `/api/states/${state.id}`, { name: "Waiting", category: "todo" });
     expect(await renamed.json()).toMatchObject({ state: { name: "Waiting", category: "todo" } });
@@ -39,8 +39,7 @@ describe("PROJ-3 Project Admins manage workflow columns", () => {
     expect((await call(admin, "PUT", `/api/projects/${p.id}/states/order`, { ids: reversed.slice(1) })).status).toBe(400);
 
     await call(admin, "POST", `/api/projects/${p.id}/states`, { name: "Seven", category: "todo" });
-    await call(admin, "POST", `/api/projects/${p.id}/states`, { name: "Eight", category: "todo" });
-    const ninth = await call(admin, "POST", `/api/projects/${p.id}/states`, { name: "Nine", category: "todo" });
+    const ninth = await call(admin, "POST", `/api/projects/${p.id}/states`, { name: "Eight", category: "todo" });
     expect(ninth.status).toBe(400);
     expect(await ninth.json()).toMatchObject({ error: "too_many" });
 

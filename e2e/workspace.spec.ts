@@ -104,3 +104,34 @@ test("Section 11.2 the toolbar's search narrows the board and shows as a removab
   await expect(board.getByRole("button", { name: "Print welcome cards", exact: true })).toBeAttached();
   await expectNoViolations(page);
 });
+
+test("v4.7 moving a task to Blocked asks why; Cancel keeps it put; the reason shows on the card and the task", async ({ pageAs }, testInfo) => {
+  const project = WORKSPACE_PROJECTS[viewportOf(testInfo)];
+  const page = await pageAs(persona("admin"));
+  await page.goto(`/projects/${project.key}`);
+  const board = page.getByRole("region", { name: "Board" });
+  const card = board.getByRole("listitem").filter({ hasText: "Print welcome cards" });
+  const key = `${project.key}-1`;
+
+  await card.getByRole("button", { name: `Move ${key}` }).click();
+  await page.getByRole("menuitem", { name: "Blocked" }).click();
+  const ask = page.getByRole("dialog", { name: `Why is ${key} blocked?` });
+  await expect(ask).toBeVisible();
+  await ask.getByRole("button", { name: "Cancel" }).click();
+  await expect(board.getByRole("region", { name: "Blocked" }).getByText("Print welcome cards")).toHaveCount(0);
+
+  await card.getByRole("button", { name: `Move ${key}` }).click();
+  await page.getByRole("menuitem", { name: "Blocked" }).click();
+  await ask.getByRole("button", { name: "Mark as blocked" }).click();
+  await expect(ask.getByText("Say what's blocking it, in a few words.")).toBeVisible();
+  await ask.getByLabel("Reason").fill("Waiting for the printer to be fixed");
+  await expectNoViolations(page, "[role=dialog]");
+  await ask.getByRole("button", { name: "Mark as blocked" }).click();
+  const blocked = board.getByRole("region", { name: "Blocked" }).getByRole("listitem").filter({ hasText: "Print welcome cards" });
+  await expect(blocked.getByText("Waiting for the printer to be fixed")).toBeVisible();
+
+  await page.goto(`/projects/${project.key}?task=${key}`);
+  const detail = page.getByRole("dialog", { name: key });
+  await expect(detail.getByRole("status").filter({ hasText: "Waiting for the printer to be fixed" })).toBeVisible();
+  await expect(detail.getByText("marked it as blocked")).toBeVisible();
+});

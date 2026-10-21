@@ -70,8 +70,8 @@ for (const p of PROJECTS) {
   );
   COLUMNS.forEach((c, position) =>
     sql.push(
-      `INSERT INTO workflow_states (project_id, name, category, position, created_at, updated_at)
-       VALUES (${p.id}, ${q(c.name)}, ${q(c.category)}, ${position}, ${now}, ${now});`,
+      `INSERT INTO workflow_states (project_id, name, category, position, blocks, created_at, updated_at)
+       VALUES (${p.id}, ${q(c.name)}, ${q(c.category)}, ${position}, ${"blocks" in c && c.blocks ? 1 : 0}, ${now}, ${now});`,
     ),
   );
 }

@@ -7,7 +7,7 @@ import type { ProjectContext } from "../auth/permissions";
 
 export const CARD_COLUMNS = `
   t.id, t.project_id, t.number, t.title, t.type, t.state_id, t.priority, t.scope, t.assignee_id, t.secondary_assignee_id, t.reporter_id,
-  t.due_date, t.component_id, t.epic_id, t.milestone_id, t.rank, t.version, t.created_at, t.updated_at,
+  t.due_date, t.component_id, t.epic_id, t.milestone_id, t.blocked_reason, t.blocked_at, t.blocked_by, t.rank, t.version, t.created_at, t.updated_at,
   p.key AS project_key,
   (SELECT group_concat(label_id) FROM task_labels WHERE task_id = t.id) AS label_ids,
   (SELECT count(*) FROM subtasks WHERE task_id = t.id) AS subtasks_total,
@@ -29,6 +29,9 @@ export type CardRow = {
   component_id: number | null;
   epic_id: number | null;
   milestone_id: number | null;
+  blocked_reason: string | null;
+  blocked_at: number | null;
+  blocked_by: number | null;
   rank: string;
   version: number;
   created_at: number;
@@ -61,6 +64,9 @@ export function toCard(row: CardRow): TaskCard {
     componentId: row.component_id,
     epicId: row.epic_id,
     milestoneId: row.milestone_id,
+    blockedReason: row.blocked_reason,
+    blockedAt: row.blocked_at,
+    blockedBy: row.blocked_by,
     rank: row.rank,
     version: row.version,
     subtasksDone: row.subtasks_done,
@@ -128,7 +134,7 @@ export async function loadTaskDetail(env: Env, taskId: number, viewerId: number 
     env.DB.prepare(
       `SELECT id, name, avatar_url FROM users
        WHERE id IN (SELECT reporter_id FROM tasks WHERE id = ?1 UNION SELECT assignee_id FROM tasks WHERE id = ?1
-                    UNION SELECT secondary_assignee_id FROM tasks WHERE id = ?1)
+                    UNION SELECT secondary_assignee_id FROM tasks WHERE id = ?1 UNION SELECT blocked_by FROM tasks WHERE id = ?1)
           OR id IN (SELECT author_id FROM comments WHERE task_id = ?1 AND deleted_at IS NULL
                     UNION SELECT uploaded_by FROM attachments WHERE task_id = ?1 AND deleted_at IS NULL)
           OR id IN (SELECT actor_id FROM task_events WHERE task_id = ?1 UNION SELECT user_id FROM watchers WHERE task_id = ?1)

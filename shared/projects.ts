@@ -41,12 +41,14 @@ export const HUB_FEEDBACK = {
 } as const satisfies { key: string; name: string; description: string; colour: ProjectColour; icon: ProjectIcon };
 
 /** Default workflow columns for every new project (PROJ-2, section 18). */
+/** PROJ-2, v4.7: Blocked asks for a reason when a task moves into it. */
 export const DEFAULT_WORKFLOW = [
-  { name: "Backlog", category: "todo" },
-  { name: "To Do", category: "todo" },
-  { name: "In Progress", category: "in_progress" },
-  { name: "In Review", category: "in_progress" },
-  { name: "Done", category: "done" },
+  { name: "Backlog", category: "todo", blocks: false },
+  { name: "To Do", category: "todo", blocks: false },
+  { name: "In Progress", category: "in_progress", blocks: false },
+  { name: "In Review", category: "in_progress", blocks: false },
+  { name: "Blocked", category: "in_progress", blocks: true },
+  { name: "Done", category: "done", blocks: false },
 ] as const;
 
 export const PROJECT_ERRORS = { keyTaken: "key_taken", system: "system_project" } as const;

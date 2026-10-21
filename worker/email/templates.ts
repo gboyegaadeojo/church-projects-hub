@@ -52,6 +52,8 @@ export function eventContent(template: EmailTemplate, p: Payload, base: string):
       return { line: `${who} commented on ${task}`, details: taskDetails, button: open };
     case "task.status_changed":
       return { line: `${task} moved to ${p.stateName ?? "a new column"}`, details: [`Moved by ${who}`, ...taskDetails], button: open };
+    case "task.blocked":
+      return { line: `${task} is blocked`, details: [...(p.reason ? [`Reason: ${p.reason}`] : []), `Marked by ${who}`, ...taskDetails], button: open };
     case "task.due_soon":
       return { line: `${task} is due in 7 days`, details: taskDetails, button: open };
     case "task.due_tomorrow":

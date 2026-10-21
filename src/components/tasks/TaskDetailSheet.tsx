@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, BellOff, Link2, Plus, RefreshCw, SearchX, Tag, Trash2, TriangleAlert, X } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, Link2, OctagonAlert, Plus, RefreshCw, SearchX, Tag, Trash2, TriangleAlert, X } from "lucide-react";
 import { type ComponentProps, type FormEvent, lazy, type ReactNode, Suspense, useEffect, useId, useRef, useState } from "react";
 import type { MeResponse } from "../../../shared/auth";
 import type { ProjectSummary } from "../../../shared/projects";
@@ -49,6 +49,7 @@ import { AttachmentSection } from "./Attachments";
 import { DueBadge, formatDate, LabelChip, TypeIcon } from "./bits";
 import { isEmptyDoc, RichTextView } from "./RichTextView";
 import { columnTones, PriorityPill, StatusPill } from "./tones";
+import { useBlockReason } from "./BlockReasonDialog";
 
 // Task detail (section 11.3, v4.6): a wide modal in the middle of the screen from 768 px, full screen on phones (Back
 // and swipe down return to the board). The task's own content on the left; its properties in a Details card on the
@@ -168,6 +169,18 @@ function TaskBody({ task, board, project, me, canEdit, onClose }: { task: TaskDe
   const today = todayIn(me.user.timezone);
   const people = peopleById({ members: board.members, people: [...board.people, ...task.people] });
   const done = board.states.find((s) => s.id === task.stateId)?.category === "done";
+  // v4.7: moving into a blocking column asks why; the reason can be edited while the task stays there.
+  const blockReason = useBlockReason();
+  const state = board.states.find((s) => s.id === task.stateId);
+  async function changeStatus(stateId: number) {
+    const target = board.states.find((s) => s.id === stateId);
+    if (target?.blocks && !state?.blocks) {
+      const reason = await blockReason.ask(task.key, target.name);
+      if (reason) await save({ stateId, blockedReason: reason });
+      return;
+    }
+    await save({ stateId });
+  }
 
   useEffect(() => () => clearTimeout(savedTimer.current), []);
 
@@ -219,6 +232,32 @@ function TaskBody({ task, board, project, me, canEdit, onClose }: { task: TaskDe
             <p className="px-2 text-caption text-ink-2">
               Reported by {reporter?.name ?? "someone"} · {formatShortDate(task.createdAt, me.user.timezone)}
             </p>
+            {(task.blockedReason !== null || state?.blocks) && (
+              <div role="status" className="flex flex-wrap items-start gap-3 rounded-control border border-danger-line bg-danger-soft p-3">
+                <Icon icon={OctagonAlert} className="mt-0.5 text-danger-ink" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-secondary font-semibold text-danger-ink">Blocked</p>
+                  <p className="text-secondary text-ink">{task.blockedReason ?? "No reason given."}</p>
+                  {task.blockedAt && (
+                    <p className="text-caption text-ink-2">
+                      {people.get(task.blockedBy ?? 0)?.name ?? "Someone"} · {formatShortDate(task.blockedAt, me.user.timezone)}
+                    </p>
+                  )}
+                </div>
+                {canEdit && (
+                  <Button
+                    variant="secondary"
+                    onClick={async () => {
+                      const reason = await blockReason.ask(task.key, state?.name ?? "Blocked", task.blockedReason ?? "");
+                      if (reason) await save({ blockedReason: reason });
+                    }}
+                  >
+                    Edit reason
+                  </Button>
+                )}
+              </div>
+            )}
+            {blockReason.dialog}
             {conflict && (
               <div role="alert" className="flex flex-col gap-3 rounded-control border border-warning-line bg-warning-soft p-3 text-secondary text-ink">
                 <p className="flex items-start gap-2">
@@ -252,6 +291,7 @@ function TaskBody({ task, board, project, me, canEdit, onClose }: { task: TaskDe
               labelManager={canEdit && (me.user.appRole === "admin" || project.role === "admin") ? { projectId: project.id, csrfToken: me.csrfToken } : null}
               timezone={me.user.timezone}
               save={save}
+              onStatusChange={changeStatus}
             />
           </aside>
 
@@ -323,6 +363,7 @@ function DetailsCard({
   done,
   canEdit,
   labelManager,
+  onStatusChange,
   timezone,
   save,
 }: {
@@ -333,6 +374,7 @@ function DetailsCard({
   done: boolean;
   canEdit: boolean;
   labelManager: LabelManager | null;
+  onStatusChange: (stateId: number) => void;
   timezone: string;
   save: (changes: Omit<UpdateTaskBody, "version">) => void;
 }) {
@@ -346,7 +388,7 @@ function DetailsCard({
           variant="quiet"
           value={String(task.stateId)}
           disabled={!canEdit}
-          onValueChange={(v) => save({ stateId: Number(v) })}
+          onValueChange={(v) => onStatusChange(Number(v))}
           options={board.states.map((s) => ({ value: String(s.id), label: s.name, display: <StatusPill name={s.name} tone={tones.get(s.id) ?? "grey"} /> }))}
         />
       </Field>
@@ -943,6 +985,10 @@ function describeEvent(e: TaskEvent, board: BoardResponse, people: Map<number, {
       return `moved it from ${state(e.oldValue)} to ${state(e.newValue)}`;
     case "assignee":
       return e.newValue ? `assigned it to ${person(e.newValue)}` : "unassigned it";
+    case "blocked":
+      return `marked it as blocked: “${e.newValue}”`;
+    case "unblocked":
+      return "unblocked it";
     case "secondary_assignee":
       return e.newValue ? `made ${person(e.newValue)} the secondary assignee` : "removed the secondary assignee";
     case "title":

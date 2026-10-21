@@ -11,7 +11,7 @@ import { invalid, unconfirmed } from "./routes";
 // A column is removed only when it holds no tasks (so nothing disappears from the board), and a project always
 // keeps at least one. Every change is audited as a workflow change (section 6).
 
-type StateRow = { id: number; project_id: number; name: string; category: string; position: number };
+type StateRow = { id: number; project_id: number; name: string; category: string; position: number; blocks: number };
 
 async function audit(c: Context<AppEnv>, change: string, id: number, detail: Record<string, unknown>, now: number) {
   return auditStatement(
@@ -25,14 +25,14 @@ async function audit(c: Context<AppEnv>, change: string, id: number, detail: Rec
 async function guard(c: Context<AppEnv>): Promise<StateRow | Response> {
   const id = idParam(c, "id");
   if (id === null) return forbidden(c, 404);
-  const row = await c.env.DB.prepare("SELECT id, project_id, name, category, position FROM workflow_states WHERE id = ?1").bind(id).first<StateRow>();
+  const row = await c.env.DB.prepare("SELECT id, project_id, name, category, position, blocks FROM workflow_states WHERE id = ?1").bind(id).first<StateRow>();
   if (!row) return forbidden(c, 404);
   const result = await authorize(c, "workflow.edit", row.project_id);
   if (!result.ok) return forbidden(c, result.status);
   return row;
 }
 
-const toDto = (r: StateRow) => ({ id: r.id, name: r.name, category: r.category, position: r.position });
+const toDto = (r: StateRow) => ({ id: r.id, name: r.name, category: r.category, position: r.position, blocks: r.blocks === 1 });
 
 export function workflowRoutes() {
   const routes = new Hono<AppEnv>();
@@ -47,11 +47,11 @@ export function workflowRoutes() {
     // The cap is enforced in the insert itself, so two admins adding at once can't pass 8.
     const [inserted] = await c.env.DB.batch([
       c.env.DB.prepare(
-        `INSERT INTO workflow_states (project_id, name, category, position, created_at, updated_at, created_by)
-         SELECT ?1, ?2, ?3, coalesce(max(position), -1) + 1, ?4, ?4, ?5 FROM workflow_states WHERE project_id = ?1
+        `INSERT INTO workflow_states (project_id, name, category, position, blocks, created_at, updated_at, created_by)
+         SELECT ?1, ?2, ?3, coalesce(max(position), -1) + 1, ?7, ?4, ?4, ?5 FROM workflow_states WHERE project_id = ?1
          HAVING count(*) < ?6
-         RETURNING id, project_id, name, category, position`,
-      ).bind(projectId, parsed.data.name, parsed.data.category, now, c.get("auth").user.id, TASK_LIMITS.columns),
+         RETURNING id, project_id, name, category, position, blocks`,
+      ).bind(projectId, parsed.data.name, parsed.data.category, now, c.get("auth").user.id, TASK_LIMITS.columns, parsed.data.blocks ? 1 : 0),
     ]);
     const row = (inserted!.results as StateRow[])[0];
     if (!row) return c.json({ error: TASK_ERRORS.tooMany }, 400);
@@ -66,13 +66,14 @@ export function workflowRoutes() {
     if (!parsed.success) return invalid(c, parsed.error.issues);
     const now = Date.now();
     const [updated] = await c.env.DB.batch([
-      c.env.DB.prepare("UPDATE workflow_states SET name = ?2, category = ?3, updated_at = ?4 WHERE id = ?1 RETURNING id, project_id, name, category, position").bind(
-        row.id,
-        parsed.data.name,
-        parsed.data.category,
-        now,
-      ),
-      await audit(c, "column edited", row.id, { from: row.name, name: parsed.data.name, category: parsed.data.category }, now),
+      c.env.DB.prepare(
+        "UPDATE workflow_states SET name = ?2, category = ?3, blocks = ?5, updated_at = ?4 WHERE id = ?1 RETURNING id, project_id, name, category, position, blocks",
+      ).bind(row.id, parsed.data.name, parsed.data.category, now, parsed.data.blocks ? 1 : 0),
+      // A column that stops blocking releases its tasks: their reasons no longer apply.
+      ...(row.blocks === 1 && !parsed.data.blocks
+        ? [c.env.DB.prepare("UPDATE tasks SET blocked_reason = NULL, blocked_at = NULL, blocked_by = NULL, version = version + 1 WHERE state_id = ?1 AND blocked_reason IS NOT NULL").bind(row.id)]
+        : []),
+      await audit(c, "column edited", row.id, { from: row.name, name: parsed.data.name, category: parsed.data.category, blocks: parsed.data.blocks }, now),
     ]);
     return c.json({ state: toDto((updated!.results as StateRow[])[0]!) });
   });
