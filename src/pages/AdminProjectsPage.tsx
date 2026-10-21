@@ -365,7 +365,7 @@ function ProjectFormDialog({ me, project, onDone }: { me: MeResponse; project?: 
 }
 
 /** A row of square radio choices (swatches, icons). Selected = thick accent border and tint, not colour alone. */
-function ChoiceGrid({
+export function ChoiceGrid({
   legend,
   value,
   onChange,

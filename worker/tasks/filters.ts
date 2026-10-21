@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { type SavedFilter, savedFilterBody, taskFilter } from "../../shared/filters";
+import { EMPTY_FILTER, type SavedFilter, savedFilterBody, taskFilter } from "../../shared/filters";
 import { TASK_CONFIRM } from "../../shared/tasks";
 import { AUDIT, auditStatement } from "../audit";
 import { authorize, forbidden, idParam, requirePermission } from "../auth/authorize";
@@ -19,7 +19,7 @@ function toDto(r: Row): SavedFilter {
   return {
     id: r.id,
     name: r.name,
-    query: query.success ? query.data : { assignees: [], labels: [], priorities: [], scopes: [] },
+    query: query.success ? query.data : EMPTY_FILTER,
     shared: r.shared === 1,
     ownerId: r.owner_id,
   };

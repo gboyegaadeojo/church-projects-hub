@@ -13,6 +13,8 @@ import {
   SCOPES,
   TASK_CONFIRM,
   TASK_COPY,
+  TASK_ERRORS,
+  TASK_LIMITS,
   TASK_TYPE_LABELS,
   TASK_TYPES,
   type TaskDetail,
@@ -21,10 +23,13 @@ import {
   todayIn,
   type UpdateTaskBody,
 } from "../../../shared/tasks";
-import { ApiError } from "../../lib/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router";
+import { PROJECT_COLOURS } from "../../../shared/projects";
+import { api, ApiError } from "../../lib/api";
 import { cn } from "../../lib/cn";
 import { TaskConflict, useComments, useDeleteTask, useSubtasks, useTaskDetail, useUpdateTask, useWatch } from "../../lib/taskDetail";
-import { peopleById } from "../../lib/tasks";
+import { boardKey, peopleById } from "../../lib/tasks";
 import { ProjectTile } from "../shell/AppShell";
 import { Avatar } from "../ui/Avatar";
 import { Button, IconButton } from "../ui/Button";
@@ -236,7 +241,18 @@ function TaskBody({ task, board, project, me, canEdit, onClose }: { task: TaskDe
             aria-label="Details"
             className="px-4 pt-4 md:sticky md:top-0 md:col-start-2 md:row-span-2 md:row-start-1 md:self-start md:py-6 md:pr-6 md:pl-0"
           >
-            <DetailsCard task={task} board={board} people={people} today={today} done={done} canEdit={canEdit} timezone={me.user.timezone} save={save} />
+            <DetailsCard
+              task={task}
+              board={board}
+              people={people}
+              today={today}
+              done={done}
+              canEdit={canEdit}
+              // ORG-1: Project Admins (and App Admins) can create a label right here.
+              labelManager={canEdit && (me.user.appRole === "admin" || project.role === "admin") ? { projectId: project.id, csrfToken: me.csrfToken } : null}
+              timezone={me.user.timezone}
+              save={save}
+            />
           </aside>
 
           <div className="flex min-w-0 flex-col gap-8 px-4 py-6 md:col-start-1 md:row-start-2 md:px-8 md:pb-10">
@@ -306,6 +322,7 @@ function DetailsCard({
   today,
   done,
   canEdit,
+  labelManager,
   timezone,
   save,
 }: {
@@ -315,6 +332,7 @@ function DetailsCard({
   today: string;
   done: boolean;
   canEdit: boolean;
+  labelManager: LabelManager | null;
   timezone: string;
   save: (changes: Omit<UpdateTaskBody, "version">) => void;
 }) {
@@ -360,7 +378,7 @@ function DetailsCard({
           options={PRIORITIES.map((p) => ({ value: p, label: PRIORITY_LABELS[p], display: <PriorityPill priority={p} /> }))}
         />
       </Field>
-      <LabelsField task={task} board={board} canEdit={canEdit} onSave={(labelIds) => save({ labelIds })} />
+      <LabelsField task={task} board={board} canEdit={canEdit} manager={labelManager} onSave={(labelIds) => save({ labelIds })} />
       {task.type !== "epic" && (
         <Field label="Epic" inline>
           <Select
@@ -495,9 +513,51 @@ function DueField({ task, today, done, canEdit, onSave }: { task: TaskDetail; to
   );
 }
 
-function LabelsField({ task, board, canEdit, onSave }: { task: TaskDetail; board: BoardResponse; canEdit: boolean; onSave: (ids: number[]) => void }) {
+type LabelManager = { projectId: number; csrfToken: string };
+
+function LabelsField({
+  task,
+  board,
+  canEdit,
+  manager,
+  onSave,
+}: {
+  task: TaskDetail;
+  board: BoardResponse;
+  canEdit: boolean;
+  manager: LabelManager | null;
+  onSave: (ids: number[]) => void;
+}) {
   const labels = board.labels.filter((l) => task.labelIds.includes(l.id));
   const id = useId();
+  const queryClient = useQueryClient();
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  /** Creates the label in this project (next unused colour) and puts it on the task. */
+  async function createLabel(e: FormEvent) {
+    e.preventDefault();
+    const name = newName.trim();
+    if (!manager || !name) return;
+    const used = new Set(board.labels.map((l) => l.colour));
+    const colour = PROJECT_COLOURS.find((c) => !used.has(c)) ?? PROJECT_COLOURS[board.labels.length % PROJECT_COLOURS.length]!;
+    setCreating(true);
+    try {
+      const { label } = await api<{ label: { id: number } }>(`/api/projects/${manager.projectId}/labels`, {
+        method: "POST",
+        body: { name, colour },
+        csrfToken: manager.csrfToken,
+      });
+      await queryClient.invalidateQueries({ queryKey: boardKey(manager.projectId) });
+      setNewName("");
+      onSave([...task.labelIds, label.id]);
+    } catch (err) {
+      const taken = err instanceof ApiError && (err.body as { error?: string } | null)?.error === TASK_ERRORS.nameTaken;
+      toast({ variant: "error", title: taken ? "That label already exists in this project." : TASK_COPY.saveFailed });
+    } finally {
+      setCreating(false);
+    }
+  }
   return (
     <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-x-2">
       <span id={id} className="pt-1.5 text-secondary text-ink-2">
@@ -510,7 +570,7 @@ function LabelsField({ task, board, canEdit, onSave }: { task: TaskDetail; board
             <LabelChip key={l.id} label={l} />
           ))}
         </div>
-        {canEdit && board.labels.length > 0 && (
+        {canEdit && (board.labels.length > 0 || manager) && (
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" icon={Tag} className="-ml-2 px-2 text-caption whitespace-nowrap text-ink-2">
@@ -528,6 +588,19 @@ function LabelsField({ task, board, canEdit, onSave }: { task: TaskDetail; board
                   />
                 ))}
               </div>
+              {manager && (
+                <form onSubmit={createLabel} noValidate className="mt-2 flex items-end gap-2 border-t border-line px-2 pt-2">
+                  <Field label="Create label" filter className="flex-1">
+                    <TextInput value={newName} maxLength={TASK_LIMITS.labelName} placeholder="Name" onChange={(e) => setNewName(e.target.value)} />
+                  </Field>
+                  <IconButton type="submit" icon={Plus} label="Create label" variant="secondary" loading={creating} disabled={!newName.trim()} />
+                </form>
+              )}
+              {manager && (
+                <Link to={`/projects/${task.projectKey}/settings`} className="mt-1 block px-2 py-1 text-caption text-accent-ink underline-offset-2 hover:underline">
+                  Manage this project's labels
+                </Link>
+              )}
             </PopoverContent>
           </Popover>
         )}

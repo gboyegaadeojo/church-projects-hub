@@ -19,6 +19,7 @@ import { ChurchReportsPage } from "./pages/ChurchReportsPage";
 import { ProjectMembersPage } from "./pages/ProjectMembersPage";
 import { ProjectPage } from "./pages/ProjectPage";
 import { ProjectReportsPage } from "./pages/ProjectReportsPage";
+import { ProjectSettingsPage } from "./pages/ProjectSettingsPage";
 import { ProjectsPage } from "./pages/ProjectsPage";
 import { BugReportPage, FeatureRequestPage, MyFeedbackPage } from "./pages/FeedbackPages";
 import { HomePage } from "./pages/HomePage";
@@ -63,6 +64,7 @@ function App() {
           <Route path="/projects/:key" element={<ProjectPage />} />
           <Route path="/projects/:key/members" element={<ProjectMembersPage />} />
           <Route path="/projects/:key/reports" element={<ProjectReportsPage />} />
+          <Route path="/projects/:key/settings" element={<ProjectSettingsPage />} />
           <Route path="/admin" element={<AdminHomePage />} />
           <Route path="/admin/requests" element={<AdminRequestsPage />} />
           <Route path="/admin/projects" element={<AdminProjectsPage />} />

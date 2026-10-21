@@ -151,7 +151,7 @@ export function FilterBar({ projectId, filter, onChange, members, labels, meId, 
   );
 }
 
-function SavedFilters({
+export function SavedFilters({
   projectId,
   filter,
   onApply,
