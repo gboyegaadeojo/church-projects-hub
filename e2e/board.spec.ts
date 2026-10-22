@@ -137,6 +137,29 @@ test.describe("TASK-2 board", () => {
   });
 });
 
+test.describe("v4.7 project switcher on phones", () => {
+  test("the top bar names the open project and switches projects, keeping the section", async ({ pageAs }, testInfo) => {
+    const v = viewportOf(testInfo);
+    test.skip(v !== "mobile", "Tablets and desktops switch projects from the sidebar.");
+    const project = BOARD_PROJECTS.mobile;
+    const page = await pageAs(persona("mover", "mobile"));
+    await page.goto(`/projects/${project.key}?view=backlog`);
+    const switcher = page.getByRole("button", { name: `Project: ${project.name}. Switch project` });
+    await expect(switcher).toBeVisible();
+    await switcher.click();
+    const sheet = page.getByRole("dialog", { name: "Switch project" });
+    const current = sheet.getByRole("link", { name: new RegExp(project.name) });
+    await expect(current).toHaveAttribute("aria-current", "page");
+    await expect(current).toHaveAttribute("href", `/projects/${project.key}?view=backlog`);
+    await expect(sheet.getByRole("link", { name: "All projects" })).toBeVisible();
+    await expectNoViolations(page, "[role=dialog]");
+    await sheet.getByRole("link", { name: "All projects" }).click();
+    await expect(sheet).toBeHidden();
+    // Outside a project the logo is back and there's no switcher.
+    await expect(page.getByRole("button", { name: /Switch project/ })).toHaveCount(0);
+  });
+});
+
 test.describe("TASK-2 list view and TASK-10 bulk edit", () => {
   test("sorts, selects and moves several tasks at once", async ({ pageAs }, testInfo) => {
     const v = viewportOf(testInfo);
