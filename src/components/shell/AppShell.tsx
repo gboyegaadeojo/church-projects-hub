@@ -226,6 +226,10 @@ function TopBar({ me }: { me: MeResponse }) {
         <JumpToButton />
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-1">
+        {/* Phones: Search sits top right (v4.7); desktop and tablet have the Jump to box and the sidebar. */}
+        <Link to="/search" aria-label="Search" className="inline-flex size-touch items-center justify-center rounded-control text-ink-2 state-hover:bg-hover state-hover:text-ink md:hidden">
+          <Icon icon={Search} />
+        </Link>
         <CreateButton me={me} />
         <HelpMenu />
         <NotificationBell me={me} />
@@ -563,7 +567,7 @@ function ProfilePopover({ me }: { me: MeResponse }) {
 }
 
 /** Name, theme, request more projects (AUTH-5), email settings (NOTIF-5), privacy and sign out. Used in the popover and the mobile sheet. */
-function ProfilePanel({ me, onDone }: { me: MeResponse; onDone: () => void }) {
+function ProfilePanel({ me, onDone, showAdmin = false }: { me: MeResponse; onDone: () => void; showAdmin?: boolean }) {
   const saveTheme = useSaveTheme(me);
   const signOut = useSignOut();
   const navigate = useNavigate();
@@ -580,6 +584,13 @@ function ProfilePanel({ me, onDone }: { me: MeResponse; onDone: () => void }) {
       </div>
       <ThemeSwitch onPreferenceChange={(pref) => void saveTheme(pref)} />
       <nav aria-label="Account" className="-mx-1 flex flex-col">
+        {/* Phones: Administration lives here, not in the bottom bar (v4.7). The API checks access (NFR-1). */}
+        {showAdmin && adminLinks(me).length > 0 && (
+          <Link to="/admin" className={linkClass} onClick={onDone}>
+            <Icon icon={ShieldCheck} />
+            Administration
+          </Link>
+        )}
         <Link to="/request-access" className={linkClass} onClick={onDone}>
           <Icon icon={FolderPlus} />
           Request access to more projects
@@ -622,7 +633,8 @@ const tabClasses = (active: boolean) =>
 
 function BottomNav({ me }: { me: MeResponse }) {
   const [meOpen, setMeOpen] = useState(false);
-  const hasAdmin = adminLinks(me).length > 0;
+  const { pathname } = useLocation();
+  const inAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
   return (
     <nav
       aria-label="Main"
@@ -642,27 +654,13 @@ function BottomNav({ me }: { me: MeResponse }) {
           </NavLink>
         </li>
         <li className="flex flex-1">
-          <NavLink to="/search" className={({ isActive }) => tabClasses(isActive)}>
-            <Icon icon={Search} />
-            Search
-          </NavLink>
-        </li>
-        {hasAdmin && (
-          <li className="flex flex-1">
-            <NavLink to="/admin" className={({ isActive }) => tabClasses(isActive)}>
-              <Icon icon={ShieldCheck} />
-              Admin
-            </NavLink>
-          </li>
-        )}
-        <li className="flex flex-1">
           <Dialog open={meOpen} onOpenChange={setMeOpen}>
-            <button type="button" className={tabClasses(meOpen)} onClick={() => setMeOpen(true)} aria-haspopup="dialog">
+            <button type="button" className={tabClasses(meOpen || inAdmin)} onClick={() => setMeOpen(true)} aria-haspopup="dialog">
               <Icon icon={CircleUser} />
               Me
             </button>
             <SheetContent title="Your account">
-              <ProfilePanel me={me} onDone={() => setMeOpen(false)} />
+              <ProfilePanel me={me} onDone={() => setMeOpen(false)} showAdmin />
             </SheetContent>
           </Dialog>
         </li>

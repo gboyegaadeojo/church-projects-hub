@@ -96,9 +96,12 @@ for (const scheme of ["light", "dark"] as const) {
     test("The app shell links an admin to the access queue", async ({ pageAs }, testInfo) => {
       const page = await pageAs(persona("admin"), scheme);
       await page.goto("/work");
-      // Administration in the sidebar on desktop; the Admin tab of the bottom bar on mobile (section 12).
-      const name = viewportOf(testInfo) === "desktop" ? "Administration" : "Admin";
-      await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name, exact: true }).click();
+      // Administration in the sidebar on desktop; in the Me sheet on mobile (v4.7).
+      if (viewportOf(testInfo) === "desktop") await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Administration", exact: true }).click();
+      else {
+        await page.getByRole("navigation", { name: "Main" }).getByRole("button", { name: "Me" }).click();
+        await page.getByRole("dialog", { name: "Your account" }).getByRole("link", { name: "Administration" }).click();
+      }
       await page.getByRole("main").getByRole("link", { name: /^Access requests/ }).click();
       await expect(page.getByRole("heading", { level: 1, name: "Access requests" })).toBeVisible();
       await expectNoViolations(page);

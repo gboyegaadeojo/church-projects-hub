@@ -10,7 +10,8 @@ test("NAV-1 search finds tasks by words and jumps to a key", async ({ pageAs }, 
   const project = BOARD_PROJECTS[v];
   const page = await pageAs(persona("mover", v));
   await page.goto("/work");
-  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Search" }).click();
+  // Desktop: the sidebar. Phones (v4.7): the search icon top right.
+  await (v === "desktop" ? page.getByRole("navigation", { name: "Main" }) : page.getByRole("banner")).getByRole("link", { name: "Search" }).click();
   const box = page.getByRole("searchbox", { name: "Search tasks and projects" });
   await box.fill("encod");
   // The same title is in this person's board and detail projects; check the board's one.

@@ -47,7 +47,7 @@
 
   // Production values. `npm run dev` overrides APP_BASE_URL from .dev.vars (http://localhost:5174).
   "vars": {
-    // Links in emails. Switch to https://hub.ifcwpg.com (and GOOGLE_REDIRECT_URI with it) once that custom domain is live.
+    // Links in emails. The app stays on workers.dev (v4.7: ifcwpg.com DNS stays at Squarespace).
     "APP_BASE_URL": "https://church-projects-hub.media-5f7.workers.dev",
     "EMAIL_FROM": "media@ifcwpg.com"
   },

@@ -98,8 +98,8 @@ Cloudflare resources (church account):
    - `CLOUDFLARE_API_TOKEN`: the token from step 1
    - `CLOUDFLARE_ACCOUNT_ID`: the account ID shown on the Cloudflare dashboard's Workers page
    Until both exist, the deploy and backup workflows skip with a warning instead of failing.
-3. Production Worker secrets (section 18), each with `npx wrangler secret put <NAME>`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (`https://hub.ifcwpg.com/api/auth/callback`), and later `RESEND_API_KEY`, `CF_ACCOUNT_ID`, `CF_ANALYTICS_TOKEN`. `SESSION_SECRET` is already set. `APP_BASE_URL` and `EMAIL_FROM` are in `wrangler.jsonc`.
-4. Custom domain: in Cloudflare, **Workers & Pages → church-projects-hub → Settings → Domains & Routes → Add → Custom domain** `hub.ifcwpg.com` (needs ifcwpg.com's DNS on Cloudflare).
+3. Production Worker secrets (section 18), each with `npx wrangler secret put <NAME>`: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` (`https://church-projects-hub.media-5f7.workers.dev/api/auth/callback`), and later `RESEND_API_KEY`, `CF_ACCOUNT_ID`, `CF_ANALYTICS_TOKEN`. `SESSION_SECRET` is already set. `APP_BASE_URL` and `EMAIL_FROM` are in `wrangler.jsonc`.
+4. Custom domain (optional, not used: ifcwpg.com's DNS stays at Squarespace): it needs the domain's DNS on Cloudflare; then add it under **Workers & Pages → church-projects-hub → Settings → Domains & Routes**, set `APP_BASE_URL` and add the new redirect URI.
 
 ### Rolling back
 

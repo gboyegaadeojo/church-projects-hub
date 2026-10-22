@@ -40,6 +40,9 @@ for (const scheme of ["light", "dark"] as const) {
       } else {
         await expect(nav.getByRole("link", { name: "Projects" })).toBeVisible();
         await expect(nav.getByRole("button", { name: "Me" })).toBeVisible();
+        // v4.7: Search is top right on phones; Administration is in the Me sheet, never the bottom bar.
+        await expect(nav.getByRole("link", { name: "Search" })).toHaveCount(0);
+        await expect(page.getByRole("banner").getByRole("link", { name: "Search" })).toBeVisible();
         await expect(nav.getByRole("link", { name: "Admin" })).toHaveCount(0);
       }
       await expectNoHorizontalOverflow(page);
@@ -58,6 +61,8 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(page.getByRole("radiogroup", { name: "Theme" })).toBeVisible();
       await expect(page.getByRole("link", { name: "Request access to more projects" })).toBeVisible();
       await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+      // A Contributor has no admin area, so the panel has no way in.
+      await expect(page.getByRole("link", { name: "Administration" })).toHaveCount(0);
       await expectNoViolations(page);
       await page.keyboard.press("Escape");
     });
@@ -66,9 +71,14 @@ for (const scheme of ["light", "dark"] as const) {
       const page = await pageAs(persona("admin"), scheme);
       await page.goto("/work");
       // Everyday navigation holds a single way in; the admin tools themselves live inside it.
-      const entry = viewportOf(testInfo) === "desktop" ? "Administration" : "Admin";
       await expect(mainNav(page).getByRole("link", { name: "Access requests" })).toHaveCount(0);
-      await mainNav(page).getByRole("link", { name: entry, exact: true }).click();
+      // Desktop: the sidebar. Phones (v4.7): the Me sheet, not a bottom-bar tab.
+      if (viewportOf(testInfo) === "desktop") await mainNav(page).getByRole("link", { name: "Administration", exact: true }).click();
+      else {
+        await expect(mainNav(page).getByRole("link", { name: "Admin" })).toHaveCount(0);
+        await mainNav(page).getByRole("button", { name: "Me" }).click();
+        await page.getByRole("dialog", { name: "Your account" }).getByRole("link", { name: "Administration" }).click();
+      }
       await expect(page.getByRole("heading", { level: 1, name: "Administration" })).toBeVisible();
       const main = page.getByRole("main");
       for (const group of ["People", "Projects", "System"]) await expect(main.getByRole("heading", { level: 2, name: group })).toBeVisible();
