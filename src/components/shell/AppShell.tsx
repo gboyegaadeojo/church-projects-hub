@@ -48,7 +48,8 @@ import { Skeleton } from "../ui/Skeleton";
 import { ThemeSwitch } from "../ui/ThemeSwitch";
 import { Tooltip } from "../ui/Tooltip";
 import { BrandMark } from "./BrandMark";
-import { useProjectNav } from "./ProjectTabs";
+import { MobileProjectSwitcher } from "./ProjectSwitcher";
+import { currentProjectTab, useProjectNav } from "./ProjectTabs";
 
 // The app shell (section 12), laid out like a work tracker:
 // - a top bar across the screen: logo, "Jump to…" search, Create, Help, notifications and the account menu;
@@ -212,11 +213,15 @@ function Shell({ me, children }: { me: MeResponse; children?: ReactNode }) {
 /* ---------- Top bar (every size) ---------- */
 
 function TopBar({ me }: { me: MeResponse }) {
+  const { pathname, search } = useLocation();
+  // Phones, inside a project: the open project takes the logo's place, as a switcher (v4.7).
+  const inProject = currentProjectTab(pathname, new URLSearchParams(search)) !== null;
   return (
     <header className="sticky top-0 z-30 flex h-topbar items-center gap-3 border-b border-line bg-card px-3 md:px-4">
-      <Link to="/work" className="shrink-0 rounded-control">
+      <Link to="/work" className={cn("shrink-0 rounded-control", inProject && "max-md:hidden")}>
         <BrandMark />
       </Link>
+      <MobileProjectSwitcher me={me} />
       <div className="hidden min-w-0 flex-1 justify-center px-4 md:flex">
         <JumpToButton />
       </div>
